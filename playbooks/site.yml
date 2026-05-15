@@ -6,6 +6,20 @@
 - name: Load Terraform inventory
   ansible.builtin.import_playbook: ../inventory/load_terraform.yml
 
+# Configure NTP time synchronization BEFORE deploying Splunk. Splunk's
+# _time correlation depends on accurate clocks; points at the Proxmox
+# hosts (stratum-2 servers managed by ansible-proxmox) when Doppler
+# provides PROXMOX_NTP_SERVERS, falls back to Debian public pool when not.
+- name: Configure NTP time synchronization
+  hosts: splunk
+  become: true
+  gather_facts: true
+  tags:
+    - ntp
+    - time
+  roles:
+    - role: ntp
+
 - name: Deploy Splunk
   hosts: splunk
   become: true
