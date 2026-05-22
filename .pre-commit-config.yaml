@@ -35,4 +35,4 @@ repos:
     hooks:
       - id: markdownlint
         args: [--config, .markdownlint.json, --fix]
-        exclude: ^\.github/(aw/|workflows/(.*\.lock\.yml|agentics-maintenance\.yml))
+        exclude: ^(\.github/(aw/|workflows/(.*\.lock\.yml|agentics-maintenance\.yml))|CHANGELOG\.md$)
