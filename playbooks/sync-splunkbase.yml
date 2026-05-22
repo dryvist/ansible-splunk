@@ -160,7 +160,7 @@
 
     - name: Authenticate to Splunkbase
       ansible.builtin.uri:
-        url: https://splunkbase.splunk.com/api/account:login/
+        url: "{{ splunkbase_api_url | default('https://splunkbase.splunk.com') }}/api/account:login/"
         method: POST
         body_format: form-urlencoded
         body:
@@ -191,7 +191,7 @@
     - name: Download drifted entries from Splunkbase
       ansible.builtin.get_url:
         url: >-
-          https://splunkbase.splunk.com/app/{{ item.splunkbase_id }}/release/{{ item.version }}/download/
+          {{ splunkbase_api_url | default('https://splunkbase.splunk.com') }}/app/{{ item.splunkbase_id }}/release/{{ item.version }}/download/
         dest: "{{ splunkbase_sync_tmpdir }}/{{ item.filename }}"
         headers:
           X-Auth-Token: "{{ splunkbase_token }}"
