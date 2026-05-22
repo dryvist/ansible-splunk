@@ -1,0 +1,16 @@
+---
+# splunk_docker role metadata
+
+galaxy_info:
+  role_name: splunk_docker
+  author: JacobPEvans
+  description: Deploy Splunk Enterprise via Docker
+  license: MIT
+  min_ansible_version: "2.17"
+
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+
+dependencies: []
