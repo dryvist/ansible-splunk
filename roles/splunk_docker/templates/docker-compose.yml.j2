@@ -13,7 +13,7 @@ services:
     container_name: {{ splunk_docker_container_name }}
     environment:
       SPLUNK_START_ARGS: "--accept-license"
-      SPLUNK_GENERAL_TERMS: "{{ splunk_docker_sgt_accept | default('--accept-sgt-current-at-splunk-com') }}"
+      SPLUNK_GENERAL_TERMS: "{{ splunk_docker_sgt_accept }}"
       SPLUNK_PASSWORD: "{{ splunk_docker_password }}"
       # HEC tokens are managed via inputs.conf (deployed by Ansible), not the
       # Docker entrypoint. Passing SPLUNK_HEC_TOKEN here causes the entrypoint's
