@@ -15,6 +15,11 @@ splunk_docker_container_name: splunk
 # Splunk credentials (from Doppler) - set in playbook vars
 splunk_docker_password: ""
 
+# Splunk General Terms acceptance string for SPLUNK_GENERAL_TERMS env var.
+# Override in staging to point at non-prod terms acceptance strings if Splunk
+# publishes a new SGT version mid-release cycle.
+splunk_docker_sgt_accept: "--accept-sgt-current-at-splunk-com"
+
 # HEC token values — dict of { index_name: token_uuid }.
 # When HEC_NAMESPACE is set, per-index tokens are derived via uuidv5.
 # SPLUNK_HEC_TOKEN provides the shared legacy fallback.
