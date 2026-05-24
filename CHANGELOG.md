@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0](https://github.com/JacobPEvans/ansible-splunk/compare/v0.12.8...v0.13.0) (2026-05-24)
+
+
+### Features
+
+* **ntp:** vendor ntp role and configure Splunk VM client ([#203](https://github.com/JacobPEvans/ansible-splunk/issues/203)) ([4a464a3](https://github.com/JacobPEvans/ansible-splunk/commit/4a464a346ec449d99ace163286182eb6d56a7cb8)), closes [#200](https://github.com/JacobPEvans/ansible-splunk/issues/200)
+
 ## [0.12.8](https://github.com/JacobPEvans/ansible-splunk/compare/v0.12.7...v0.12.8) (2026-05-24)
 
 
