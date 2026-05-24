@@ -11,7 +11,11 @@
 [macos_edge_silence_detector]
 description = Alerts when the macbook-m4 Cribl Edge -> Cribl Cloud -> Splunk chain has been silent for more than 15 minutes. Catches Mac offline, daemon crash, Cribl Cloud enrollment expiry, Stream pipeline stalls, and HEC ingestion failures with a single signal.
 search = | tstats latest(_time) as last_seen WHERE (index=os OR index=mac_perf) sourcetype=macos:* | eval minutes_silent = (now() - last_seen) / 60 | where minutes_silent > 15
-dispatch.earliest_time = -30m
+# Lookback must exceed the worst-case silence the alert needs to detect.
+# A short window (e.g. -30m) starves tstats of data once silence exceeds
+# the window, so the alert silently stops firing exactly when it matters
+# most. tstats reads only indexed metadata, so a wide window is cheap.
+dispatch.earliest_time = -24h
 dispatch.latest_time = now
 cron_schedule = */5 * * * *
 enableSched = 1
@@ -24,7 +28,9 @@ alert.track = 1
 counttype = number of events
 relation = greater than
 quantity = 0
+{% if splunk_docker_alert_email %}
 action.email = 1
 action.email.to = {{ splunk_docker_alert_email }}
 action.email.subject = [Splunk Alert] macOS Cribl Edge chain silent
 action.email.message.alert = The macbook-m4 Cribl Edge pipeline has not delivered any macos:* sourcetype events to Splunk in the last 15+ minutes. Investigate Cribl Edge daemon, Cribl Cloud enrollment, Cribl Stream pipelines, and Splunk HEC ingestion.
+{% endif %}
