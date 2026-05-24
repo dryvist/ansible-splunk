@@ -151,6 +151,15 @@
     mode: '0644'
   notify: Restart Splunk container
 
+- name: Deploy savedsearches.conf for pipeline-silence alerts
+  ansible.builtin.template:
+    src: savedsearches.conf.j2
+    dest: "{{ splunk_docker_etc_dir }}/system/local/savedsearches.conf"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  notify: Restart Splunk container
+
 - name: Check if Splunk Docker image exists
   community.docker.docker_image_info:
     name: "{{ splunk_docker_image }}"
