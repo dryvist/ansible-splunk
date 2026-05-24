@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.8](https://github.com/JacobPEvans/ansible-splunk/compare/v0.12.7...v0.12.8) (2026-05-24)
+
+
+### Bug Fixes
+
+* **pre-commit:** exclude release-please CHANGELOG.md from markdownlint ([#220](https://github.com/JacobPEvans/ansible-splunk/issues/220)) ([a40f964](https://github.com/JacobPEvans/ansible-splunk/commit/a40f964d37be6a9e306f05a6b22363981ce8f695))
+
 ## [0.12.7](https://github.com/JacobPEvans/ansible-splunk/compare/v0.12.6...v0.12.7) (2026-05-22)
 
 
