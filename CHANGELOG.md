@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.1](https://github.com/JacobPEvans/ansible-splunk/compare/v0.14.0...v0.14.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* **deps:** refresh gh-aw action SHA pins [aw:gh-aw-pin-refresh] ([#226](https://github.com/JacobPEvans/ansible-splunk/issues/226)) ([fdc79a5](https://github.com/JacobPEvans/ansible-splunk/commit/fdc79a538c1e2bf62b69804e975a2432f22df37e))
+
+## [0.14.0](https://github.com/JacobPEvans/ansible-splunk/compare/v0.13.0...v0.14.0) (2026-05-24)
+
+
+### Features
+
+* **splunk:** add macOS Cribl Edge silence-detector saved search ([774cdf2](https://github.com/JacobPEvans/ansible-splunk/commit/774cdf2f857b4cce9521975f1b0f3e8b941e373f))
+
+## [0.13.0](https://github.com/JacobPEvans/ansible-splunk/compare/v0.12.8...v0.13.0) (2026-05-24)
+
+
+### Features
+
+* **ntp:** vendor ntp role and configure Splunk VM client ([#203](https://github.com/JacobPEvans/ansible-splunk/issues/203)) ([4a464a3](https://github.com/JacobPEvans/ansible-splunk/commit/4a464a346ec449d99ace163286182eb6d56a7cb8)), closes [#200](https://github.com/JacobPEvans/ansible-splunk/issues/200)
+
+## [0.12.8](https://github.com/JacobPEvans/ansible-splunk/compare/v0.12.7...v0.12.8) (2026-05-24)
+
+
+### Bug Fixes
+
+* **pre-commit:** exclude release-please CHANGELOG.md from markdownlint ([#220](https://github.com/JacobPEvans/ansible-splunk/issues/220)) ([a40f964](https://github.com/JacobPEvans/ansible-splunk/commit/a40f964d37be6a9e306f05a6b22363981ce8f695))
+
 ## [0.12.7](https://github.com/JacobPEvans/ansible-splunk/compare/v0.12.6...v0.12.7) (2026-05-22)
 
 
