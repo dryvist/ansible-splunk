@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.2](https://github.com/dryvist/ansible-splunk/compare/v0.14.1...v0.14.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* **ci:** retarget reusable-workflow uses: refs to current org homes ([#230](https://github.com/dryvist/ansible-splunk/issues/230)) ([2ece34f](https://github.com/dryvist/ansible-splunk/commit/2ece34fb24bd40a3cc5dfecdd8f90186365c4afe))
+
 ## [0.14.1](https://github.com/JacobPEvans/ansible-splunk/compare/v0.14.0...v0.14.1) (2026-05-25)
 
 
