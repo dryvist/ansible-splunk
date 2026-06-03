@@ -77,10 +77,10 @@ molecule destroy   # Clean up test container
 
 For testing against a real Proxmox VM:
 
-1. Sync Terraform inventory:
+1. Sync OpenTofu inventory:
 
    ```bash
-   ./scripts/sync-terraform-inventory.sh
+   ./scripts/sync-tofu-inventory.sh
    ```
 
 2. Run playbooks with Doppler:

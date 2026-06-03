@@ -2,9 +2,9 @@
 # Main site playbook for Splunk deployment
 # This playbook orchestrates the complete deployment workflow
 
-# Load dynamic inventory from Terraform outputs (if available)
-- name: Load Terraform inventory
-  ansible.builtin.import_playbook: ../inventory/load_terraform.yml
+# Load dynamic inventory from OpenTofu outputs (if available)
+- name: Load OpenTofu inventory
+  ansible.builtin.import_playbook: ../inventory/load_tofu.yml
 
 # Configure NTP time synchronization BEFORE deploying Splunk. Splunk's
 # _time correlation depends on accurate clocks; points at the Proxmox

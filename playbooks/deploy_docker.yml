@@ -4,15 +4,15 @@
 #
 # Prerequisites:
 # - Doppler secrets loaded (SPLUNK_PASSWORD, SPLUNK_HEC_TOKEN)
-# - Terraform inventory synced (./scripts/sync-terraform-inventory.sh)
+# - OpenTofu inventory synced (./scripts/sync-tofu-inventory.sh)
 #
 # Usage:
 #   doppler run -- uv run ansible-playbook playbooks/deploy_docker.yml
 
-# Load dynamic inventory from Terraform outputs
+# Load dynamic inventory from OpenTofu outputs
 # This assumes the standard repo layout: playbooks/ and inventory/ are sibling directories.
-- name: Load Terraform inventory
-  ansible.builtin.import_playbook: ../inventory/load_terraform.yml
+- name: Load OpenTofu inventory
+  ansible.builtin.import_playbook: ../inventory/load_tofu.yml
 
 - name: Deploy Splunk Enterprise (Docker)
   hosts: splunk

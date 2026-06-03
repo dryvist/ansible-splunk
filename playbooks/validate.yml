@@ -5,8 +5,8 @@
 # Usage:
 #   doppler run -- ansible-playbook playbooks/validate.yml
 
-- name: Load Terraform inventory
-  ansible.builtin.import_playbook: ../inventory/load_terraform.yml
+- name: Load OpenTofu inventory
+  ansible.builtin.import_playbook: ../inventory/load_tofu.yml
 
 - name: Validate Splunk Docker deployment
   hosts: splunk

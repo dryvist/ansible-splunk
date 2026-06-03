@@ -10,7 +10,7 @@
 # Usage:
 #   doppler run -- aws-vault exec terraform -- ansible-playbook -i inventory/terraform.yml playbooks/deploy.yml
 #
-# Alternative: Use load_terraform.yml pre-playbook with JSON inventory file (see scripts/sync-terraform-inventory.sh)
+# Alternative: Use load_tofu.yml pre-playbook with JSON inventory file (see scripts/sync-tofu-inventory.sh)
 
 plugin: cloud.terraform.terraform_provider
 project_path: "{{ lookup('env', 'TERRAFORM_PROJECT_PATH', default='~/git/terraform-proxmox/main') }}"

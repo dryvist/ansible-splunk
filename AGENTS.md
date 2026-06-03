@@ -61,7 +61,7 @@ for ancillary services — those belong in `ansible-proxmox-apps` as LXC.
 | Splunkbase app registry | `roles/splunk_docker/vars/splunkbase_apps.yml` |
 | Custom TA definitions | `roles/splunk_docker/vars/custom_addons.yml` |
 | MCP Server configuration | `roles/splunk_docker/vars/mcp.yml` |
-| Inventory | `inventory/load_terraform.yml` |
+| Inventory | `inventory/load_tofu.yml` |
 | Pipeline architecture | `~/git/CLAUDE.md` |
 | HEC setup and MCP verification | `roles/splunk_docker/README.md` |
 
@@ -74,7 +74,7 @@ for ancillary services — those belong in `ansible-proxmox-apps` as LXC.
 | `playbooks/site.yml` | Full deployment playbook |
 | `playbooks/sync-splunkbase.yml` | MinIO sync for Splunkbase artifacts |
 | `playbooks/validate.yml` | Post-deploy validation |
-| `inventory/load_terraform.yml` | Dynamic inventory loader |
+| `inventory/load_tofu.yml` | Dynamic inventory loader |
 
 ## Commands
 

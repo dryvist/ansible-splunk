@@ -76,9 +76,9 @@ jobs:
         run: |
           ansible-galaxy collection install -r requirements.yml
 
-      - name: Create mock Terraform inventory for syntax checks
+      - name: Create mock OpenTofu inventory for syntax checks
         run: |
-          cp inventory/terraform_inventory.json.example inventory/terraform_inventory.json
+          cp inventory/tofu_inventory.json.example inventory/tofu_inventory.json
 
       - name: Syntax check deploy.yml
         run: |
@@ -117,9 +117,9 @@ jobs:
           pip install ansible ansible-core netaddr
           ansible-galaxy collection install ansible.utils
 
-      - name: Verify terraform inventory loads correctly
+      - name: Verify tofu inventory loads correctly
         env:
-          TERRAFORM_INVENTORY_PATH: ${{ github.workspace }}/tests/inventory_load/terraform_inventory.json
+          TOFU_INVENTORY_PATH: ${{ github.workspace }}/tests/inventory_load/tofu_inventory.json
         run: |
           ansible-playbook tests/inventory_load/verify_inventory.yml \
             -i inventory/hosts.yml \
