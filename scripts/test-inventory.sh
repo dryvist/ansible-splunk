@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test inventory loading and Terraform output structure
+# Test inventory loading and OpenTofu output structure
 #
 # Usage:
 #   ./scripts/test-inventory.sh          # Fixture-based tests only
@@ -38,7 +38,7 @@ skip() { echo -e "${YELLOW}  SKIP${NC}: $1"; SKIP=$((SKIP + 1)); }
 echo ""
 echo "=== Example File Structure ==="
 
-EXAMPLE_FILE="${PROJECT_ROOT}/inventory/terraform_inventory.json.example"
+EXAMPLE_FILE="${PROJECT_ROOT}/inventory/tofu_inventory.json.example"
 
 if [[ -f "${EXAMPLE_FILE}" ]]; then
   # Validate splunk_vm is at root level (not nested under ansible_inventory)
@@ -82,22 +82,22 @@ else
 fi
 
 # ============================================================
-# Section 2: Ansible load_terraform.yml syntax check
+# Section 2: Ansible load_tofu.yml syntax check
 # ============================================================
 echo ""
 echo "=== Ansible Syntax Check ==="
 
-LOAD_TERRAFORM="${PROJECT_ROOT}/inventory/load_terraform.yml"
+LOAD_TOFU="${PROJECT_ROOT}/inventory/load_tofu.yml"
 
 if command -v ansible-playbook &>/dev/null; then
-  if [[ -f "${LOAD_TERRAFORM}" ]]; then
-    if ansible-playbook --syntax-check "${LOAD_TERRAFORM}" &>/dev/null; then
-      pass "load_terraform.yml passes syntax check"
+  if [[ -f "${LOAD_TOFU}" ]]; then
+    if ansible-playbook --syntax-check "${LOAD_TOFU}" &>/dev/null; then
+      pass "load_tofu.yml passes syntax check"
     else
-      fail "load_terraform.yml fails syntax check"
+      fail "load_tofu.yml fails syntax check"
     fi
   else
-    fail "load_terraform.yml not found"
+    fail "load_tofu.yml not found"
   fi
 else
   skip "ansible-playbook not in PATH"
@@ -109,7 +109,7 @@ fi
 echo ""
 echo "=== Sync Script Python Parsing ==="
 
-# Create a temporary fixture matching real terraform output structure
+# Create a temporary fixture matching real OpenTofu output structure
 FIXTURE_JSON=$(mktemp)
 trap 'rm -f "${FIXTURE_JSON}"' EXIT
 
@@ -130,7 +130,7 @@ cat > "${FIXTURE_JSON}" << 'JSON_EOF'
 }
 JSON_EOF
 
-# Test the same Python logic used in sync-terraform-inventory.sh
+# Test the same Python logic used in sync-tofu-inventory.sh
 OUTPUT=$(python3 - "${FIXTURE_JSON}" << 'PYEOF'
 import json, sys
 with open(sys.argv[1]) as f:
@@ -171,7 +171,7 @@ fi
 echo ""
 echo "=== Live Inventory Validation ==="
 
-LIVE_FILE="${PROJECT_ROOT}/inventory/terraform_inventory.json"
+LIVE_FILE="${PROJECT_ROOT}/inventory/tofu_inventory.json"
 
 if [[ "${LIVE}" == "true" ]]; then
   if [[ -f "${LIVE_FILE}" ]]; then

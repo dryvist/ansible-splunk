@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Verify that terraform_inventory.json.example has the correct flat structure.
+Verify that tofu_inventory.json.example has the correct flat structure.
 
-The terraform output is structured as:
+The OpenTofu output is structured as:
   { "splunk_vm": { "splunk": { ... } }, "containers": {}, ... }
 
 NOT the old incorrect structure:
   { "ansible_inventory": { "splunk_vm": { ... } } }
 
-When loaded with `include_vars: name: terraform_data`, the correct access
-path is terraform_data.splunk_vm.splunk, not terraform_data.ansible_inventory.splunk_vm.splunk.
+When loaded with `include_vars: name: tofu_data`, the correct access
+path is tofu_data.splunk_vm.splunk, not tofu_data.ansible_inventory.splunk_vm.splunk.
 """
 
 import json
 import sys
 from pathlib import Path
 
-example_path = Path("inventory/terraform_inventory.json.example")
+example_path = Path("inventory/tofu_inventory.json.example")
 
 try:
     with open(example_path) as f:
@@ -53,6 +53,6 @@ if errors:
         print(err)
     sys.exit(1)
 
-print("PASS: terraform_inventory.json.example has correct flat structure")
+print("PASS: tofu_inventory.json.example has correct flat structure")
 print(f"  splunk ip: {data['splunk_vm']['splunk']['ip']}")
 print(f"  splunk hostname: {data['splunk_vm']['splunk']['hostname']}")

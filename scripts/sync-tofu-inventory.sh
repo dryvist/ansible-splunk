@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Sync Terraform inventory to Ansible
+# Sync OpenTofu inventory to Ansible
 #
-# This script exports the Terraform-defined Splunk VM infrastructure
-# to a JSON file that Ansible can dynamically load via load_terraform.yml
+# This script exports the OpenTofu-defined Splunk VM infrastructure
+# to a JSON file that Ansible can dynamically load via load_tofu.yml
 #
 # Usage:
-#   ./scripts/sync-terraform-inventory.sh
-#   TERRAFORM_DIR=/custom/path ./scripts/sync-terraform-inventory.sh
+#   ./scripts/sync-tofu-inventory.sh
+#   TERRAFORM_DIR=/custom/path ./scripts/sync-tofu-inventory.sh
 #
 # This should be run after 'terragrunt apply' in terraform-proxmox to ensure
 # Ansible has the latest Splunk VM configuration.
@@ -29,7 +29,7 @@ PROJECT_ROOT="$(dirname "${SCRIPT_DIR}")"
 TERRAFORM_DIR="${TERRAFORM_DIR:-${HOME}/git/terraform-proxmox/main}"
 
 # Path to Ansible inventory file
-INVENTORY_FILE="${PROJECT_ROOT}/inventory/terraform_inventory.json"
+INVENTORY_FILE="${PROJECT_ROOT}/inventory/tofu_inventory.json"
 
 # Ensure terraform directory exists
 if [[ ! -d "${TERRAFORM_DIR}" ]]; then
@@ -43,8 +43,8 @@ if [[ ! -d "${PROJECT_ROOT}" ]]; then
   exit 1
 fi
 
-echo -e "${YELLOW}Exporting Terraform inventory...${NC}"
-echo "  Terraform dir: ${TERRAFORM_DIR}"
+echo -e "${YELLOW}Exporting OpenTofu inventory...${NC}"
+echo "  OpenTofu dir: ${TERRAFORM_DIR}"
 echo "  Output file:   ${INVENTORY_FILE}"
 
 # Change to Terraform directory and export inventory
@@ -71,15 +71,15 @@ try:
             print(f"    - ip:       {splunk_vm_details.get('ip', 'N/A')}")
             print(f"    - vmid:     {splunk_vm_details.get('vmid', 'N/A')}")
         else:
-            print("  No Splunk VM found in Terraform outputs")
+            print("  No Splunk VM found in OpenTofu outputs")
             print("  Ensure terraform-proxmox has splunk_vm in ansible_inventory output")
 
 except Exception as e:
     print(f"  (Could not parse inventory: {e})", file=sys.stderr)
 PYTHON_EOF
 
-  echo -e "\n${GREEN}Ansible can now use this inventory via 'load_terraform.yml'${NC}"
+  echo -e "\n${GREEN}Ansible can now use this inventory via 'load_tofu.yml'${NC}"
 else
-  echo -e "${RED}ERROR: Failed to export Terraform inventory${NC}" >&2
+  echo -e "${RED}ERROR: Failed to export OpenTofu inventory${NC}" >&2
   exit 1
 fi

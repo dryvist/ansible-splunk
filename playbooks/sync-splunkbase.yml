@@ -19,8 +19,8 @@
 # Runs entirely on localhost (the Ansible controller). No target host
 # operations — MinIO is the sink, Splunkbase is the source.
 
-- name: Load Terraform inventory (for MinIO endpoint)
-  ansible.builtin.import_playbook: ../inventory/load_terraform.yml
+- name: Load OpenTofu inventory (for MinIO endpoint)
+  ansible.builtin.import_playbook: ../inventory/load_tofu.yml
 
 - name: Mirror Splunkbase add-ons into MinIO
   hosts: localhost
@@ -29,8 +29,8 @@
   vars:
     splunkbase_sync_tmpdir: /tmp/splunkbase-sync
     minio_endpoint: >-
-      http://{{ hostvars['localhost']['terraform_data']['containers']['minio']['ip'] }}:{{
-      hostvars['localhost']['terraform_data']['constants']['service_ports']['minio_api'] }}
+      http://{{ hostvars['localhost']['tofu_data']['containers']['minio']['ip'] }}:{{
+      hostvars['localhost']['tofu_data']['constants']['service_ports']['minio_api'] }}
     minio_bucket: splunk-addons
     # mc uses this env var to resolve the `homelab` alias without touching
     # any persisted alias file — keeps the playbook stateless.
@@ -38,8 +38,8 @@
       MC_HOST_homelab: >-
         http://{{ lookup('env', 'MINIO_ROOT_USER') }}:{{
         lookup('env', 'MINIO_ROOT_PASSWORD') }}@{{
-        hostvars['localhost']['terraform_data']['containers']['minio']['ip'] }}:{{
-        hostvars['localhost']['terraform_data']['constants']['service_ports']['minio_api'] }}
+        hostvars['localhost']['tofu_data']['containers']['minio']['ip'] }}:{{
+        hostvars['localhost']['tofu_data']['constants']['service_ports']['minio_api'] }}
 
   tasks:
     - name: Assert required environment variables are set

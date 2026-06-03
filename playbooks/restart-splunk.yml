@@ -3,8 +3,8 @@
 # Handlers in site.yml only fire when the task reports changed; use this
 # playbook to force a restart when you've bypassed the normal install path.
 
-- name: Load Terraform inventory
-  ansible.builtin.import_playbook: ../inventory/load_terraform.yml
+- name: Load OpenTofu inventory
+  ansible.builtin.import_playbook: ../inventory/load_tofu.yml
 
 - name: Restart Splunk container
   hosts: splunk
