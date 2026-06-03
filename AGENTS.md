@@ -17,7 +17,7 @@ manages the container lifecycle via Docker Compose.
 
 **Implication:** New features and integrations target Docker Compose
 on the Splunk VM. Do not propose LXC migration or new Docker containers
-for ancillary services — those belong in `ansible-server-apps` as LXC.
+for ancillary services — those belong in `ansible-proxmox-apps` as LXC.
 
 ## This repo owns
 
@@ -32,7 +32,7 @@ for ancillary services — those belong in `ansible-server-apps` as LXC.
 - **Firewall disabled**: Guest firewall is off
   (`splunk_docker_firewall_enabled: false`). Docker DNAT conflicts with
   iptables FORWARD chain. The Proxmox firewall is the sole network
-  security (see `dryvist/tofu-proxmox-cluster` firewall modules).
+  security (see `dryvist/terraform-proxmox` firewall modules).
 - **HEC tokens**: Per-index tokens are derived via
   `uuidv5(HEC_NAMESPACE, "splunk-hec-<index_name>")` when
   `HEC_NAMESPACE` is set. `SPLUNK_HEC_TOKEN` is the shared legacy
@@ -44,7 +44,7 @@ for ancillary services — those belong in `ansible-server-apps` as LXC.
 
 ### Upstream
 
-- **`dryvist/tofu-proxmox-cluster`**: provisions Splunk VM 200 and
+- **`dryvist/terraform-proxmox`**: provisions Splunk VM 200 and
   exports `ansible_inventory` output for dynamic inventory.
 
 ### External services
@@ -176,7 +176,7 @@ rules to work around stale tooling.
 
 | Repo | Relationship |
 | --- | --- |
-| `dryvist/tofu-proxmox-cluster` | Upstream: provisions Splunk VM + MinIO LXC |
-| `dryvist/ansible-server-apps` | Peer: owns Cribl (sends to HEC), deploys MinIO |
-| `dryvist/ansible-proxmox-cluster` | Peer: Proxmox host config |
+| `dryvist/terraform-proxmox` | Upstream: provisions Splunk VM + MinIO LXC |
+| `dryvist/ansible-proxmox-apps` | Peer: owns Cribl (sends to HEC), deploys MinIO |
+| `dryvist/ansible-proxmox` | Peer: Proxmox host config |
 | `dryvist/nix-ai` | MCP client configuration (`modules/mcp/`) |
