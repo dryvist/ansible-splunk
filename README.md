@@ -146,6 +146,14 @@ All secrets via Doppler (`iac-conf-mgmt` / `prd`):
 doppler run -- ansible-playbook playbooks/site.yml
 ```
 
+> **Rotating `SPLUNK_PASSWORD`:** the splunk/splunk image seeds the admin password
+> from `SPLUNK_PASSWORD` only on the container's first boot, when
+> `/opt/splunk/etc/passwd` is absent. Because `etc/` is a persistent disk mount,
+> changing `SPLUNK_PASSWORD` afterward does **not** update the running admin — the
+> entrypoint's Ansible then loops on a "Get existing HEC token" 401. After any
+> rotation you must reset the container admin via the `user-seed.conf` procedure in
+> terraform-proxmox `TROUBLESHOOTING.md` → "Splunk Container (VM 200)".
+
 ## Testing
 
 ```bash
