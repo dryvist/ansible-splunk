@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0](https://github.com/dryvist/ansible-splunk/compare/v0.15.0...v0.16.0) (2026-06-12)
+
+
+### Features
+
+* **indexes:** add llm index + pipeline-silence and manager-panic alerts ([#246](https://github.com/dryvist/ansible-splunk/issues/246)) ([3283b30](https://github.com/dryvist/ansible-splunk/commit/3283b30949e8a5d425a8f9193bf369addd45733e))
+* **inventory:** resolve inventory S3-first via amazon.aws; DNS-first static fallback ([#249](https://github.com/dryvist/ansible-splunk/issues/249)) ([c3c26a8](https://github.com/dryvist/ansible-splunk/commit/c3c26a8caa56852eba7851739987ae5478405032))
+
+
+### Bug Fixes
+
+* **inventory:** remove dead cloud.terraform plugin enable; scrub deleted-script references ([#250](https://github.com/dryvist/ansible-splunk/issues/250)) ([24000b9](https://github.com/dryvist/ansible-splunk/commit/24000b96aeb2a6d34f12b6ba27ad12bd4f067c2d))
+
 ## [0.15.0](https://github.com/dryvist/ansible-splunk/compare/v0.14.4...v0.15.0) (2026-06-10)
 
 
