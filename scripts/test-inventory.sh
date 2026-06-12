@@ -104,7 +104,7 @@ else
 fi
 
 # ============================================================
-# Section 3: Sync script Python parsing
+# Section 3: splunk_vm fixture-shape parsing
 # ============================================================
 echo ""
 echo "=== Sync Script Python Parsing ==="
@@ -130,7 +130,7 @@ cat > "${FIXTURE_JSON}" << 'JSON_EOF'
 }
 JSON_EOF
 
-# Test the same Python logic used in sync-tofu-inventory.sh
+# Parse the splunk_vm entry the way inventory/load_tofu.yml consumes it
 OUTPUT=$(python3 - "${FIXTURE_JSON}" << 'PYEOF'
 import json, sys
 with open(sys.argv[1]) as f:
@@ -148,21 +148,21 @@ PYEOF
 )
 
 if echo "${OUTPUT}" | grep -q "hostname=test-splunk"; then
-  pass "Sync script parses hostname correctly"
+  pass "Fixture parses hostname correctly"
 else
-  fail "Sync script hostname parsing failed"
+  fail "Fixture hostname parsing failed"
 fi
 
 if echo "${OUTPUT}" | grep -q "ip=192.168.0.200"; then
-  pass "Sync script parses IP correctly"
+  pass "Fixture parses IP correctly"
 else
-  fail "Sync script IP parsing failed"
+  fail "Fixture IP parsing failed"
 fi
 
 if echo "${OUTPUT}" | grep -q "vmid=200"; then
-  pass "Sync script parses vmid correctly"
+  pass "Fixture parses vmid correctly"
 else
-  fail "Sync script vmid parsing failed"
+  fail "Fixture vmid parsing failed"
 fi
 
 # ============================================================

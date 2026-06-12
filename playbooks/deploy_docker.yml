@@ -4,7 +4,7 @@
 #
 # Prerequisites:
 # - Doppler secrets loaded (SPLUNK_PASSWORD, SPLUNK_HEC_TOKEN)
-# - OpenTofu inventory synced (./scripts/sync-tofu-inventory.sh)
+# - OpenTofu inventory resolvable (S3 read creds, local cache, or TOFU_INVENTORY_PATH)
 #
 # Usage:
 #   doppler run -- uv run ansible-playbook playbooks/deploy_docker.yml
