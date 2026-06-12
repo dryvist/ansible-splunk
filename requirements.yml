@@ -6,8 +6,9 @@ collections:
     version: ">=13.0.0,<13.1.0"
   - name: community.docker
     version: ">=5.0.6,<6.0.0"
-  - name: cloud.terraform
-    version: ">=4.0.0,<5.0.0"
+  # S3 inventory resolver (inventory/load_tofu.yml): aws_caller_info + s3_object
+  - name: amazon.aws
+    version: ">=9.0.0"
 
 roles:
   # Official Splunk Ansible role - use for REST API-based app management

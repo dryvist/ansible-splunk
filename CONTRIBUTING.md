@@ -77,11 +77,10 @@ molecule destroy   # Clean up test container
 
 For testing against a real Proxmox VM:
 
-1. Sync OpenTofu inventory:
-
-   ```bash
-   ./scripts/sync-tofu-inventory.sh
-   ```
+1. Inventory resolves automatically (`inventory/load_tofu.yml`):
+   `TOFU_INVENTORY_PATH` → the S3 artifact published by every
+   terraform-proxmox apply (needs only AWS read creds) → the local
+   gitignored cache the apply's after-hook writes. No manual sync step.
 
 2. Run playbooks with Doppler:
 
