@@ -44,8 +44,13 @@ for ancillary services — those belong in `ansible-proxmox-apps` as LXC.
 
 ### Upstream
 
-- **`dryvist/terraform-proxmox`**: provisions Splunk VM 200 and
-  exports `ansible_inventory` output for dynamic inventory.
+- **`dryvist/terraform-proxmox`**: provisions Splunk VM 200 and publishes
+  the `ansible_inventory` output to its S3 state bucket on every apply.
+  `inventory/load_tofu.yml` resolves it: `TOFU_INVENTORY_PATH` (explicit
+  pin) → S3 artifact (native `amazon.aws`, AWS read creds only — no
+  checkout, no toolchain; overrides: `TOFU_INVENTORY_S3_URI`,
+  `TOFU_INVENTORY_S3_REGION`) → local gitignored cache → static fallback
+  (`SPLUNK_VM_HOST`, else DNS-first `splunk-aio.{PROXMOX_DOMAIN}`).
 
 ### External services
 

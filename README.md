@@ -12,7 +12,7 @@ Deploy and configure Splunk Enterprise (Docker) on a Proxmox VM.
 | Property | Value |
 | --- | --- |
 | **Type** | Ansible role + playbooks |
-| **Target** | Proxmox VM `192.168.0.200` (VMID 200) |
+| **Target** | Splunk VM (VMID 200) — addressed from the tofu inventory, or DNS-first as `splunk-aio.{PROXMOX_DOMAIN}` |
 | **Role** | `roles/splunk_docker` |
 | **Entry point** | `playbooks/site.yml` |
 | **Secrets** | Doppler (`iac-conf-mgmt` / `prd`) |
@@ -179,7 +179,7 @@ doppler run -- ansible-playbook playbooks/validate.yml
 | `ansible.posix` | `>=2.1.0,<3.0.0` |
 | `community.general` | `>=12.4.0,<13.0.0` |
 | `community.docker` | `>=5.0.6,<6.0.0` |
-| `cloud.terraform` | `>=4.0.0,<5.0.0` |
+| `amazon.aws` | `>=9.0.0` |
 
 ```bash
 ansible-galaxy collection install -r requirements.yml
