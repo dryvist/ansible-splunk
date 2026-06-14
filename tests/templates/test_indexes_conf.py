@@ -94,6 +94,21 @@ if spurious:
 else:
     print("PASS: empty index list produces no stanzas")
 
+# Test 6: datatype = metric only for indexes flagged datatype: metric
+DATATYPE_INDEXES = [
+    {"name": "events_idx", "max_size_mb": 102400, "frozen_time_secs": 31536000},
+    {"name": "metric_idx", "max_size_mb": 102400, "frozen_time_secs": 7776000, "datatype": "metric"},
+]
+result_dt = template.render(splunk_docker_indexes=DATATYPE_INDEXES)
+metric_stanza = result_dt[result_dt.index("[metric_idx]"):]
+events_stanza = result_dt[result_dt.index("[events_idx]"):result_dt.index("[metric_idx]")]
+if "datatype = metric" not in metric_stanza.split("[metric_idx]")[1].split("\n[")[0]:
+    errors.append("FAIL: metric index missing 'datatype = metric'")
+elif "datatype = metric" in events_stanza:
+    errors.append("FAIL: event index wrongly emitted 'datatype = metric'")
+else:
+    print("PASS: datatype = metric emitted only for metric indexes")
+
 if errors:
     print()
     for err in errors:

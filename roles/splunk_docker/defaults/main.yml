@@ -108,7 +108,9 @@ splunk_docker_indexes:
     frozen_time_secs: 7776000
   # netmon: high-volume per-WAN probe telemetry (Telegraf via Cribl) — 90-day
   # retention per terraform-proxmox docs/NETWORK_DIAGNOSIS.md, not the 365-day default.
+  # Telegraf ships splunkmetric -> metric index (queryable via mstats), NOT events.
   - name: netmon
+    datatype: metric
     max_size_mb: "{{ splunk_docker_index_default_max_size_mb }}"
     frozen_time_secs: 7776000
   # unifi_metrics: UniFi controller telemetry (device cpu/mem/temp, per-port,
@@ -132,6 +134,14 @@ splunk_docker_indexes:
   - name: unifi
     max_size_mb: "{{ splunk_docker_index_default_max_size_mb }}"
     frozen_time_secs: "{{ splunk_docker_index_default_frozen_time_secs }}"
+  # unifi_metrics: UniFi controller telemetry (unpoller -> Telegraf -> Cribl).
+  # High-volume metric series — 90-day retention per terraform-proxmox docs, not
+  # the 365-day default. Distinguished from netmon by the stream=unifi_metrics tag.
+  # Telegraf ships splunkmetric -> metric index (queryable via mstats), NOT events.
+  - name: unifi_metrics
+    datatype: metric
+    max_size_mb: "{{ splunk_docker_index_default_max_size_mb }}"
+    frozen_time_secs: 7776000
   - name: vscode
     max_size_mb: "{{ splunk_docker_index_default_max_size_mb }}"
     frozen_time_secs: "{{ splunk_docker_index_default_frozen_time_secs }}"
