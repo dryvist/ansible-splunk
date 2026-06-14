@@ -8,5 +8,8 @@ coldPath = $SPLUNK_DB/{{ index.name }}/colddb
 thawedPath = $SPLUNK_DB/{{ index.name }}/thaweddb
 maxTotalDataSizeMB = {{ index.max_size_mb }}
 frozenTimePeriodInSecs = {{ index.frozen_time_secs }}
+{% if (index.datatype | default('event')) == 'metric' %}
+datatype = metric
+{% endif %}
 
 {% endfor %}
