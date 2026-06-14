@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0](https://github.com/dryvist/ansible-splunk/compare/v0.18.0...v0.19.0) (2026-06-14)
+
+
+### Features
+
+* **hec:** decouple legacy token from namespace; use core to_uuid ([#256](https://github.com/dryvist/ansible-splunk/issues/256)) ([b80d1d4](https://github.com/dryvist/ansible-splunk/commit/b80d1d4560923579caa7e298ab62375d2b6537e6))
+* **indexes:** add unifi_metrics + make unifi_metrics/netmon metric-datatype ([#255](https://github.com/dryvist/ansible-splunk/issues/255)) ([0f10945](https://github.com/dryvist/ansible-splunk/commit/0f109459fe1ade183f40fa67996034cef1baaa76))
+
 ## [0.18.0](https://github.com/dryvist/ansible-splunk/compare/v0.17.0...v0.18.0) (2026-06-14)
 
 
