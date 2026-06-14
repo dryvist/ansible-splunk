@@ -57,7 +57,7 @@
     - name: Validate HEC_NAMESPACE is a valid UUID
       ansible.builtin.assert:
         that:
-          - splunk_docker_hec_namespace | regex_search('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', ignorecase=True)
+          - splunk_docker_hec_namespace is match('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
         fail_msg: >-
           HEC_NAMESPACE must be a valid UUID (e.g. uuidgen output).
           Got: {{ splunk_docker_hec_namespace | default('(empty)') }}
