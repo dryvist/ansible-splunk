@@ -63,7 +63,11 @@
           Got: {{ splunk_docker_hec_namespace | default('(empty)') }}
       when: splunk_docker_hec_namespace | length > 0
 
-    # Build per-index HEC tokens via UUID v5 derivation (all in one task)
+    # Derive a dedicated per-index HEC token via UUID v5 (Ansible core to_uuid:
+    # uuid5('splunk-hec-<index>', HEC_NAMESPACE)). The legacy token deliberately
+    # stays = SPLUNK_HEC_TOKEN (NOT derived) so enabling HEC_NAMESPACE does not
+    # rotate it and break senders still on the shared token — they migrate to
+    # their per-index token one at a time, then legacy is retired.
     - name: Derive per-index HEC token values from namespace
       vars:
         index_names: "{{ splunk_docker_indexes | map(attribute='name') | list }}"
@@ -71,13 +75,13 @@
         splunk_docker_hec_token_values: >-
           {{
             dict(index_names | zip(
-              index_names | map('regex_replace', '^', 'splunk-hec-') | map('uuidv5', splunk_docker_hec_namespace)
-            )) | combine({'legacy': 'splunk-hec-legacy' | uuidv5(splunk_docker_hec_namespace)})
+              index_names | map('regex_replace', '^', 'splunk-hec-') | map('to_uuid', splunk_docker_hec_namespace)
+            )) | combine({'legacy': lookup('env', 'SPLUNK_HEC_TOKEN')})
           }}
       when: splunk_docker_hec_namespace | length > 0
       no_log: true
 
-    # Fallback: if no namespace, use SPLUNK_HEC_TOKEN as shared legacy token
+    # Fallback: if no namespace, only the shared SPLUNK_HEC_TOKEN legacy token exists
     - name: Set legacy HEC token (no namespace configured)
       ansible.builtin.set_fact:
         splunk_docker_hec_token_values: >-

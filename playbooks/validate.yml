@@ -32,8 +32,8 @@
         splunk_docker_hec_token_values: >-
           {{
             dict(index_names | zip(
-              index_names | map('regex_replace', '^', 'splunk-hec-') | map('uuidv5', splunk_docker_hec_namespace)
-            )) | combine({'legacy': 'splunk-hec-legacy' | uuidv5(splunk_docker_hec_namespace)})
+              index_names | map('regex_replace', '^', 'splunk-hec-') | map('to_uuid', splunk_docker_hec_namespace)
+            )) | combine({'legacy': lookup('env', 'SPLUNK_HEC_TOKEN') | default('', true)})
           }}
       when: splunk_docker_hec_namespace | length > 0
       no_log: true
