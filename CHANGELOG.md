@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0](https://github.com/dryvist/ansible-splunk/compare/v0.17.0...v0.18.0) (2026-06-14)
+
+
+### Features
+
+* **indexes:** add unifi_metrics index (90-day) for UniFi controller telemetry ([#253](https://github.com/dryvist/ansible-splunk/issues/253)) ([8d00e33](https://github.com/dryvist/ansible-splunk/commit/8d00e3340dd54fb59d7a22e9f65bb77aad21e933))
+
 ## [0.17.0](https://github.com/dryvist/ansible-splunk/compare/v0.16.0...v0.17.0) (2026-06-13)
 
 
