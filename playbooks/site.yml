@@ -36,6 +36,12 @@
   become: true
   gather_facts: true
 
+  # Load the role's index list up front so the per-index HEC token derivation
+  # below can reference splunk_docker_indexes before the role is included
+  # (mirrors playbooks/validate.yml).
+  vars_files:
+    - ../roles/splunk_docker/defaults/main.yml
+
   tasks:
     - name: Validate required environment variables
       ansible.builtin.assert:
