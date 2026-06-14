@@ -26,7 +26,8 @@ Cribl Edge (181/182) ──HEC :8088──> Splunk (200)
                                   Splunk indexes:
                                     ai, claude, firewall, gemini,
                                     mac_perf, netflow, netmon, network,
-                                    openai, os, otel, unifi, vscode
+                                    openai, os, otel, unifi, unifi_metrics,
+                                    vscode
 ```
 
 ## Installation
@@ -69,6 +70,7 @@ stored at `/opt/splunk/<index>/`.
 | `os` | Linux / Windows system logs |
 | `otel` | OpenTelemetry spans / metrics |
 | `unifi` | UniFi network syslog |
+| `unifi_metrics` | UniFi controller device/port/client/WAN metrics (unpoller+Telegraf via Cribl, 90-day retention) |
 | `vscode` | VS Code / Copilot events |
 
 ## Technology Add-ons
