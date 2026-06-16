@@ -1,5 +1,13 @@
 ---
-name: CI
+# Repo-specific data-contract checks for ansible-splunk.
+#
+# Lint + molecule are centralized in dryvist/.github/_ansible-ci.yml. The checks
+# here are NOT generic ansible CI — they assert THIS repo's data contract
+# (playbook syntax against a mock tofu inventory, input-template unit tests, and
+# that the tofu inventory loads with the right group assignments). They stay
+# local and are aggregated by the wrapper's "Merge Gate".
+
+name: Data Contract
 
 on:
   workflow_call:
@@ -8,45 +16,8 @@ permissions:
   contents: read
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.9"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          version: "latest"
-
-      - name: Cache Ansible collections
-        uses: actions/cache@v5
-        with:
-          path: ~/.ansible/collections
-          key: ansible-collections-${{ hashFiles('requirements.yml') }}
-
-      - name: Install dependencies
-        run: |
-          uv pip install --system ansible-lint yamllint ansible
-
-      - name: Install Ansible collections
-        run: |
-          ansible-galaxy collection install -r requirements.yml
-
-      - name: Run yamllint
-        run: |
-          yamllint .
-
-      - name: Run ansible-lint
-        run: |
-          ansible-lint playbooks/ roles/
-
   validate:
+    name: Validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
