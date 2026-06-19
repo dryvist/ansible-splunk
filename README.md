@@ -32,14 +32,9 @@ Cribl Edge (181/182) ──HEC :8088──> Splunk (200)
 
 ## Installation
 
-This repo uses a [Nix dev shell][nix-develop] from
-[nix-devenv](https://github.com/JacobPEvans/nix-devenv) to provide all tools
-(`ansible-playbook`, `ansible-lint`, `molecule`, etc.). Activate it once per worktree:
-
-```bash
-direnv allow   # if using direnv (recommended) — activates nix-devenv#ansible-apps automatically
-# or: nix develop github:JacobPEvans/nix-devenv#ansible-apps
-```
+This repo provides a [Nix dev shell][nix-develop] with all tools
+(`ansible-playbook`, `ansible-lint`, `molecule`, etc.). Activate it once per worktree
+with `direnv allow` — the committed `.envrc` wires up the shell automatically.
 
 ## Usage
 
@@ -153,8 +148,8 @@ doppler run -- ansible-playbook playbooks/site.yml
 > `/opt/splunk/etc/passwd` is absent. Because `etc/` is a persistent disk mount,
 > changing `SPLUNK_PASSWORD` afterward does **not** update the running admin — the
 > entrypoint's Ansible then loops on a "Get existing HEC token" 401. After any
-> rotation you must reset the container admin via the `user-seed.conf` procedure in
-> terraform-proxmox `TROUBLESHOOTING.md` → "Splunk Container (VM 200)".
+> rotation you must reset the container admin via the standard `user-seed.conf`
+> procedure on the persistent `etc/` mount.
 
 ## Testing
 
@@ -189,7 +184,7 @@ ansible-galaxy collection install -r requirements.yml
 
 ### External Services
 
-- **terraform-proxmox** — provisions Splunk VM (VMID 200)
+- **Splunk VM (VMID 200)** — provisioned externally; this repo configures it
 - **Doppler** — secrets management
 - **Proxmox firewall** — network access control (no guest iptables)
 
@@ -198,6 +193,9 @@ ansible-galaxy collection install -r requirements.yml
 - [Changelog](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)
 - [Splunk Docker image](https://hub.docker.com/r/splunk/splunk)
-- [ansible-proxmox-apps](https://github.com/JacobPEvans/ansible-proxmox-apps) — Cribl Edge (upstream sender)
 
 [nix-develop]: https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-develop.html
+
+---
+
+> Part of a [larger ecosystem of ~40 repos](https://docs.jacobpevans.com) — see how it all fits together.
