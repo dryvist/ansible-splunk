@@ -106,10 +106,11 @@ splunk_docker_indexes:
   - name: netflow
     max_size_mb: 51200
     frozen_time_secs: 7776000
-  # netmon: high-volume per-WAN probe telemetry (Telegraf via Cribl) — 90-day
+  # netmon_metrics: high-volume per-WAN probe telemetry (Telegraf via Cribl) — 90-day
   # retention per terraform-proxmox docs/NETWORK_DIAGNOSIS.md, not the 365-day default.
   # Telegraf ships splunkmetric -> metric index (queryable via mstats), NOT events.
-  - name: netmon
+  # Metric indexes carry the _metrics suffix by convention.
+  - name: netmon_metrics
     datatype: metric
     max_size_mb: "{{ splunk_docker_index_default_max_size_mb }}"
     frozen_time_secs: 7776000

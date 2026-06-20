@@ -25,7 +25,7 @@ Cribl Edge (181/182) ──HEC :8088──> Splunk (200)
                                       │
                                   Splunk indexes:
                                     ai, claude, firewall, gemini,
-                                    mac_perf, netflow, netmon, network,
+                                    mac_perf, netflow, netmon_metrics, network,
                                     openai, os, otel, unifi, unifi_metrics,
                                     vscode
 ```
@@ -53,7 +53,7 @@ doppler run -- ansible-playbook playbooks/validate.yml
 
 ## Custom Indexes
 
-All indexes: 100 GiB max size, 365-day retention (except `netmon`: 90-day),
+All indexes: 100 GiB max size, 365-day retention (except `netmon_metrics`: 90-day),
 stored at `/opt/splunk/<index>/`.
 
 | Index | Purpose |
@@ -64,7 +64,7 @@ stored at `/opt/splunk/<index>/`.
 | `gemini` | Gemini-specific events |
 | `mac_perf` | macOS performance metrics |
 | `netflow` | NetFlow / IPFIX flow data |
-| `netmon` | Per-WAN network-diagnosis probe telemetry (90-day retention) |
+| `netmon_metrics` | Per-WAN network-diagnosis probe telemetry, metric index (90-day retention) |
 | `network` | Network device syslog |
 | `openai` | OpenAI-specific events |
 | `os` | Linux / Windows system logs |
