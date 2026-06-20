@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.3](https://github.com/dryvist/ansible-splunk/compare/v0.19.2...v0.19.3) (2026-06-20)
+
+
+### Bug Fixes
+
+* **splunk:** rename metric index netmon -&gt; netmon_metrics ([#269](https://github.com/dryvist/ansible-splunk/issues/269)) ([1b110e0](https://github.com/dryvist/ansible-splunk/commit/1b110e0c4764b4d8dd7bf2e3b7bef2cef6d82859))
+
 ## [0.19.2](https://github.com/dryvist/ansible-splunk/compare/v0.19.1...v0.19.2) (2026-06-18)
 
 
