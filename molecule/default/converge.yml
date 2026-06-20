@@ -20,7 +20,7 @@
       gemini: "molecule-test-token-gemini"
       mac_perf: "molecule-test-token-mac-perf"
       netflow: "molecule-test-token-netflow"
-      netmon: "molecule-test-token-netmon"
+      netmon_metrics: "molecule-test-token-netmon-metrics"
       network: "molecule-test-token-network"
       openai: "molecule-test-token-openai"
       otel: "molecule-test-token-otel"
