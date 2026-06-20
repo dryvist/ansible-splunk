@@ -1,2 +1,5 @@
-# OpenTofu-generated inventory (contains IPs and infrastructure details)
-tofu_inventory.json
+# OpenTofu-generated inventory caches (IPs/infra details) — never commit.
+# Glob catches any name (tofu_*, legacy terraform_*) so a stale cache can't
+# reappear untracked; the schema example is kept.
+*_inventory.json
+!*_inventory.json.example
