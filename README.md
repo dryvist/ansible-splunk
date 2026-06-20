@@ -148,7 +148,8 @@ doppler run -- ansible-playbook playbooks/site.yml
 > `/opt/splunk/etc/passwd` is absent. Because `etc/` is a persistent disk mount,
 > changing `SPLUNK_PASSWORD` afterward does **not** update the running admin — the
 > entrypoint's Ansible then loops on a "Get existing HEC token" 401. After any
-> rotation you must reset the container admin via the standard `user-seed.conf`
+> rotation you must reset the container admin via the standard
+> [user-seed.conf](https://docs.splunk.com/Documentation/Splunk/latest/Admin/User-seedconf)
 > procedure on the persistent `etc/` mount.
 
 ## Testing
