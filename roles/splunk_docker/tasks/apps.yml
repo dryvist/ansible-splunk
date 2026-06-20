@@ -32,6 +32,12 @@
 
 # --- MinIO-sourced apps: version-aware install/upgrade ---
 
+- name: Build the MinIO-sourced add-on list
+  ansible.builtin.set_fact:
+    splunk_docker_minio_addons: "{{ splunk_docker_addons | rejectattr('github_repo', 'defined') | list }}"
+
+# Gated on a non-empty list so Molecule (which sets splunk_docker_addons: []) never
+# templates splunk_docker_artifact_base_url / tofu_data, which it does not provide.
 - name: Fetch the MinIO add-on version manifest
   ansible.builtin.uri:
     url: "{{ splunk_docker_artifact_base_url }}/manifest.json"
@@ -41,9 +47,10 @@
   register: splunk_docker_minio_manifest_q
   changed_when: false
   failed_when: false
+  when: splunk_docker_minio_addons | length > 0
 
-# Empty when the manifest is absent (no sync has run yet) — every MinIO app then
-# falls back to install-if-missing, exactly like the legacy behaviour.
+# Empty when the manifest is absent/skipped (no sync has run yet, or no MinIO apps)
+# — every MinIO app then falls back to install-if-missing, like the legacy behaviour.
 - name: Parse the version manifest (empty when absent/unreadable)
   ansible.builtin.set_fact:
     splunk_docker_minio_manifest: >-
@@ -51,10 +58,6 @@
          if (splunk_docker_minio_manifest_q.status | default(0)) == 200
             and (splunk_docker_minio_manifest_q.content | default('')) | length > 0
          else {} }}
-
-- name: Build the MinIO-sourced add-on list
-  ansible.builtin.set_fact:
-    splunk_docker_minio_addons: "{{ splunk_docker_addons | rejectattr('github_repo', 'defined') | list }}"
 
 - name: Read installed version markers
   ansible.builtin.slurp:
@@ -64,6 +67,12 @@
   loop_control:
     label: "{{ item.app_dir }}"
   failed_when: false  # missing marker → not installed (or legacy install)
+
+# Initialise accumulators so they stay defined when the loop is empty (Molecule).
+- name: Initialise MinIO install accumulators
+  ansible.builtin.set_fact:
+    splunk_docker_minio_plan: []
+    splunk_docker_minio_decided: []
 
 # needs_install when:
 #   manifest app (desired != ''): installed version differs from desired
