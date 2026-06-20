@@ -175,13 +175,15 @@ splunk_docker_java_container_home: "/opt/java"
 splunk_docker_mssql_driver_enabled: false
 splunk_docker_mssql_driver_version: "12.8.1.jre11"
 
-# Artifact store (MinIO)
+# Artifact store (object-storage / RustFS)
 # Custom add-ons with artifact_store: true are downloaded from this URL.
-# MinIO bucket has anonymous read policy on internal network (no auth needed).
-# IP and port come from tofu inventory — no hardcoded values.
+# The splunk-addons bucket has an anonymous read policy on the internal network
+# (no auth needed). IP and port come from tofu inventory — no hardcoded values.
+# The container key is hyphenated, so bracket notation is required (dot notation
+# would mis-parse `object-storage` as subtraction).
 splunk_docker_artifact_base_url: >-
-  http://{{ tofu_data.containers.minio.ip }}:{{
-  tofu_data.constants.service_ports.minio_api }}/splunk-addons
+  http://{{ tofu_data.containers['object-storage'].ip }}:{{
+  tofu_data.constants.service_ports.object_storage_s3 }}/splunk-addons
 # VisiCore TA and App are downloaded from GitHub Releases (latest) automatically.
-# MinIO-sourced add-ons use version-free filenames — versions are tracked
-# exclusively via MinIO object tags (bucket versioning enabled).
+# object-storage-sourced add-ons use version-free filenames — current version is
+# tracked via the object tag, and prior versions are retained by bucket versioning.
