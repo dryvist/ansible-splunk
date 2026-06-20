@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0](https://github.com/dryvist/ansible-splunk/compare/v0.21.0...v0.22.0) (2026-06-20)
+
+
+### Features
+
+* **ci:** re-validate inventory data contract on upstream release ([#275](https://github.com/dryvist/ansible-splunk/issues/275)) ([398b9f7](https://github.com/dryvist/ansible-splunk/commit/398b9f7a2b16b54bc4ea062e32952f54588907ba))
+
 ## [0.21.0](https://github.com/dryvist/ansible-splunk/compare/v0.20.0...v0.21.0) (2026-06-20)
 
 
