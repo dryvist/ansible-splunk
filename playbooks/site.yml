@@ -6,13 +6,14 @@
 - name: Load OpenTofu inventory
   ansible.builtin.import_playbook: ../inventory/load_tofu.yml
 
-# Resolve the latest Splunkbase app versions and mirror them into MinIO BEFORE
-# deploying, so every run installs current apps. Runs entirely on the controller
-# (which has internet egress); the Splunk VM stays air-gapped and only pulls from
-# MinIO. Fail-soft: a Splunkbase outage is rescued inside this playbook and the
-# deploy proceeds from whatever MinIO already holds. Requires the Splunkbase +
-# MinIO secrets in the environment (provided by `doppler run --`).
-- name: Sync latest Splunkbase apps into MinIO (in-flow, fail-soft)
+# Resolve the latest Splunkbase app versions and mirror them into the
+# object-storage bucket BEFORE deploying, so every run installs current apps. Runs
+# entirely on the controller (which has internet egress); the Splunk VM stays
+# air-gapped and only pulls from object storage. Fail-soft: a Splunkbase outage is
+# rescued inside this playbook and the deploy proceeds from whatever the bucket
+# already holds. Requires the Splunkbase + object-storage secrets in the
+# environment (provided by `doppler run --`).
+- name: Sync latest Splunkbase apps into object storage (in-flow, fail-soft)
   ansible.builtin.import_playbook: sync-splunkbase.yml
 
 # Configure NTP time synchronization BEFORE deploying Splunk. Splunk's

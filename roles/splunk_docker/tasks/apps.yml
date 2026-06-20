@@ -56,7 +56,7 @@
     splunk_docker_minio_manifest: >-
       {{ (splunk_docker_minio_manifest_q.content | from_json)
          if (splunk_docker_minio_manifest_q.status | default(0)) == 200
-            and (splunk_docker_minio_manifest_q.content | default('')) | length > 0
+            and (splunk_docker_minio_manifest_q.content | default('') | trim)[:1] == '{'
          else {} }}
 
 - name: Read installed version markers
@@ -81,7 +81,7 @@
   ansible.builtin.set_fact:
     splunk_docker_minio_plan: >-
       {{ splunk_docker_minio_plan | default([]) + [item.0 | combine({
-        'desired_version': (splunk_docker_minio_manifest[item.0.app_dir].version | default('')),
+        'desired_version': ((splunk_docker_minio_manifest[item.0.app_dir] | default({})).version | default('')),
         'installed_version': (
           (item.1.content | b64decode | trim) if item.1.content is defined else ''
         ),

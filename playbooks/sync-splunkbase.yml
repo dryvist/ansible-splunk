@@ -118,7 +118,9 @@
                   item.0.pin_version if item.0.pin_version is defined
                   else (
                     (item.1.content | from_json | first).name
-                    if (item.1.status | default(0)) == 200 and (item.1.content | default('')) | length > 0
+                    if (item.1.status | default(0)) == 200
+                       and (item.1.content | default('') | trim)[:1] == '['
+                       and (item.1.content | from_json | length) > 0
                     else ''
                   )
                 )
@@ -220,7 +222,8 @@
             splunkbase_token: >-
               {{ splunkbase_login.content
                  | regex_search('<id>([^<]+)</id>', '\1')
-                 | first }}
+                 | default([], true)
+                 | first | default('') }}
           when: splunkbase_to_sync | length > 0
           no_log: true
 
