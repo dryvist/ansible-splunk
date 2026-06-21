@@ -1,24 +1,28 @@
 ---
-# Splunkbase → MinIO sync playbook (resolves LATEST, mirrors, writes manifest)
+# Splunkbase → object-storage (RustFS) sync playbook — resolves LATEST, mirrors, writes manifest
 #
 # For every addons.yml entry with a `splunkbase_id`, resolves the latest release
 # from the PUBLIC Splunkbase API (no auth needed for resolution), downloads it with
-# the authenticated session, and mirrors it into the `splunk-addons` MinIO bucket
-# tagged `version=X.Y.Z&splunkbase_id=NNNN`. Finally writes `manifest.json`
-# (app_dir → {version, filename}) to the bucket — the version bridge the air-gapped
-# Splunk VM reads over the LAN to know which apps to (re)extract.
+# the authenticated session, and mirrors it into the `splunk-addons` bucket on the
+# RustFS object-storage LXC, tagged `version=X.Y.Z&splunkbase_id=NNNN`. Finally
+# writes `manifest.json` (app_dir → {version, filename}) to the bucket — the version
+# bridge the air-gapped Splunk VM reads over the LAN to know which apps to (re)extract.
 #
 # `pin_version` on an entry overrides resolution (hold back a bad release).
 #
-# Idempotent: skips download when the MinIO `version` tag already matches the
+# Versions are kept over time for free: the `splunk-addons` bucket has
+# object-versioning enabled, so each overwrite of an app retains the prior version
+# as a noncurrent version — no extra bookkeeping here.
+#
+# Idempotent: skips download when the bucket `version` tag already matches the
 # resolved latest. Fail-soft: if Splunkbase is unreachable, the whole resolve/sync
-# block is rescued — the existing MinIO contents + manifest are left intact so a
+# block is rescued — the existing bucket contents + manifest are left intact so a
 # deploy can still proceed. This playbook also runs as an in-flow pre-play of
 # site.yml; it stays usable standalone for manual/scheduled syncs.
 #
 # Credentials (Doppler):
-#   SPLUNKBASE_USERNAME / SPLUNKBASE_PASSWORD — Splunkbase account (download only)
-#   MINIO_ROOT_USER     / MINIO_ROOT_PASSWORD — MinIO bucket write auth
+#   SPLUNKBASE_USERNAME      / SPLUNKBASE_PASSWORD          — Splunkbase account (download only)
+#   OBJECT_STORAGE_ROOT_USER / OBJECT_STORAGE_ROOT_PASSWORD — object-storage bucket write auth
 #
 # Usage:
 #   doppler run -- ansible-playbook playbooks/sync-splunkbase.yml
@@ -26,24 +30,24 @@
 # Runs entirely on localhost (the Ansible controller, which has internet egress).
 # The Splunk VM never contacts Splunkbase — air-gap preserved.
 
-- name: Load OpenTofu inventory (for MinIO endpoint)
+- name: Load OpenTofu inventory (for object-storage endpoint)
   ansible.builtin.import_playbook: ../inventory/load_tofu.yml
 
-- name: Mirror latest Splunkbase add-ons into MinIO
+- name: Mirror latest Splunkbase add-ons into object storage
   hosts: localhost
   connection: local
   gather_facts: false
   vars:
     splunkbase_api: "{{ splunkbase_api_url | default('https://splunkbase.splunk.com') }}"
     splunkbase_sync_tmpdir: /tmp/splunkbase-sync
-    minio_bucket: splunk-addons
+    object_storage_bucket: splunk-addons
     # mc resolves the `homelab` alias from this env var — no persisted alias file.
     mc_env:
       MC_HOST_homelab: >-
-        http://{{ lookup('env', 'MINIO_ROOT_USER') }}:{{
-        lookup('env', 'MINIO_ROOT_PASSWORD') }}@{{
-        hostvars['localhost']['tofu_data']['containers']['minio']['ip'] }}:{{
-        hostvars['localhost']['tofu_data']['constants']['service_ports']['minio_api'] }}
+        http://{{ lookup('env', 'OBJECT_STORAGE_ROOT_USER') }}:{{
+        lookup('env', 'OBJECT_STORAGE_ROOT_PASSWORD') }}@{{
+        hostvars['localhost']['tofu_data']['containers']['object-storage']['ip'] }}:{{
+        hostvars['localhost']['tofu_data']['constants']['service_ports']['object_storage_s3'] }}
 
   tasks:
     - name: Assert required environment variables are set
@@ -51,11 +55,11 @@
         that:
           - lookup('env', 'SPLUNKBASE_USERNAME') | length > 0
           - lookup('env', 'SPLUNKBASE_PASSWORD') | length > 0
-          - lookup('env', 'MINIO_ROOT_USER') | length > 0
-          - lookup('env', 'MINIO_ROOT_PASSWORD') | length > 0
+          - lookup('env', 'OBJECT_STORAGE_ROOT_USER') | length > 0
+          - lookup('env', 'OBJECT_STORAGE_ROOT_PASSWORD') | length > 0
         fail_msg: >-
           Missing one of SPLUNKBASE_USERNAME, SPLUNKBASE_PASSWORD,
-          MINIO_ROOT_USER, MINIO_ROOT_PASSWORD. Run via
+          OBJECT_STORAGE_ROOT_USER, OBJECT_STORAGE_ROOT_PASSWORD. Run via
           `doppler run -- ansible-playbook …` so Doppler injects secrets.
 
     - name: Load Splunk add-on registry
@@ -88,7 +92,7 @@
 
     # Resolve → download → mirror → manifest. Wrapped in block/rescue so a
     # Splunkbase outage degrades gracefully: the deploy continues from whatever
-    # MinIO already holds (the existing manifest is left untouched).
+    # the object store already holds (the existing manifest is left untouched).
     - name: Resolve latest, sync drifted apps, and publish manifest
       block:
         # PUBLIC endpoint — no auth. Newest release is element [0].
@@ -114,7 +118,9 @@
                   item.0.pin_version if item.0.pin_version is defined
                   else (
                     (item.1.content | from_json | first).name
-                    if (item.1.status | default(0)) == 200 and (item.1.content | default('')) | length > 0
+                    if (item.1.status | default(0)) == 200
+                       and (item.1.content | default('') | trim)[:1] == '['
+                       and (item.1.content | from_json | length) > 0
                     else ''
                   )
                 )
@@ -140,14 +146,14 @@
         # `mc tag list --json` returns nonzero for a missing object ("NoSuchKey"
         # in stdout) — expected, drives a sync. Any other nonzero (auth/network/
         # bucket) must fail loud, validated in the next task.
-        - name: Query current MinIO version tag for each entry
+        - name: Query current object-storage version tag for each entry
           ansible.builtin.command:
-            cmd: "mc tag list --json homelab/{{ minio_bucket }}/{{ item.filename }}"
+            cmd: "mc tag list --json homelab/{{ object_storage_bucket }}/{{ item.filename }}"
           environment: "{{ mc_env }}"
           loop: "{{ splunkbase_desired }}"
           loop_control:
             label: "{{ item.filename }}"
-          register: minio_tag_query
+          register: object_storage_tag_query
           changed_when: false
           failed_when: false
           no_log: true
@@ -158,14 +164,14 @@
               - item.rc == 0 or 'NoSuchKey' in (item.stdout | default(''))
             fail_msg: >-
               mc tag list failed for {{ item.item.filename }} with rc={{ item.rc }}.
-              Not a "missing object" — check MinIO connectivity,
-              MINIO_ROOT_USER/PASSWORD, and bucket existence.
+              Not a "missing object" — check object-storage connectivity,
+              OBJECT_STORAGE_ROOT_USER/PASSWORD, and bucket existence.
             quiet: true
-          loop: "{{ minio_tag_query.results }}"
+          loop: "{{ object_storage_tag_query.results }}"
           loop_control:
             label: "{{ item.item.filename }}"
 
-        - name: Compute sync decisions (MinIO tag vs resolved latest)
+        - name: Compute sync decisions (bucket tag vs resolved latest)
           ansible.builtin.set_fact:
             splunkbase_plan: >-
               {{ splunkbase_plan | default([]) + [item.item | combine({
@@ -179,7 +185,7 @@
                       | default('') | trim) != (item.item.desired_version | string | trim)
                 ),
               })] }}
-          loop: "{{ minio_tag_query.results }}"
+          loop: "{{ object_storage_tag_query.results }}"
           loop_control:
             label: "{{ item.item.filename }}"
 
@@ -187,7 +193,7 @@
           ansible.builtin.debug:
             msg: >-
               {{ item.filename }}: latest={{ item.desired_version }}
-              minio={{ item.current_version or '(none)' }}
+              store={{ item.current_version or '(none)' }}
               → {{ 'SYNC' if item.needs_sync else 'skip' }}
           loop: "{{ splunkbase_plan }}"
           loop_control:
@@ -216,7 +222,8 @@
             splunkbase_token: >-
               {{ splunkbase_login.content
                  | regex_search('<id>([^<]+)</id>', '\1')
-                 | first }}
+                 | default([], true)
+                 | first | default('') }}
           when: splunkbase_to_sync | length > 0
           no_log: true
 
@@ -244,23 +251,23 @@
           loop_control:
             label: "{{ item.filename }} v{{ item.desired_version }}"
 
-        - name: Upload synced archives to MinIO
+        - name: Upload synced archives to object storage
           ansible.builtin.command:
             cmd: >-
               mc cp
               {{ splunkbase_sync_tmpdir }}/{{ item.filename }}
-              homelab/{{ minio_bucket }}/{{ item.filename }}
+              homelab/{{ object_storage_bucket }}/{{ item.filename }}
           environment: "{{ mc_env }}"
           loop: "{{ splunkbase_to_sync }}"
           loop_control:
             label: "{{ item.filename }}"
           changed_when: true
 
-        - name: Tag MinIO objects with version + splunkbase_id
+        - name: Tag object-storage objects with version + splunkbase_id
           ansible.builtin.command:
             cmd: >-
               mc tag set
-              homelab/{{ minio_bucket }}/{{ item.filename }}
+              homelab/{{ object_storage_bucket }}/{{ item.filename }}
               version={{ item.desired_version }}&splunkbase_id={{ item.splunkbase_id }}
           environment: "{{ mc_env }}"
           loop: "{{ splunkbase_to_sync }}"
@@ -278,7 +285,7 @@
 
         # Manifest = the version bridge the air-gapped Splunk VM reads over HTTP.
         # Written from the FULL resolved set (not just synced) so it always
-        # reflects what MinIO currently holds.
+        # reflects what the bucket currently holds.
         - name: Build manifest (app_dir → {version, filename})
           ansible.builtin.set_fact:
             splunkbase_manifest: >-
@@ -295,12 +302,12 @@
             dest: "{{ splunkbase_sync_tmpdir }}/manifest.json"
             mode: "0600"
 
-        - name: Publish manifest.json to MinIO
+        - name: Publish manifest.json to object storage
           ansible.builtin.command:
             cmd: >-
               mc cp
               {{ splunkbase_sync_tmpdir }}/manifest.json
-              homelab/{{ minio_bucket }}/manifest.json
+              homelab/{{ object_storage_bucket }}/manifest.json
           environment: "{{ mc_env }}"
           changed_when: true
 
@@ -318,9 +325,9 @@
               manifest.json published with {{ splunkbase_manifest | length }} apps.
 
       rescue:
-        - name: Splunkbase sync failed — continue from existing MinIO contents (fail-soft)
+        - name: Splunkbase sync failed — continue from existing object-storage contents (fail-soft)
           ansible.builtin.debug:
             msg: >-
-              Splunkbase resolve/sync failed; leaving MinIO + manifest.json as-is and
+              Splunkbase resolve/sync failed; leaving the bucket + manifest.json as-is and
               proceeding with whatever is already mirrored. Error:
               {{ ansible_failed_result.msg | default('see preceding task') }}
