@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.3](https://github.com/dryvist/ansible-splunk/compare/v0.22.2...v0.22.3) (2026-06-22)
+
+
+### Bug Fixes
+
+* **splunk:** auto-reconcile admin password with SPLUNK_PASSWORD ([#282](https://github.com/dryvist/ansible-splunk/issues/282)) ([d3718b1](https://github.com/dryvist/ansible-splunk/commit/d3718b1eb039a10af1f4bc5db31c0a97bd2a5264))
+
 ## [0.22.2](https://github.com/dryvist/ansible-splunk/compare/v0.22.1...v0.22.2) (2026-06-22)
 
 
