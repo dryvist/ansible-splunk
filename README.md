@@ -15,7 +15,7 @@ Deploy and configure Splunk Enterprise (Docker) on a Proxmox VM.
 | **Target** | Splunk VM (VMID 200) — addressed from the tofu inventory, or DNS-first as `splunk-aio.{PROXMOX_DOMAIN}` |
 | **Role** | `roles/splunk_docker` |
 | **Entry point** | `playbooks/site.yml` |
-| **Secrets** | Doppler (`iac-conf-mgmt` / `prd`) |
+| **Secrets** | Doppler |
 | **Version** | See `VERSION` |
 
 ## Pipeline Architecture
@@ -128,7 +128,7 @@ Key defaults in `roles/splunk_docker/defaults/main.yml`:
 
 ## Secrets
 
-All secrets via Doppler (`iac-conf-mgmt` / `prd`):
+All secrets via your Doppler config:
 
 | Doppler Secret | Ansible Variable | Purpose |
 | --- | --- | --- |
