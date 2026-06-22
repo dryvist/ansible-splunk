@@ -182,6 +182,13 @@
     | selectattr('status', 'in', ['Creating', 'Recreating', 'Pulling', 'Building'])
     | list | length > 0
 
+# Self-heal the admin-password drift trap (stale persisted passwd vs rotated
+# SPLUNK_PASSWORD) BEFORE the readiness wait — otherwise a 401 restart-loop
+# would just time the wait out. No-op when the password is already in sync.
+- name: Reconcile admin password with SPLUNK_PASSWORD
+  ansible.builtin.include_tasks: reconcile_admin_password.yml
+  when: splunk_docker_wait_enabled
+
 - name: Wait for Splunk to be ready
   ansible.builtin.include_tasks: wait_for_splunk.yml
 
