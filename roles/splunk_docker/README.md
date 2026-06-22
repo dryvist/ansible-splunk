@@ -86,10 +86,10 @@ fallback that grants access to all indexes.
 
 ```bash
 # Generate a random namespace UUID (enables per-index tokens)
-doppler secrets set HEC_NAMESPACE "$(uuidgen)" -p iac-conf-mgmt -c prd
+doppler secrets set HEC_NAMESPACE "$(uuidgen)"
 
 # Set the shared legacy token (always required)
-doppler secrets set SPLUNK_HEC_TOKEN "$(uuidgen)" -p iac-conf-mgmt -c prd
+doppler secrets set SPLUNK_HEC_TOKEN "$(uuidgen)"
 ```
 
 ### Adding a New Index + Token
