@@ -20,6 +20,13 @@
     group: root
     mode: "0644"
     validate: chronyd -p -f %s
+  # Stage the validation source under /tmp, not the connection user's home.
+  # `validate: chronyd -p -f %s` runs under systemd ProtectHome=yes and cannot
+  # read /home/<user>/.ansible/tmp/...; staging in /tmp avoids it (#274). Ansible
+  # still creates a randomized 0700 `ansible-tmp-*` subdir here and cleans it up.
+  # Scoped to this task only — keep the secure home-dir default everywhere else.
+  vars:
+    ansible_remote_tmp: /tmp
   notify: Restart chrony
   tags:
     - ntp

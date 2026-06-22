@@ -75,7 +75,8 @@ holds no authoritative local inventory.
 ### External services
 
 - **Doppler**: Secrets for `SPLUNK_PASSWORD`, `HEC_NAMESPACE`,
-  `SPLUNK_HEC_TOKEN`, `SPLUNK_MCP_TOKEN`, `PROXMOX_SSH_KEY_PATH`.
+  `SPLUNK_HEC_TOKEN`, `SPLUNK_MCP_TOKEN`, `PROXMOX_SSH_KEY_PATH`,
+  `OBJECT_STORAGE_ROOT_USER`, `OBJECT_STORAGE_ROOT_PASSWORD`.
 
 ## Sources of truth
 
@@ -97,17 +98,17 @@ holds no authoritative local inventory.
 | `roles/splunk_docker/` | Splunk deployment role |
 | `roles/splunk_docker/files/` | App archives (gitignored) |
 | `playbooks/site.yml` | Full deployment playbook |
-| `playbooks/sync-splunkbase.yml` | MinIO sync for Splunkbase artifacts |
+| `playbooks/sync-splunkbase.yml` | Splunkbase → object-storage (RustFS) sync |
 | `playbooks/validate.yml` | Post-deploy validation |
 | `inventory/load_tofu.yml` | Dynamic inventory loader |
 
 ## Commands
 
 ```bash
-# Full deployment (MinIO → Splunk VM, direct target-side pull)
+# Full deployment (object storage → Splunk VM, direct target-side pull)
 doppler run -- ansible-playbook playbooks/site.yml
 
-# Sync Splunkbase → MinIO (run before site.yml when versions bumped)
+# Sync Splunkbase → object storage (run before site.yml when versions bumped)
 doppler run -- ansible-playbook playbooks/sync-splunkbase.yml
 
 # Validate deployment
@@ -142,16 +143,20 @@ ansible-lint
 2. Add entry to `roles/splunk_docker/vars/custom_addons.yml`.
 3. Re-run `doppler run -- ansible-playbook playbooks/site.yml`.
 
-## Artifact store (MinIO)
+## Artifact store (object-storage / RustFS)
 
-Custom add-ons that cannot be downloaded from Splunkbase or GitHub are
-served from a self-hosted MinIO instance (LXC container `minio`).
+Custom add-ons and resolved Splunkbase archives that the air-gapped Splunk
+VM pulls over the LAN are served from a self-hosted S3-compatible
+object-storage instance (RustFS LXC). Endpoint and port come from the
+OpenTofu inventory (`tofu_data.constants.service_ports.object_storage_s3`);
+bucket-write auth is `OBJECT_STORAGE_ROOT_USER` / `OBJECT_STORAGE_ROOT_PASSWORD`
+from Doppler.
 
 - Bucket: `splunk-addons` (anonymous read on internal network).
 - Add-ons with `artifact_store: true` in `vars/custom_addons.yml`
   auto-download.
 - Upload new versions via `mc cp` — filenames are version-free,
-  versions tracked via MinIO object tags.
+  versions tracked via object tags.
 - See `roles/splunk_docker/files/README.md` for upload instructions.
 
 ## MCP Server tools
@@ -201,7 +206,7 @@ rules to work around stale tooling.
 
 | Repo | Relationship |
 | --- | --- |
-| `dryvist/terraform-proxmox` | Upstream: provisions Splunk VM + MinIO LXC |
-| `dryvist/ansible-proxmox-apps` | Peer: owns Cribl (sends to HEC), deploys MinIO |
+| `dryvist/terraform-proxmox` | Upstream: provisions Splunk VM + object-storage (RustFS) LXC |
+| `dryvist/ansible-proxmox-apps` | Peer: owns Cribl (sends to HEC), deploys the object storage (RustFS) |
 | `dryvist/ansible-proxmox` | Peer: Proxmox host config |
 | `dryvist/nix-ai` | MCP client configuration (`modules/mcp/`) |
