@@ -1,12 +1,22 @@
 # ntp
 
-> Vendored from [JacobPEvans/ansible-proxmox](https://github.com/JacobPEvans/ansible-proxmox/tree/main/roles/ntp).
-> Keep both copies aligned when changing. This repo only uses client mode
-> on the Splunk VM (`ntp_servers` populated from Doppler, `ntp_serve`
-> left at the default `false`).
+Time synchronization for the Splunk VM via **systemd-timesyncd**, Debian's
+built-in SNTP client. This repo's copy deliberately **diverges** from the
+chrony-based [`ansible-proxmox` ntp role](https://github.com/JacobPEvans/ansible-proxmox/tree/main/roles/ntp):
+the Proxmox hosts run chrony (they *serve* stratum-2); the Splunk VM is a pure
+*client* and uses the native timesyncd, which needs no package and — crucially —
+no config `validate:` step. The old chrony `validate: chronyd -p -f %s` ran as
+the privilege-dropped `_chrony` user and could not read Ansible's `0700` staged
+temp file, breaking every deploy at the NTP step (#274/#279); timesyncd removes
+that failure mode entirely.
 
-Configures chrony for time synchronization. Supports client, server, and
-hybrid modes via variable combinations.
+## What it does
+
+1. Ensures `tzdata`, removes `chrony` (timesyncd and chrony conflict over the clock).
+2. Renders `/etc/systemd/timesyncd.conf` with `NTP=` (internal servers) and
+   `FallbackNTP=` (public pool).
+3. Enables + starts `systemd-timesyncd` (skipped under Docker so molecule can
+   test in containers).
 
 ## Installation
 
@@ -14,113 +24,47 @@ This role lives in this repository under `roles/ntp/`. Reference it from a
 playbook in the `roles:` block — no Galaxy install needed:
 
 ```yaml
-- hosts: proxmox
+- hosts: splunk
   roles:
     - role: ntp
 ```
 
-For consumption from sibling repos (`ansible-proxmox-apps`, `ansible-splunk`),
-vendor the role or reference it via `requirements.yml` pointing at this repo.
-
-## API
-
-The role's behavior is driven entirely by the variables documented below.
-Mode selection (client / server / hybrid) is variable-driven, but a small
-number of tasks are fact-gated: the systemd task is skipped under Docker
-(`ansible_virtualization_type != 'docker'`) so the role can be molecule-tested
-in containers.
-
-### Modes
-
-The combination of `ntp_servers` and `ntp_serve` selects the mode:
-
-- **Client (default)** — `ntp_servers: []`, `ntp_serve: false`. Syncs from
-  `ntp_pools` (public Debian pool).
-- **Internal client** — `ntp_servers` non-empty, `ntp_serve: false`. Syncs
-  from `ntp_servers`; `ntp_pools` is ignored.
-- **Server** — `ntp_servers: []`, `ntp_serve: true`. Syncs from `ntp_pools`,
-  serves to `ntp_allow_cidrs`.
-- **Hybrid** — `ntp_servers` non-empty, `ntp_serve: true`. Syncs from
-  `ntp_servers`, serves to `ntp_allow_cidrs`.
-
-`server <addr> iburst` lines take precedence over `pool` lines: when
-`ntp_servers` is non-empty, the pool block is skipped entirely.
-
-### Variables
-
-See `defaults/main.yml` for the authoritative list and inline rationale.
-
-- `ntp_servers` (list, default `[]`) — Internal NTP servers. Each entry is
-  the full chrony directive following the `server` keyword, so include any
-  options you want (e.g., `["192.168.0.10 iburst", "192.168.0.11 iburst prefer"]`).
-  Mirrors the `ntp_pools` pattern.
-- `ntp_pools` (list, default Debian pool with 4 entries) — Used only when
-  `ntp_servers` is empty.
-- `ntp_serve` (bool, default `false`) — Enable server mode.
-- `ntp_allow_cidrs` (list, default `[]`) — CIDRs allowed to query this host.
-  Required when `ntp_serve: true`.
-- `ntp_service_state` (string, default `started`) — Passed through to systemd.
-- `ntp_service_enabled` (bool, default `true`) — Passed through to systemd.
-- `ntp_config_file` (string, default `/etc/chrony/chrony.conf`).
-
 ## Usage
 
-### Proxmox hosts (server mode, wired in `playbooks/site.yml`)
+`playbooks/site.yml` wires `ntp_servers` from `PROXMOX_NTP_SERVERS` (Doppler) and
+runs the role on the Splunk VM:
 
 ```yaml
 - role: ntp
   vars:
-    ntp_serve: true
-    ntp_allow_cidrs:
-      - "192.168.0.0/16"
-      - "10.0.0.0/8"
+    ntp_servers: "{{ (lookup('env', 'PROXMOX_NTP_SERVERS') | default('', true)).split(',') | map('trim') | select | list }}"
 ```
 
-Result: hosts sync from the Debian public pool and serve NTP to all internal
-RFC1918 traffic on UDP/123. Companion firewall rule lives in
-`terraform-proxmox/modules/firewall/` (see issue #285).
+An empty `PROXMOX_NTP_SERVERS` leaves only the pool fallback, so the role stays
+safe when Doppler omits it.
 
-### Internal clients (used by ansible-proxmox-apps and ansible-splunk)
+### Variables
 
-In the consumer repo's `inventory/group_vars/all.yml`:
+See `defaults/main.yml`.
 
-```yaml
-ntp_servers: "{{ lookup('env', 'PROXMOX_NTP_SERVERS') | split(',') | map('trim') | reject('equalto', '') | list }}"
-```
+- `ntp_servers` (list, default `[]`) — primary sources → timesyncd `NTP=`. Point
+  at the internal Proxmox stratum-2 servers. Only the host token of each entry is
+  used, so chrony-style options (`10.0.10.10 iburst`) are tolerated and stripped.
+- `ntp_pools` (list, default Debian pool) → timesyncd `FallbackNTP=`. Used only
+  when the `NTP=` set is unreachable.
 
-With `PROXMOX_NTP_SERVERS` injected via Doppler. An empty value falls back to
-the public pool, so the role stays safe if Doppler is unavailable.
-
-## Verification (server mode)
+### Verification
 
 ```sh
-chronyc tracking          # current sync state
-chronyc clients           # connected clients (server mode)
-chronyc sources -v        # upstream sources
+timedatectl show-timesync --property=ServerName,ServerAddress,NTPMessage
+timedatectl status        # 'System clock synchronized: yes', 'NTP service: active'
 ```
-
-From a client subnet:
-
-```sh
-chronyc -h <proxmox-host> tracking
-```
-
-## Idempotency
-
-The `validate: chronyd -p -f %s` directive on the template task pre-validates
-the rendered config; a syntax error fails the play before chronyd is told to
-restart. Restart fires only via the `Restart chrony` handler — when the file
-actually changes.
-
-The systemd task is skipped under Docker (`ansible_virtualization_type !=
-'docker'`) so the role can be molecule-tested in containers.
 
 ## Contributing
 
-Changes to this role should be paired with a `molecule test` run from the
-repo root. Update this README whenever a variable is added, removed, or
-changes default value.
+Pair changes with a `molecule test` run from the repo root. Update this README
+whenever a variable is added, removed, or changes default.
 
 ## License
 
-Internal — same license as the parent `ansible-proxmox` repository.
+Internal — same license as the parent repository.

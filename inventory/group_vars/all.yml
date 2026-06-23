@@ -7,15 +7,12 @@ ansible_python_interpreter: /usr/bin/python3
 # System configuration
 system_timezone: UTC
 
-# NTP: point at the self-hosted Proxmox stratum-2 servers when Doppler
-# provides PROXMOX_NTP_SERVERS (comma-separated bare IPs/hostnames).
-# The regex_replace appends "iburst" to entries that contain no spaces
-# (i.e., bare addresses) so initial sync is fast; entries that already
-# include chrony options (e.g. "192.168.0.10 iburst prefer") are passed
-# through unchanged. Empty value uses the role's ntp_pools default
-# (Debian public pool); pool also stays as a fallback when ntp_servers
-# is non-empty. Splunk _time correlation depends on accurate clocks.
+# NTP: point systemd-timesyncd at the self-hosted Proxmox stratum-2 servers
+# when Doppler provides PROXMOX_NTP_SERVERS (comma-separated bare IPs/hostnames).
+# The ntp role renders these as timesyncd NTP= (bare host list — it strips any
+# trailing options), with the Debian public pool as FallbackNTP=. Empty value
+# leaves only the pool fallback, so the role stays safe when Doppler omits it.
+# Splunk _time correlation depends on accurate clocks.
 ntp_servers: >-
   {{ lookup('env', 'PROXMOX_NTP_SERVERS')
-     | split(',') | map('trim') | reject('equalto', '')
-     | map('regex_replace', '^([^ ]+)$', '\1 iburst') | list }}
+     | split(',') | map('trim') | reject('equalto', '') | list }}

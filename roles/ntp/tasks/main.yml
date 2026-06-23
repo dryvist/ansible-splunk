@@ -1,41 +1,50 @@
 ---
-# NTP time synchronization role using chrony
+# Time synchronization via systemd-timesyncd — Debian's built-in SNTP client.
+#
+# Replaces the previous chrony role. chrony's `validate: chronyd -p -f %s` ran
+# as the privilege-dropped `_chrony` user and could not read Ansible's 0700
+# staged temp file, aborting every site.yml deploy at the NTP step whether the
+# temp lived under $HOME (ProtectHome) or /tmp (perms) — see #274/#279. timesyncd
+# needs no package install and no config validation, so that whole class of
+# breakage is gone. The Splunk VM is a pure NTP *client*: it points at the
+# internal Proxmox stratum-2 servers (ntp_servers) with the public Debian pool
+# as fallback (ntp_pools).
 
-- name: Install chrony and tzdata
+- name: Ensure tzdata is present
   ansible.builtin.apt:
-    name:
-      - chrony
-      - tzdata
+    name: tzdata
     state: present
     update_cache: true
     cache_valid_time: 3600
   tags:
     - ntp
 
-- name: Deploy chrony configuration
-  ansible.builtin.template:
-    src: chrony.conf.j2
-    dest: "{{ ntp_config_file }}"
-    owner: root
-    group: root
-    mode: "0644"
-    validate: chronyd -p -f %s
-  # Stage the validation source under /tmp, not the connection user's home.
-  # `validate: chronyd -p -f %s` runs under systemd ProtectHome=yes and cannot
-  # read /home/<user>/.ansible/tmp/...; staging in /tmp avoids it (#274). Ansible
-  # still creates a randomized 0700 `ansible-tmp-*` subdir here and cleans it up.
-  # Scoped to this task only — keep the secure home-dir default everywhere else.
-  vars:
-    ansible_remote_tmp: /tmp
-  notify: Restart chrony
+# chrony and systemd-timesyncd both discipline the system clock and conflict if
+# both run. Remove chrony so timesyncd is the sole time source.
+- name: Remove chrony (superseded by systemd-timesyncd)
+  ansible.builtin.apt:
+    name: chrony
+    state: absent
+    purge: true
   tags:
     - ntp
 
-- name: Enable and start chrony service
+- name: Configure systemd-timesyncd time sources
+  ansible.builtin.template:
+    src: timesyncd.conf.j2
+    dest: /etc/systemd/timesyncd.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart systemd-timesyncd
+  tags:
+    - ntp
+
+- name: Enable and start systemd-timesyncd
   ansible.builtin.systemd:
-    name: chrony
-    state: "{{ ntp_service_state }}"
-    enabled: "{{ ntp_service_enabled }}"
+    name: systemd-timesyncd
+    state: started
+    enabled: true
   when: ansible_virtualization_type | default('') != 'docker'
   tags:
     - ntp
