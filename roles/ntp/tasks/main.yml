@@ -20,12 +20,24 @@
     - ntp
 
 # chrony and systemd-timesyncd both discipline the system clock and conflict if
-# both run. Remove chrony so timesyncd is the sole time source.
+# both run. Remove chrony first so the timesyncd install/enable below owns time.
 - name: Remove chrony (superseded by systemd-timesyncd)
   ansible.builtin.apt:
     name: chrony
     state: absent
     purge: true
+  tags:
+    - ntp
+
+# systemd-timesyncd is a separate Debian package and is NOT installed by default
+# when another NTP daemon (chrony) was present — install it explicitly, after
+# chrony is gone, so the service exists for the enable/start task below.
+- name: Install systemd-timesyncd
+  ansible.builtin.apt:
+    name: systemd-timesyncd
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
   tags:
     - ntp
 
