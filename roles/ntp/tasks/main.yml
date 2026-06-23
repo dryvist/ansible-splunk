@@ -41,10 +41,22 @@
   tags:
     - ntp
 
+# Use a drop-in, not the package-managed /etc/systemd/timesyncd.conf — editing
+# the main conffile risks interactive dpkg prompts on package upgrade.
+- name: Ensure the systemd-timesyncd drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/timesyncd.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - ntp
+
 - name: Configure systemd-timesyncd time sources
   ansible.builtin.template:
     src: timesyncd.conf.j2
-    dest: /etc/systemd/timesyncd.conf
+    dest: /etc/systemd/timesyncd.conf.d/ansible.conf
     owner: root
     group: root
     mode: "0644"
