@@ -1,0 +1,9 @@
+# {{ ansible_managed }} — managed by ansible-splunk ntp role.
+# systemd-timesyncd: NTP= are the primary sources (internal Proxmox stratum-2),
+# FallbackNTP= the public pool used only when the primary set is unreachable.
+# Only the host token of each entry is kept (timesyncd takes bare hosts).
+# NTP= is always rendered (empty when ntp_servers is empty) so it clears any
+# servers inherited from the main conffile and FallbackNTP is actually used.
+[Time]
+NTP={{ ntp_servers | map('regex_replace', '\\s.*$', '') | join(' ') }}
+FallbackNTP={{ ntp_pools | map('regex_replace', '\\s.*$', '') | join(' ') }}

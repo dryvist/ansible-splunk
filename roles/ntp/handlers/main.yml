@@ -1,9 +1,9 @@
 ---
 # NTP role handlers
 
-- name: Restart chrony
+- name: Restart systemd-timesyncd
   ansible.builtin.systemd:
-    name: chrony
+    name: systemd-timesyncd
     state: restarted
   when: ansible_virtualization_type | default('') != 'docker'
-  listen: Restart chrony
+  listen: Restart systemd-timesyncd

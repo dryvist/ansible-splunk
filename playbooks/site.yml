@@ -30,13 +30,17 @@
   roles:
     - role: ntp
   post_tasks:
-    - name: Flush NTP handlers so chrony restart runs before Splunk deploys
+    - name: Flush NTP handlers so the timesyncd restart runs before Splunk deploys
       ansible.builtin.meta: flush_handlers
 
-    - name: Wait for chrony to synchronize the clock
-      ansible.builtin.command: chronyc waitsync 5 0.1
-      register: ntp_waitsync
+    - name: Wait for the clock to synchronize via systemd-timesyncd
+      ansible.builtin.command: timedatectl show --property=NTPSynchronized --value
+      register: ntp_synced
       changed_when: false
+      until: ntp_synced.stdout | trim == 'yes'
+      retries: 12
+      delay: 5
+      when: ansible_virtualization_type | default('') != 'docker'
       tags:
         - ntp
         - time
