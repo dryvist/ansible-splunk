@@ -56,14 +56,14 @@ for ancillary services — those belong in `ansible-proxmox-apps` as LXC.
 #### Inventory freshness guarantee (single-writer / readers-always-latest)
 
 S3 is the single source of truth; this repo is a **read-only consumer** and
-holds no authoritative local inventory.
+holds no authoritative local inventory. The producer-side ACID contract is
+documented once at
+[Deployment state contract](https://docs.jacobpevans.com/infrastructure/deployment-state-contract).
 
-- **Single writer**: `terraform-proxmox` serializes every `apply` with a dual
-  state lock (`use_lockfile` S3-native **and** the
-  `terraform-proxmox-locks-useast2` DynamoDB table), then republishes the
-  artifact with a single atomic `aws_s3_object` PUT. Two applies cannot both
-  publish. This lock lives in the producer — a consumer repo cannot (and must
-  not) reimplement it.
+- **Single writer**: `terraform-proxmox` serializes every `apply` with its state
+  lock and republishes the artifact with a single atomic PUT, so two applies
+  cannot both publish. This lock lives in the producer — a consumer repo cannot
+  (and must not) reimplement it. (Lock mechanics: see the contract above.)
 - **Readers always get the latest**: S3 strong read-after-write consistency —
   every GET returns the most recent PUT; concurrent reads need no lock. The S3
   fetch retries transient blips before degrading.
