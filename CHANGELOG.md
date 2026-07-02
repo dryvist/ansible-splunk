@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.4](https://github.com/dryvist/ansible-splunk/compare/v0.22.3...v0.22.4) (2026-07-02)
+
+
+### Bug Fixes
+
+* point callers at renamed cc- reusable workflows ([5b9dd70](https://github.com/dryvist/ansible-splunk/commit/5b9dd701c01487e300138fac3ee813a7cfde9f6e))
+
 ## [0.22.3](https://github.com/dryvist/ansible-splunk/compare/v0.22.2...v0.22.3) (2026-06-22)
 
 
