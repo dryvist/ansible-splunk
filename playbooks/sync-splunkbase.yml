@@ -32,6 +32,11 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  # Tagged so a converge from outside the object store's network segment can
+  # leave the mirror out (`--skip-tags splunkbase`) and deploy from whatever the
+  # bucket already holds — the same outcome the rescue below produces when
+  # Splunkbase itself is unreachable.
+  tags: [splunkbase]
   vars:
     splunkbase_api: "{{ splunkbase_api_url | default('https://splunkbase.splunk.com') }}"
     splunkbase_sync_tmpdir: /tmp/splunkbase-sync
