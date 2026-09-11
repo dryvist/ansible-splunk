@@ -12,7 +12,9 @@
 # air-gapped and only pulls from object storage. Fail-soft: a Splunkbase outage is
 # rescued inside this playbook and the deploy proceeds from whatever the bucket
 # already holds. Requires the Splunkbase + object-storage secrets in the
-# environment (provided by `doppler run --`).
+# environment (provided by `doppler run --`). Skippable with
+# `--skip-tags splunkbase` when the object store is not reachable from the
+# controller.
 - name: Sync latest Splunkbase apps into object storage (in-flow, fail-soft)
   ansible.builtin.import_playbook: sync-splunkbase.yml
 
