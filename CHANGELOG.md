@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.72.0](https://github.com/dryvist/ansible-splunk/compare/v0.71.2...v0.72.0) (2026-09-11)
+
+
+### Features
+
+* **splunk:** apply saved-search overrides through the REST API ([239a1ae](https://github.com/dryvist/ansible-splunk/commit/239a1ae1d7a00c4608bb4600022ff017bd351a50))
+
+
+### Bug Fixes
+
+* **splunk:** declare saved-search overrides in inventory, not role defaults ([b5a89e5](https://github.com/dryvist/ansible-splunk/commit/b5a89e52c1e1ae071b4a813106d192b2745fbe9f))
+
 ## [0.71.2](https://github.com/dryvist/ansible-splunk/compare/v0.71.1...v0.71.2) (2026-09-11)
 
 
