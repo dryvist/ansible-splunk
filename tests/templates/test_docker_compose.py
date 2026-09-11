@@ -36,7 +36,7 @@ errors = []
 
 # Shared base vars (Java disabled, SSL enabled — the production defaults)
 BASE_VARS = {
-    "splunk_docker_image": "splunk/splunk:latest",
+    "splunk_docker_image": "splunk/splunk:10.4.3",
     "splunk_docker_hostname": "splunk",
     "splunk_docker_container_name": "splunk",
     "splunk_docker_password": "Ch@ngeMe123",

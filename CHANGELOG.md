@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.71.0](https://github.com/dryvist/ansible-splunk/compare/v0.70.4...v0.71.0) (2026-09-09)
+
+
+### Features
+
+* **splunk:** fail the converge on an auth token with an unmanaged owner ([#547](https://github.com/dryvist/ansible-splunk/issues/547)) ([f1395fe](https://github.com/dryvist/ansible-splunk/commit/f1395fed61410674331361abad35d9f7094502d6))
+
+## [0.70.4](https://github.com/dryvist/ansible-splunk/compare/v0.70.3...v0.70.4) (2026-09-09)
+
+
+### Bug Fixes
+
+* **splunk:** declare the agent's role instead of borrowing a built-in ([#545](https://github.com/dryvist/ansible-splunk/issues/545)) ([739157e](https://github.com/dryvist/ansible-splunk/commit/739157eaddb7e444cf4c342269633fdc4f0a7945))
+
+## [0.70.3](https://github.com/dryvist/ansible-splunk/compare/v0.70.2...v0.70.3) (2026-09-08)
+
+
+### Bug Fixes
+
+* **splunk:** give the agent identity search, not administration ([#543](https://github.com/dryvist/ansible-splunk/issues/543)) ([5a9cf71](https://github.com/dryvist/ansible-splunk/commit/5a9cf718bf2f8770001d05ad98fe80db6b3c8867))
+
+## [0.70.2](https://github.com/dryvist/ansible-splunk/compare/v0.70.1...v0.70.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **splunk_docker:** reconcile the Enterprise license, and refuse an expired one ([#541](https://github.com/dryvist/ansible-splunk/issues/541)) ([685716f](https://github.com/dryvist/ansible-splunk/commit/685716f1288ce0c96c2f0ca0b8a2ac5e5b0d2651))
+
+## [0.70.1](https://github.com/dryvist/ansible-splunk/compare/v0.70.0...v0.70.1) (2026-09-05)
+
+
+### Bug Fixes
+
+* **agents:** restore the trailing newline on AGENTS.md ([#538](https://github.com/dryvist/ansible-splunk/issues/538)) ([941b912](https://github.com/dryvist/ansible-splunk/commit/941b91264d0ccae6f8e6c23aa110129bfdcc6dbb))
+
+## [0.70.0](https://github.com/dryvist/ansible-splunk/compare/v0.69.1...v0.70.0) (2026-09-05)
+
+
+### Features
+
+* **splunk_docker:** declare the clickhouse and phoenix indexes ([#535](https://github.com/dryvist/ansible-splunk/issues/535)) ([af96b8b](https://github.com/dryvist/ansible-splunk/commit/af96b8bb2c1c6c51c218586e5c9acfc5201d93c5))
+
 ## [0.69.1](https://github.com/dryvist/ansible-splunk/compare/v0.69.0...v0.69.1) (2026-09-04)
 
 

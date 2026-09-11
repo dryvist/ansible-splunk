@@ -299,6 +299,20 @@
   notify: Restart Splunk container
   tags: [alerting]
 
+# Runs before the container starts so a first converge comes up licensed
+# rather than on Free and needing a second pass.
+- name: Reconcile the Enterprise license
+  ansible.builtin.include_tasks: license.yml
+  when: splunk_docker_license_xml | length > 0
+
+- name: Report that no license is being managed
+  ansible.builtin.debug:
+    msg: >-
+      SPLUNK_LICENSE is not set: no Enterprise license is managed and Splunk
+      runs on its Free license. Set it in the environment on a production
+      indexer, or a renewal can never reach this instance.
+  when: splunk_docker_license_xml | length == 0
+
 # No absence guard. The previous "pull only when no image by this name is
 # present" condition meant a version bump was never fetched: the name matched
 # the image already on disk, the pull was skipped, and the converge went green
@@ -348,10 +362,23 @@
 - name: Configure MCP Server
   ansible.builtin.include_tasks: mcp_server.yml
 
+# Custom roles for service identities, BEFORE the users that are assigned them.
+# A minted token inherits its user's roles, so the role is the actual grant; it
+# has to exist first or the user creation below assigns a role that is not there.
+- name: Manage custom Splunk roles
+  ansible.builtin.include_tasks: manage_roles.yml
+
 # Create dedicated service users (e.g. the Hermes AI agent) + mint their auth
 # tokens. Runs after the REST API is live (wait_for_splunk, above).
 - name: Manage Splunk service users and tokens
   ansible.builtin.include_tasks: manage_users.yml
+
+- name: Audit for auth tokens outside the managed set
+  # After manage_users.yml, so the declared set has been reconciled and any
+  # token this run legitimately minted is already accounted for. Running it
+  # before would report a token the same run is about to create.
+  ansible.builtin.include_tasks: audit_undeclared_tokens.yml
+  when: splunk_docker_manage_users | default(false) | bool
 
 # Configure DB Connect post-install (Java path for Task/Query servers)
 - name: Configure DB Connect
