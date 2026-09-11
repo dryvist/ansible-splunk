@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.71.1](https://github.com/dryvist/ansible-splunk/compare/v0.71.0...v0.71.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **playbooks:** tag the Splunkbase mirror play so a converge can skip it ([#550](https://github.com/dryvist/ansible-splunk/issues/550)) ([a170892](https://github.com/dryvist/ansible-splunk/commit/a17089241bfe2bad8e613eee17e533a8d753c89b))
+
 ## [0.71.0](https://github.com/dryvist/ansible-splunk/compare/v0.70.4...v0.71.0) (2026-09-09)
 
 
