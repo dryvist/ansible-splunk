@@ -1,5 +1,5 @@
 ---
-# Installs the Enterprise license and refuses an unusable one.
+# Installs the Splunk license and refuses an unusable one.
 #
 # `copy` with `content` checksums against the remote file, so an unchanged
 # license is a no-op and a changed one rewrites and notifies the restart.
@@ -13,10 +13,6 @@
       {{ (splunk_docker_license_xml
           | regex_search('<expiration_time>(\d+)</expiration_time>', '\1')
           | first | default('')) | int }}
-    splunk_docker_license_label: >-
-      {{ splunk_docker_license_xml
-         | regex_search('<label>([^<]*)</label>', '\1')
-         | first | default('unlabelled') }}
   no_log: true
 
 - name: Assert the license is well-formed and not expired
@@ -29,25 +25,12 @@
       SPLUNK_LICENSE is unusable: parsed expiry '{{ splunk_docker_license_expiry }}'
       against now '{{ ansible_date_time.epoch }}'. An expired license installs
       cleanly and still leaves every search failing, so it is refused here.
-      Supply a current license and check its expiry against the installed one.
     success_msg: >-
-      License '{{ splunk_docker_license_label }}' is valid until
+      License is valid until
       {{ '%Y-%m-%d' | strftime(splunk_docker_license_expiry | int) }}.
     quiet: true
 
-- name: Warn when the license expires soon
-  ansible.builtin.debug:
-    msg: >-
-      SPLUNK LICENSE EXPIRES IN
-      {{ (((splunk_docker_license_expiry | int) - (ansible_date_time.epoch | int))
-          / 86400) | round(0, 'floor') | int }} DAYS
-      ({{ '%Y-%m-%d' | strftime(splunk_docker_license_expiry | int) }}).
-      On expiry every search fails with a litsearch error naming the license.
-  when: >-
-    (splunk_docker_license_expiry | int)
-    < ((ansible_date_time.epoch | int) + (splunk_docker_license_warn_days | int * 86400))
-
-- name: Ensure the enterprise license directory exists
+- name: Ensure the license directory exists
   ansible.builtin.file:
     path: "{{ splunk_docker_license_dir }}"
     state: directory
@@ -55,7 +38,7 @@
     group: "{{ splunk_docker_group }}"
     mode: "0750"
 
-- name: Install the Enterprise license
+- name: Install the Splunk license
   ansible.builtin.copy:
     content: "{{ splunk_docker_license_xml }}"
     dest: "{{ splunk_docker_license_dir }}/enterprise.lic"

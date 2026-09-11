@@ -1,13 +1,13 @@
 # Splunk Docker Role
 
-Deploys Splunk Enterprise in a Docker container on a Proxmox VM.
+Deploys Splunk in a Docker container on a Proxmox VM.
 
 ## Overview
 
 This role:
 
 - Installs Docker and Docker Compose
-- Deploys Splunk Enterprise container
+- Deploys Splunk container
 - Configures custom indexes
 - Installs Technology Add-ons (TAs)
 - Applies firewall rules (optional)

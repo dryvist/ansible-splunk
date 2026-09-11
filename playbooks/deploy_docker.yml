@@ -1,5 +1,5 @@
 ---
-# Deploy Splunk Enterprise via Docker container
+# Deploy Splunk via Docker container
 # This playbook uses the splunk_docker role for containerized deployment
 #
 # Prerequisites:
@@ -14,7 +14,7 @@
 - name: Load OpenTofu inventory
   ansible.builtin.import_playbook: ../inventory/load_tofu.yml
 
-- name: Deploy Splunk Enterprise (Docker)
+- name: Deploy Splunk (Docker)
   hosts: splunk
   become: true
   gather_facts: true

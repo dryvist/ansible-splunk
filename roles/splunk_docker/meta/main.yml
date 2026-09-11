@@ -4,7 +4,7 @@
 galaxy_info:
   role_name: splunk_docker
   author: JacobPEvans
-  description: Deploy Splunk Enterprise via Docker
+  description: Deploy Splunk via Docker
   license: MIT
   min_ansible_version: "2.17"
 

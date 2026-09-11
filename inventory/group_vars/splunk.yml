@@ -1,5 +1,5 @@
 ---
-# Splunk Enterprise configuration group variables
+# Splunk configuration group variables
 
 # Service configuration
 splunk_admin_user: admin
