@@ -44,7 +44,7 @@
 # Order matters: install everywhere, then license master, then cluster manager,
 # then peers, then attach search heads, then the monitoring console.
 
-- name: Install Splunk Enterprise on all cluster hosts
+- name: Install Splunk on all cluster hosts
   hosts: splunk_cluster
   become: true
   serial: 2
@@ -65,7 +65,7 @@
   # etc/licenses/enterprise/. Handlers flush at end of play, so the role's
   # active_group change and this write coalesce into ONE restart.
   tasks:
-    - name: Install the Enterprise license
+    - name: Install the Splunk license
       ansible.builtin.copy:
         # `content` checksums against the remote file, so this is the whole
         # auto-apply mechanism: unchanged is a no-op, a changed license

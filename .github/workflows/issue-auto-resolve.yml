@@ -83,5 +83,5 @@ jobs:
     uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@main
     secrets: inherit
     with:
-      repo_context: "Ansible playbooks and roles for Splunk Enterprise deployment and configuration"
+      repo_context: "Ansible playbooks and roles for Splunk deployment and configuration"
       issue_number: ${{ inputs.issue_number }}

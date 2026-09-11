@@ -3,7 +3,7 @@
 # unclustered search head. Holds the license (license master role).
 #
 # LICENSE REQUIREMENT: a Splunk *Free* license cannot run indexer clustering,
-# distributed search, or authentication — an Enterprise or developer license is
+# distributed search, or authentication — a license that permits clustering is
 # REQUIRED, and deploy-cluster.yml asserts it is present before converging.
 #
 # SPLUNK_LICENSE holds the raw .lic XML and is read injection-agnostically like

@@ -1,11 +1,11 @@
-# Ansible Splunk Enterprise
+# Ansible Splunk
 
 [![CI][ci-badge]][ci-url]
 
 [ci-badge]: https://github.com/dryvist/ansible-splunk/actions/workflows/ci-gate.yml/badge.svg
 [ci-url]: https://github.com/dryvist/ansible-splunk/actions/workflows/ci-gate.yml
 
-Deploy and configure Splunk Enterprise (Docker) on a Proxmox VM.
+Deploy and configure Splunk (Docker) on a Proxmox VM.
 
 ## Quick Facts
 

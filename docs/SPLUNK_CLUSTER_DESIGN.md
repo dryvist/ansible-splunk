@@ -82,7 +82,7 @@ Doppler/SOPS/OpenBao baked into the role).
 `playbooks/deploy-cluster.yml` runs the role once per tier, setting
 `deployment_task` per play in the order the role documents:
 
-1. `check_splunk.yml` on `splunk_cluster` — install Splunk Enterprise.
+1. `check_splunk.yml` on `splunk_cluster` — install Splunk.
 2. `configure_license.yml` on `licensemaster`.
 3. `configure_idxc_manager.yml` on `clustermanager`.
 4. `configure_idxc_member.yml` on `indexer` — peers join the cluster.
@@ -138,7 +138,7 @@ data loss.
 3. **Search head co-located on the cluster manager** — accepted homelab
    compromise; watch mgmt VM load.
 4. **License** — a Splunk *Free* license cannot run indexer clustering,
-   distributed search, or auth. An **Enterprise or developer license is
+   distributed search, or auth. A **license that permits clustering is
    required** on the license master. *Open: which license, and where is the
    file?*
 5. **proxmox-4 not commissioned** — 3 of 5 VMs land there; it must be

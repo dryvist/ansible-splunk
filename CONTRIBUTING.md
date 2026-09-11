@@ -1,4 +1,4 @@
-# Contributing to Ansible Splunk Enterprise
+# Contributing to Ansible Splunk
 
 Thank you for your interest in contributing to this project. This document
 provides guidelines and information for contributors.

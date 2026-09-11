@@ -1,5 +1,5 @@
 ---
-# Splunk Enterprise configuration group variables
+# Splunk configuration group variables
 
 # Service configuration
 splunk_admin_user: admin
@@ -69,6 +69,15 @@ splunk_docker_mssql_driver_enabled: true
 #
 # Deliberately NOT granted: the MCP administration capability, and every
 # capability that edits users, roles or objects or restarts the service.
+# Stock saved searches to enable and wire to alert delivery; see
+# roles/splunk_docker/defaults/main/16-saved-search-overrides.yml.
+splunk_docker_saved_search_overrides:
+  - app: splunk_monitoring_console
+    name: DMC Alert - Expired and Soon To Expire Licenses
+    settings:
+      disabled: 0
+      alert.track: 1
+
 splunk_docker_manage_roles: true
 splunk_docker_roles:
   - name: hermes_search

@@ -1,0 +1,19 @@
+---
+# Settings held on saved searches that ship inside other apps, so a stock
+# search can be enabled without copying its definition. Each entry names the
+# app and the search; `settings` is plain YAML posted to
+# servicesNS/nobody/<app>/saved/searches/<name>, and only keys whose live
+# value differs are sent. Delivery is added to every entry from
+# splunk_docker_saved_search_delivery below, so it is not repeated here.
+# Empty here, like splunk_docker_roles: the entries live in inventory, and a
+# test instance that does not expose the management port declares none.
+splunk_docker_saved_search_overrides: []
+
+# Delivery keys merged into every override. Each channel is present only
+# when it is configured, matching the [default] block in savedsearches.conf.j2.
+splunk_docker_saved_search_delivery_slack:
+  action.slack: 1
+  action.slack.param.message: "[$name$] $job.resultCount$ result(s) — $view_link$"
+splunk_docker_saved_search_delivery_ntfy:
+  action.webhook: 1
+  action.webhook.param.url: "{{ splunk_docker_alert_ntfy_url }}?priority=high"

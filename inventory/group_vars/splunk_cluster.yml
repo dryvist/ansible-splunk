@@ -7,7 +7,7 @@
 # (Doppler / SOPS / OpenBao) is baked in here — the wrapper that runs the
 # playbook decides where the values come from.
 
-# --- Package (native Splunk Enterprise install) ---
+# --- Package (native Splunk install) ---
 # Full-package .tgz URL. The splunk.splunk role extracts the version + build
 # from this URL for its upgrade check, so it must be the canonical form:
 #   https://download.splunk.com/products/splunk/releases/<ver>/linux/splunk-<ver>-<build>-linux-amd64.tgz

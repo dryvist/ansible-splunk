@@ -301,14 +301,14 @@
 
 # Runs before the container starts so a first converge comes up licensed
 # rather than on Free and needing a second pass.
-- name: Reconcile the Enterprise license
+- name: Reconcile the Splunk license
   ansible.builtin.include_tasks: license.yml
   when: splunk_docker_license_xml | length > 0
 
 - name: Report that no license is being managed
   ansible.builtin.debug:
     msg: >-
-      SPLUNK_LICENSE is not set: no Enterprise license is managed and Splunk
+      SPLUNK_LICENSE is not set: no license is managed and Splunk
       runs on its Free license. Set it in the environment on a production
       indexer, or a renewal can never reach this instance.
   when: splunk_docker_license_xml | length == 0
@@ -367,6 +367,14 @@
 # has to exist first or the user creation below assigns a role that is not there.
 - name: Manage custom Splunk roles
   ansible.builtin.include_tasks: manage_roles.yml
+
+- name: Apply saved-search overrides through the REST API
+  ansible.builtin.include_tasks: apply_saved_search_override.yml
+  loop: "{{ splunk_docker_saved_search_overrides }}"
+  loop_control:
+    loop_var: splunk_override
+    label: "{{ splunk_override.app }}/{{ splunk_override.name }}"
+  tags: [alerting]
 
 # Create dedicated service users (e.g. the Hermes AI agent) + mint their auth
 # tokens. Runs after the REST API is live (wait_for_splunk, above).

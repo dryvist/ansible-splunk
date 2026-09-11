@@ -22,5 +22,5 @@ jobs:
     uses: dryvist/ai-workflows/.github/workflows/cc-ci-fix.yml@main
     secrets: inherit
     with:
-      repo_context: "Ansible playbooks and roles for Splunk Enterprise deployment and configuration"
+      repo_context: "Ansible playbooks and roles for Splunk deployment and configuration"
       ci_structure: "CI Gate aggregates required checks: lint/validation and Molecule Test integration tests."

@@ -3,7 +3,7 @@ skill-groups: [core, review]
 ---
 # ansible-splunk - AI Agent Documentation
 
-Ansible automation for Splunk Enterprise deployment on a Proxmox VM.
+Ansible automation for Splunk deployment on a Proxmox VM.
 **Single source of truth** for Splunk configuration in the dryvist
 homelab.
 
@@ -13,7 +13,7 @@ Splunk runs in Docker on a dedicated VM (VMID 200) — a deliberate
 exception to the global LXC-first rule (see `~/git/CLAUDE.md` Container
 Deployment Rules).
 
-**Why Docker:** This repository standardizes on Splunk Enterprise via
+**Why Docker:** This repository standardizes on Splunk via
 the official `splunk/splunk` Docker image. Native Linux package and
 tarball installs exist but are out of scope. The `splunk_docker` role
 manages the container lifecycle via Docker Compose.
@@ -24,7 +24,7 @@ for ancillary services — those belong in `ansible-proxmox-apps` as LXC.
 
 ## This repo owns
 
-- Splunk Enterprise container deployment (Docker Compose on Proxmox VM)
+- Splunk container deployment (Docker Compose on Proxmox VM)
 - HEC (HTTP Event Collector) configuration
 - Custom index creation and retention
 - Technology Add-ons (TAs) and Splunkbase apps
@@ -252,7 +252,7 @@ connection is an output published to OpenBao when explicitly enabled:
 | `SPLUNK_HEC_TOKEN` | Shared legacy HEC token (always required) |
 | `SPLUNK_MCP_TOKEN` | Client-side MCP Bearer token minted per managed user and published with `SPLUNK_MCP_URL` to OpenBao `secret/ai/mcp/splunk` |
 | `PROXMOX_SSH_KEY_PATH` | SSH key for VM access |
-| `SPLUNK_LICENSE` | Raw `.lic` XML for the cluster license master; required — clustering needs Enterprise. Re-applied on every converge |
+| `SPLUNK_LICENSE` | Raw `.lic` XML for the cluster license master; required — clustering cannot run on a Free license. Re-applied on every converge |
 
 ## Tooling baseline (inherited from dryvist/.github)
 
