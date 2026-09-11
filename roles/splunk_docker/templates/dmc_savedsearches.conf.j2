@@ -1,0 +1,15 @@
+{{ ansible_managed | comment }}
+{# The Monitoring Console ships this license-expiry alert disabled. This
+   overlay enables it and attaches delivery; the search, schedule and
+   30-day window are the stock ones and are not restated here. #}
+[DMC Alert - Expired and Soon To Expire Licenses]
+disabled = 0
+alert.track = 1
+{% if splunk_docker_alert_slack_webhook %}
+action.slack = 1
+action.slack.param.message = [$name$] $job.resultCount$ result(s) — $view_link$
+{% endif %}
+{% if splunk_docker_alert_ntfy_url %}
+action.webhook = 1
+action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}?title=Splunk+license+expiring&priority=high
+{% endif %}
