@@ -276,25 +276,6 @@
   notify: Restart Splunk container
   tags: [alerting]
 
-- name: Ensure the Monitoring Console local directory exists
-  ansible.builtin.file:
-    path: "{{ splunk_docker_etc_dir }}/apps/splunk_monitoring_console/local"
-    state: directory
-    owner: "{{ splunk_docker_user }}"
-    group: "{{ splunk_docker_group }}"
-    mode: '0755'
-  tags: [alerting]
-
-- name: Enable the Monitoring Console license-expiry alert
-  ansible.builtin.template:
-    src: dmc_savedsearches.conf.j2
-    dest: "{{ splunk_docker_etc_dir }}/apps/splunk_monitoring_console/local/savedsearches.conf"
-    owner: "{{ splunk_docker_user }}"
-    group: "{{ splunk_docker_group }}"
-    mode: '0644'
-  notify: Restart Splunk container
-  tags: [alerting]
-
 # Without this the old stanzas survive in the system namespace as a second,
 # permanently-dead copy of every alert name, which is exactly the state that
 # made the defect hard to see in the first place.
@@ -387,6 +368,14 @@
 # has to exist first or the user creation below assigns a role that is not there.
 - name: Manage custom Splunk roles
   ansible.builtin.include_tasks: manage_roles.yml
+
+- name: Apply saved-search overrides through the REST API
+  ansible.builtin.include_tasks: apply_saved_search_override.yml
+  loop: "{{ splunk_docker_saved_search_overrides }}"
+  loop_control:
+    loop_var: splunk_override
+    label: "{{ splunk_override.app }}/{{ splunk_override.name }}"
+  tags: [alerting]
 
 # Create dedicated service users (e.g. the Hermes AI agent) + mint their auth
 # tokens. Runs after the REST API is live (wait_for_splunk, above).

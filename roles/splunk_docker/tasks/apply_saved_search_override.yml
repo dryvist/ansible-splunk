@@ -1,0 +1,53 @@
+---
+# Reconcile ONE saved search's settings over the REST API. Included per item
+# from main.yml with loop_var: splunk_override ({ app, name, settings }).
+#
+# Splunk reports booleans as true/false but accepts 0/1, so live values are
+# normalised to the 0/1 form before comparing. Only differing keys are posted,
+# so an already-correct search is `ok`.
+
+- name: "Resolve the endpoint for {{ splunk_override.name }}"
+  ansible.builtin.set_fact:
+    splunk_docker_saved_search_url: >-
+      https://127.0.0.1:{{ splunk_docker_mgmt_port }}/servicesNS/nobody/{{ splunk_override.app
+      }}/saved/searches/{{ splunk_override.name | urlencode }}
+
+- name: "Read saved search {{ splunk_override.name }}"
+  ansible.builtin.uri:
+    url: "{{ splunk_docker_saved_search_url }}?output_mode=json"
+    method: GET
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+  register: splunk_docker_saved_search_current
+  no_log: true
+  check_mode: false
+
+- name: "Work out which settings differ for {{ splunk_override.name }}"
+  ansible.builtin.set_fact:
+    splunk_docker_saved_search_delta: >-
+      {%- set delta = {} -%}
+      {%- set live = splunk_docker_saved_search_current.json.entry[0].content -%}
+      {%- for key, want in splunk_override.settings.items() -%}
+        {%- set have = live[key] | default('') | string | lower -%}
+        {%- set have = {'true': '1', 'false': '0'}.get(have, have) -%}
+        {%- if have != (want | string) -%}
+          {%- set _ = delta.update({key: want}) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ delta }}
+
+- name: "Apply settings to {{ splunk_override.name }}"
+  ansible.builtin.uri:
+    url: "{{ splunk_docker_saved_search_url }}"
+    method: POST
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: form-urlencoded
+    body: "{{ splunk_docker_saved_search_delta }}"
+  when: splunk_docker_saved_search_delta | length > 0
+  changed_when: true
+  no_log: true
