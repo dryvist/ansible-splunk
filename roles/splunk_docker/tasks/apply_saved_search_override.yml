@@ -25,6 +25,7 @@
     force_basic_auth: true
     validate_certs: false
   register: splunk_docker_saved_search_current
+  no_log: true
   check_mode: false
 
 - name: "Work out which settings differ for {{ splunk_override.name }}"
