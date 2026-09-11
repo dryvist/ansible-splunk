@@ -6,11 +6,15 @@
 # normalised to the 0/1 form before comparing. Only differing keys are posted,
 # so an already-correct search is `ok`.
 
-- name: "Resolve the endpoint for {{ splunk_override.name }}"
+- name: "Resolve the endpoint and desired settings for {{ splunk_override.name }}"
   ansible.builtin.set_fact:
     splunk_docker_saved_search_url: >-
       https://127.0.0.1:{{ splunk_docker_mgmt_port }}/servicesNS/nobody/{{ splunk_override.app
       }}/saved/searches/{{ splunk_override.name | urlencode }}
+    splunk_docker_saved_search_wanted: >-
+      {{ splunk_override.settings
+         | combine(splunk_docker_saved_search_delivery_slack if splunk_docker_alert_slack_webhook else {})
+         | combine(splunk_docker_saved_search_delivery_ntfy if splunk_docker_alert_ntfy_url else {}) }}
 
 - name: "Read saved search {{ splunk_override.name }}"
   ansible.builtin.uri:
@@ -29,9 +33,9 @@
     splunk_docker_saved_search_delta: >-
       {%- set delta = {} -%}
       {%- set live = splunk_docker_saved_search_current.json.entry[0].content -%}
-      {%- for key, want in splunk_override.settings.items() -%}
-        {%- set have = live[key] | default('') | string | lower -%}
-        {%- set have = {'true': '1', 'false': '0'}.get(have, have) -%}
+      {%- for key, want in splunk_docker_saved_search_wanted.items() -%}
+        {%- set have = live[key] | default('') | string -%}
+        {%- set have = {'True': '1', 'False': '0'}.get(have, have) -%}
         {%- if have != (want | string) -%}
           {%- set _ = delta.update({key: want}) -%}
         {%- endif -%}
