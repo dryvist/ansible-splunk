@@ -61,10 +61,17 @@ splunk_docker_frozen_dir: ""
 
 # Where the archive credential lives. The secret is read at converge time and
 # passed to the container through the compose environment, never written to a
-# file of its own.
+# file of its own. CONVERGE_ROLE_ID/SECRET_ID is whichever identity
+# scripts/run-ansible.sh authenticated as this run; the shared ansible pair is
+# the fallback for a caller that bypasses the runner. `default(..., true)`
+# because an env lookup returns '' rather than undefined.
 splunk_docker_frozen_bao_addr: "{{ lookup('env', 'BAO_ADDR') | default('', true) }}"
-splunk_docker_frozen_bao_role_id: "{{ lookup('env', 'OPENBAO_APPROLE_ANSIBLE_ROLE_ID') | default('', true) }}"
-splunk_docker_frozen_bao_secret_id: "{{ lookup('env', 'OPENBAO_APPROLE_ANSIBLE_SECRET_ID') | default('', true) }}"
+splunk_docker_frozen_bao_role_id: >-
+  {{ lookup('env', 'CONVERGE_ROLE_ID')
+     | default(lookup('env', 'OPENBAO_APPROLE_ANSIBLE_ROLE_ID'), true) }}
+splunk_docker_frozen_bao_secret_id: >-
+  {{ lookup('env', 'CONVERGE_SECRET_ID')
+     | default(lookup('env', 'OPENBAO_APPROLE_ANSIBLE_SECRET_ID'), true) }}
 #
 # The archive lives in its own dedicated B2 bucket (`splunk`), on the
 # `secrets-external` mount that separates SaaS/external credentials from
