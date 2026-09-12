@@ -25,32 +25,33 @@ CERT_DIR=""
 RUNNER_BAO_TOKEN=""
 BAO_TOKEN_WAS_SET=${BAO_TOKEN+x}
 
+# The store answers slowly at times; one 10 s attempt turned a clean converge
+# into a failed task. Three attempts with a longer budget, and a miss is a
+# warning, not a failure: the token is bounded by its own TTL and the play's
+# outcome is what this task reports.
 revoke_runner_token() {
   [[ -z $RUNNER_BAO_TOKEN ]] && return 0
   { set +x; } 2>/dev/null
-  if curl -fsSL --max-time 10 --request POST \
-    -H @<(printf 'X-Vault-Token: %s\n' "$RUNNER_BAO_TOKEN") \
-    --output /dev/null \
-    "$BAO_ADDR/v1/auth/token/revoke-self"; then
-    RUNNER_BAO_TOKEN=""
-    return 0
-  fi
+  local attempt
+  for attempt in 1 2 3; do
+    if curl -fsSL --max-time 30 --request POST \
+      -H @<(printf 'X-Vault-Token: %s\n' "$RUNNER_BAO_TOKEN") \
+      --output /dev/null \
+      "$BAO_ADDR/v1/auth/token/revoke-self"; then
+      RUNNER_BAO_TOKEN=""
+      return 0
+    fi
+    sleep "$attempt"
+  done
   return 1
 }
 
 cleanup() {
-  local status=$? revoke_status=0
-  revoke_runner_token || revoke_status=$?
+  local status=$?
+  revoke_runner_token \
+    || echo "WARNING: could not revoke the runner-owned OpenBao token; it expires with its TTL." >&2
   [[ -n $CERT_DIR ]] && rm -rf "$CERT_DIR"
-  if (( revoke_status != 0 )); then
-    echo "ERROR: failed to revoke the runner-owned OpenBao token." >&2
-  fi
-  if (( status != 0 )); then
-    exit "$status"
-  fi
-  if (( revoke_status != 0 )); then
-    exit "$revoke_status"
-  fi
+  return "$status"
 }
 trap cleanup EXIT
 
