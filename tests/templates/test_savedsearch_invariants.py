@@ -14,9 +14,7 @@ actually verified true for all 33 detectors it touched:
 1. Every scheduled stanza (enableSched = 1) throttles its own notification
    rate with `alert.suppress = 1` plus a non-empty `alert.suppress.period`.
    Without it, a detector on a `*/5 * * * *` cron over a noisy or
-   structurally-empty index is a pager storm, not a signal -- see
-   hardware_smart_failure (real disk, ~563 matches/7d) and the several
-   detectors now firing "(no hosts reporting)" every cron cycle.
+   structurally-empty index is a pager storm, not a signal.
 2. Every by_host splunk_docker_silence_detectors entry declares `disabled`
    explicitly rather than relying on the `| default(0)` in the template, so
    intent is never ambiguous from reading the list alone. Scoped to by_host

@@ -2,9 +2,10 @@
 # Alerting is deployed unconditionally (every splunk_docker_silence_detectors
 # entry ships enabled by default), but delivery is gated per-action in
 # savedsearches.conf.j2 on splunk_docker_alert_slack_webhook /
-# splunk_docker_alert_zammad_token being non-empty. A missing gate variable
-# used to render an empty [default] stanza with no error -- alerts fired,
-# nobody was told, and the converge still exited 0. Fail loudly instead.
+# splunk_docker_alert_ntfy_url / splunk_docker_alert_zammad_token being
+# non-empty. A missing gate variable used to render an empty [default]
+# stanza with no error -- alerts fired, nobody was told, and the converge
+# still exited 0. Fail loudly instead.
 - name: Assert at least one alert delivery action is configured
   ansible.builtin.assert:
     that:
