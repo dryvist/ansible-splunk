@@ -6,14 +6,16 @@ llm_caller_429_rate and llm_leaked_inflight_counter are PENDING DATA (see
 each stanza's own template comment): they read sourcetype=llm-serving-share,
 which ships with a separate ansible-proxmox-ai PR not yet landed. This test
 cannot exercise them against real data, so it checks structure only --
-_index_earliest/_index_latest present, and the field names the W6 design doc
-names are the ones actually queried.
+_index_earliest/_index_latest present, and the field names named in each
+stanza's own description are the ones actually queried.
 
 llm_watchdog_down matches two REAL strings hermes-brain-watchdog.sh already
 logs today (verified against the template source, cited in this stanza's own
-comment): "brain unreachable" and "brain UNSTABLE ... still flapping". This
-test proves both trip the search and an unrelated line does not, the same
-technique test_gap_detector.py and test_hermes_failure_classes.py use.
+comment): "brain unreachable" and "brain UNSTABLE ... still flapping",
+routed at index=os_ai host=hermes-agent per this repo's own
+05-hermes-delivery-slo.j2. This test proves both trip the search and an
+unrelated line does not, the same technique test_gap_detector.py and
+test_hermes_failure_classes.py use.
 
 Run from repo root:
   python3 tests/templates/test_llm_serving_searches.py
@@ -79,7 +81,7 @@ for name in ("llm_caller_429_rate", "llm_leaked_inflight_counter", "llm_watchdog
             f"FAIL: [{name}]'s base search has no _index_earliest/_index_latest bound"
         )
 
-# --- structural checks against the W6 design doc's named fields -----------
+# --- structural checks against each stanza's own named fields -------------
 caller_search = by_name["llm_caller_429_rate"]
 if "caller_429_rate" not in caller_search:
     errors.append("FAIL: llm_caller_429_rate does not reference the caller_429_rate field")
@@ -98,6 +100,10 @@ if "sourcetype=llm-serving-share" not in leak_search:
 # --- llm_watchdog_down: prove the real strings trip it, an unrelated line
 # does not (regression-fixture technique) --------------------------------
 watchdog_search = by_name["llm_watchdog_down"]
+if "index=os_ai" not in watchdog_search or "host=hermes-agent" not in watchdog_search:
+    errors.append(
+        "FAIL: llm_watchdog_down does not scope to index=os_ai host=hermes-agent"
+    )
 literal_match = re.search(r'\("([^"]+)" OR "([^"]+)"\)', watchdog_search)
 if not literal_match:
     errors.append("FAIL: llm_watchdog_down's search has no recognizable OR'd literal match clause")
@@ -135,8 +141,9 @@ if errors:
 
 print(
     "PASS: llm_caller_429_rate, llm_leaked_inflight_counter and llm_watchdog_down all bound "
-    "their base search by index time; the pending-data searches reference the fields the W6 "
-    "design doc names; llm_watchdog_down's match literals fire on both real watchdog "
-    "transition messages and not on an unrelated healthy line"
+    "their base search by index time; the pending-data searches reference their own named "
+    "fields; llm_watchdog_down scopes to index=os_ai host=hermes-agent and its match "
+    "literals fire on both real watchdog transition messages and not on an unrelated "
+    "healthy line"
 )
 print("\nAll tests passed.")

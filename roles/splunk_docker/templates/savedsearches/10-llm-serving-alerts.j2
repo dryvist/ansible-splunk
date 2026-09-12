@@ -76,10 +76,9 @@ quantity = 0
    feature/llm-router-syslog in ansible-proxmox-ai, a separate PR -- so these
    three searches return zero rows until then, same as
    llm_metal_resource_limit_detector above ("inert until that delivers").
-   Field names (caller_429_rate, status, duration_ms) are taken from the W6
-   design doc's own wording for these signals, not yet confirmed against a
-   live JSON sample; reconcile against the real schema once
-   feature/llm-router-syslog lands.
+   Field names (caller_429_rate, status, duration_ms) are unconfirmed
+   against a live sample of that line; reconcile against the router's own
+   serving-share journal once feature/llm-router-syslog lands.
 --------------------------------------------------------------------------- #}
 [llm_caller_429_rate]
 description = Alerts when the LiteLLM router's own per-request serving-share line reports a sustained 429 rate to callers over the last hour. Rides the field the router already emits rather than recomputing it from raw status codes. PENDING DATA (see template header): inert until feature/llm-router-syslog (ansible-proxmox-ai) ships sourcetype=llm-serving-share into index=llm.
@@ -126,18 +125,13 @@ quantity = 0
    part; this must not add a second, differently-tuned debounce on top, so it
    alerts on any single occurrence of either message rather than aggregating.
 
-   ROUTING CAVEAT: grouped here under index=llm per this PR's assignment
-   (same "once feature/llm-router-syslog lands" pending-data footing as the
-   two searches above), but the watchdog runs on the Hermes guest, not the
-   router, and this repo's OWN 05-hermes-delivery-slo.j2 records that
-   host=hermes-agent syslog currently lands in index=os_ai, not index=llm.
-   If the watchdog's route is not part of feature/llm-router-syslog's
-   change, this search needs repointing to index=os_ai host=hermes-agent
-   once that lands -- flagging rather than guessing which is intended.
+   Routed at index=os_ai host=hermes-agent, matching this repo's own
+   05-hermes-delivery-slo.j2, which records that host=hermes-agent syslog
+   lands in index=os_ai.
 --------------------------------------------------------------------------- #}
 [llm_watchdog_down]
-description = Fires on either hermes-brain-watchdog.sh transition message reaching index=llm -- "brain unreachable" (down) or "brain UNSTABLE ... still flapping" (sustained flap). The script already debounces and coalesces flaps itself; this adds no second debounce, only a downstream alert on its own output. PENDING DATA / ROUTING CAVEAT (see template header): inert until the watchdog's syslog route reaches this index, which may not be the same change as feature/llm-router-syslog.
-search = index=llm _index_earliest=-15m _index_latest=now ("brain unreachable" OR "brain UNSTABLE") | stats count by host | where count > 0
+description = Fires on either hermes-brain-watchdog.sh transition message from host=hermes-agent -- "brain unreachable" (down) or "brain UNSTABLE ... still flapping" (sustained flap). The script already debounces and coalesces flaps itself; this adds no second debounce, only a downstream alert on its own output.
+search = index=os_ai host=hermes-agent _index_earliest=-15m _index_latest=now ("brain unreachable" OR "brain UNSTABLE") | stats count by host
 dispatch.earliest_time = -15m
 dispatch.latest_time = now
 cron_schedule = */5 * * * *
