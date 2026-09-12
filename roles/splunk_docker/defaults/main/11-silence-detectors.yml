@@ -1,22 +1,39 @@
 ---
 # Per-index pipeline-silence detectors.
-# Each entry renders a [<name>_silence_detector] saved search (see
-# savedsearches.conf.j2) cloning the macos_edge_silence_detector shape:
-# tstats latest(_time) over the index, alert when silent beyond the
-# threshold. Fields:
-#   name              — stanza prefix; must not collide with the bespoke
-#                       detectors in savedsearches.conf.j2 (macos_edge,
-#                       llm_pipeline, llm_manager_panic, llm_router*).
-#   index             — index to watch.
-#   threshold_minutes — silence duration that fires the alert. For a
-#                       non-by_host detector this is the only threshold. For
-#                       a by_host detector it is the FLOOR: the effective
-#                       per-host threshold is max(that floor, the host's own
-#                       observed avg_gap_minutes x cadence_multiplier), so a
-#                       naturally-quiet host is not held to the same bar as a
-#                       chatty one.
-#   cron              — schedule (keep period well below the threshold).
-#   suppress_minutes  — alert.suppress.period; throttles re-fires.
+#
+# A by_host: true entry (os, hardware) still renders its own
+# [<name>_silence_detector] saved search (see 07-generic-silence-detectors.j2)
+# cloning the macos_edge_silence_detector shape: tstats latest(_time) over the
+# index BY HOST, alert when a host's own silence exceeds its cadence-derived
+# threshold.
+#
+# Every other entry feeds ONE shared [index_gap_detector] saved search
+# instead of rendering its own stanza (Zammad 17191): only `index` and
+# `threshold_minutes` are read from it, as one branch of that search's
+# threshold case(). `cron`, `suppress_minutes`, `sourcetype` and `disabled`
+# are BY_HOST-ONLY FIELDS as a result — setting any of them on a non-by_host
+# entry has no effect, because index_gap_detector owns its own fixed
+# schedule/suppression/enablement across every index it covers. An index
+# entry with no matching detector here still gets covered, at the flat
+# 1440-minute (24h) default index_gap_detector falls back to.
+#
+# Fields:
+#   name              — stanza prefix for a by_host entry; ignored otherwise.
+#                       Must not collide with the bespoke detectors in
+#                       savedsearches/*.j2 (macos_edge, llm_pipeline,
+#                       llm_manager_panic, llm_router*).
+#   index             — index to watch. Read by every entry.
+#   threshold_minutes — silence duration that fires the alert. Read by every
+#                       entry. For a non-by_host entry this is the only
+#                       threshold. For a by_host entry it is the FLOOR: the
+#                       effective per-host threshold is max(that floor, the
+#                       host's own observed avg_gap_minutes x
+#                       cadence_multiplier), so a naturally-quiet host is not
+#                       held to the same bar as a chatty one.
+#   cron              — BY_HOST ONLY. Schedule (keep period well below the
+#                       threshold).
+#   suppress_minutes  — BY_HOST ONLY. alert.suppress.period; throttles
+#                       re-fires.
 #   by_host           — optional, default false. Detect PER-HOST (`by host`
 #                       + alert.suppress.fields = host) so a healthy emitter
 #                       can't mask a dead one, using each host's own cadence
@@ -29,9 +46,12 @@
 #                       hostname -> exact threshold_minutes, for a host whose
 #                       computed cadence baseline is wrong (commonly: too new
 #                       to have a representative average yet).
-#   disabled          — optional, default 0. Set 1 to ship the stanza
-#                       disabled (e.g. index exists but no emitter yet).
-#   sourcetype        — optional filter added to the tstats WHERE clause.
+#   disabled          — BY_HOST ONLY, optional, default 0. Set 1 to ship the
+#                       stanza disabled (e.g. index exists but no emitter
+#                       yet). A non-by_host entry has no per-index disable —
+#                       exclude the index from splunk_docker_indexes instead.
+#   sourcetype        — BY_HOST ONLY, optional filter added to the tstats
+#                       WHERE clause.
 #
 # dispatch.earliest_time (the search lookback) is threshold_minutes x this
 # multiplier — see the comment above each rendered stanza in
