@@ -147,7 +147,7 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
 1. Create a feature branch from `main`
 2. Make your changes
-3. Run all tests locally (lint, molecule)
+3. Run lint locally
 4. Push to your fork
 5. Create a pull request with a clear description
 
@@ -158,8 +158,7 @@ To add a new index to the default configuration:
 1. Edit `roles/splunk_docker/defaults/main/09-custom-indexes-core.yml` (or
    `10-custom-indexes-extra.yml`)
 2. Add the index to the `splunk_docker_indexes_core` (or `_extra`) list
-3. Test with molecule
-4. Update documentation if significant
+3. Update documentation if significant
 
 ## Adding Technology Add-ons
 
