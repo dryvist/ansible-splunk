@@ -28,6 +28,20 @@ Environment inline — a second definition is a second chance to drift.
 
 These tests run as standalone scripts (`python3 tests/templates/test_x.py`),
 not under pytest, so this is a plain sibling module rather than a conftest.
+
+CORRECTION (found live 2026-09-12): `keep_trailing_newline` was hardcoded
+here as `True`, on the assumption Ansible overrides Jinja's own default the
+same way it overrides `trim_blocks`. Verified false by reading
+ansible-core's own `_jinja_bits.py` (`AnsibleEnvironment`): it does NOT set
+`keep_trailing_newline` at all, so it falls through to Jinja's own default,
+which is `False`. With `keep_trailing_newline=True` here, every test passed;
+in production, `{% include %}`'d sub-templates each lose their own trailing
+newline, and two includes placed on adjacent lines (no blank line between
+them) render welded onto one line -- `quantity = 0[llm_surface_freshness]` --
+which is not a stanza boundary Splunk's conf parser recognizes, so the
+second stanza's keys are silently absorbed as the first stanza's own keys
+instead of erroring. Same failure shape the module docstring above already
+describes for `trim_blocks`, on the setting this file got backwards.
 """
 
 import sys
@@ -43,7 +57,7 @@ except ImportError:
 ANSIBLE_TEMPLATE_DEFAULTS = {
     "trim_blocks": True,
     "lstrip_blocks": False,
-    "keep_trailing_newline": True,
+    "keep_trailing_newline": False,
 }
 
 
