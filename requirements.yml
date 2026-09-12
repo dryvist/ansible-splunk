@@ -26,7 +26,7 @@ collections:
   # contracts change reach a converge here without a PR in this repo.
   - name: https://github.com/dryvist/homelab-contracts.git#/ansible/
     type: git
-    version: c5e139cb7ccb286016020dd85c2f1d9c3b5a376f
+    version: 5830aa4121857d748b3903e628e26b91d2d90a81
 
 # splunk.splunk stays a `roles:` entry: its repository root IS the role, which
 # is the one shape `role install` addresses correctly. Install both sections
