@@ -100,7 +100,7 @@ relation = greater than
 quantity = 0
 
 [llm_leaked_inflight_counter]
-description = Vikunja 1544: a leaked in-flight-request counter rejects callers with 429 in under 10ms, before the backend could have actually checked capacity -- a real capacity-based 429 takes measurably longer. Deliberately NOT a plain 429-volume alert (design doc: that "is ordinary contention and it is what made the watchdog page hourly") -- the sub-10ms latency is the unambiguous leak signature on its own. PENDING DATA (see template header): inert until feature/llm-router-syslog (ansible-proxmox-ai) ships sourcetype=llm-serving-share into index=llm.
+description = Fires on a leaked in-flight-request counter: a 429 resolving in under 10ms, before the backend could have checked real capacity. Not a plain 429-volume threshold -- the sub-10ms latency is the signature on its own. PENDING DATA (see template header): inert until feature/llm-router-syslog (ansible-proxmox-ai) ships sourcetype=llm-serving-share into index=llm.
 search = index=llm sourcetype=llm-serving-share status=429 duration_ms<10 _index_earliest=-15m _index_latest=now | stats count by host | where count > 5
 dispatch.earliest_time = -15m
 dispatch.latest_time = now

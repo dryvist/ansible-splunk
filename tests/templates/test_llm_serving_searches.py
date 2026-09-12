@@ -89,7 +89,7 @@ if "sourcetype=llm-serving-share" not in caller_search:
 leak_search = by_name["llm_leaked_inflight_counter"]
 if "status=429" not in leak_search or "duration_ms<10" not in leak_search:
     errors.append(
-        "FAIL: llm_leaked_inflight_counter does not match the Vikunja 1544 signature "
+        "FAIL: llm_leaked_inflight_counter does not match the leaked-counter signature "
         "(status=429 AND duration_ms<10)"
     )
 if "sourcetype=llm-serving-share" not in leak_search:
