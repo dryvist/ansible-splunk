@@ -34,11 +34,13 @@ splunk_docker_password: ""
 #
 # ntfy: full topic URL, delivered via Splunk's built-in webhook alert action
 # (the URL is allowlisted in alert_actions.conf.j2). Defaults to the keystone
-# topic — the same one the hermes brain-watchdog pushes to — derived from
-# PROXMOX_DOMAIN when the converge env carries it.
+# topic — the same one the hermes brain-watchdog pushes to. ntfy is a Traefik
+# ingress route, so its name lives under the ingress subdomain
+# (PROXMOX_SUBDOMAIN, the same base the traefik role serves), never the apex:
+# the apex name resolves to the raw guest, which has no TLS on this port.
 splunk_docker_alert_ntfy_url: >-
-  {{ ('https://ntfy.' ~ lookup('env', 'PROXMOX_DOMAIN') ~ '/keystone')
-     if lookup('env', 'PROXMOX_DOMAIN') else '' }}
+  {{ ('https://ntfy.' ~ lookup('env', 'PROXMOX_SUBDOMAIN') ~ '/keystone')
+     if lookup('env', 'PROXMOX_SUBDOMAIN') else '' }}
 # Slack: incoming-webhook URL for TA-slack-add-on-for-splunk, sourced from the
 # shared alerting webhook (RUNSON_ALERT_SLACK_WEBHOOK_URL in the converge env,
 # e.g. under `doppler run -p iac-conf-mgmt -c prd`). Rendered into
