@@ -1,20 +1,17 @@
 {# ---------------------------------------------------------------------------
-   Generic per-index silence detectors.
+   Per-host silence detectors (os, hardware).
 
-   One stanza per splunk_docker_silence_detectors entry (see defaults for the
-   field reference), cloning the macos_edge_silence_detector shape: tstats
-   latest(_time) over the index, fire when silence exceeds the threshold.
-   tstats returns ZERO rows (not a row with a null last_seen) when nothing in
-   the whole lookback window matches — the llm_router lesson, verified live:
-   coalesce(last_seen, 0) alone did not fix it, because there is no row for
-   eval to apply it to. Every branch below (by_host and flat) therefore runs
-   an appendpipe guard that synthesizes a sentinel row when the tstats result
-   set is empty, and coalesce stays as a second guard once that row exists.
-   With by_host, detection is per-host so a healthy emitter can't mask a dead
-   one; a host that has never emitted has no baseline and is not detected.
+   One stanza per by_host splunk_docker_silence_detectors entry (see defaults
+   for the field reference): tstats latest(_time) over the index BY HOST, fire
+   when a host's own silence exceeds its cadence-derived threshold. Kept as
+   its own stanza per detector rather than folded into index_gap_detector
+   below because per-host cadence needs one row per host, which
+   a single cross-index report cannot express — a healthy emitter can't mask
+   a dead one, and a host that has never emitted has no baseline and is not
+   detected.
 
-   by_host threshold is CADENCE-DERIVED, not the flat det.threshold_minutes:
-   a host's own historical average inter-event gap (avg_gap_minutes, from
+   Threshold is CADENCE-DERIVED, not the flat det.threshold_minutes: a host's
+   own historical average inter-event gap (avg_gap_minutes, from
    count/earliest/latest over the same tstats) sets its effective threshold
    at cadence_multiplier x that gap, floored at det.threshold_minutes so a
    host with too little history to compute a gap still gets the configured
@@ -24,8 +21,15 @@
    across hosts of wildly different natural logging cadence fires
    continuously for the quiet-but-healthy ones — see docs/ or the PR that
    added this for the dry-run evidence.
+
+   tstats returns ZERO rows (not a row with a null last_seen) when nothing in
+   the whole lookback window matches — the llm_router lesson, verified live:
+   coalesce(last_seen, 0) alone did not fix it, because there is no row for
+   eval to apply it to. The appendpipe guard below synthesizes a sentinel row
+   when the tstats result set is empty, and coalesce stays as a second guard
+   once that row exists.
 --------------------------------------------------------------------------- #}
-{% for det in splunk_docker_silence_detectors | default([]) %}
+{% for det in splunk_docker_silence_detectors | default([]) if det.by_host | default(false) %}
 [{{ det.name }}_silence_detector]
 description = Alerts when the {{ det.index }} index has received no events for more than {{ det.threshold_minutes }} minutes{% if det.sourcetype is defined %} (sourcetype={{ det.sourcetype }}){% endif %}{% if det.by_host | default(false) %}, detected per-host against each host's own cadence so a healthy emitter cannot mask a dead one{% endif %}. Catches the emitter, its Cribl pipeline, and Splunk HEC ingestion failing with a single signal.
 {# The appendpipe guard covers the fully-empty-index blind spot: tstats over
@@ -75,3 +79,89 @@ relation = greater than
 quantity = 0
 
 {% endfor %}
+{# ---------------------------------------------------------------------------
+   One gap detector, replacing the flat (non-by_host) per-index stanzas the
+   loop above used to also emit. Thresholds stay declarative in
+   splunk_docker_silence_detectors; this only changes how they render.
+
+   INDEX TIME, NOT EVENT TIME. A sourcetype whose reported _time drifts
+   ahead of the search head's clock (a bad sender clock, or a parse
+   misconfiguration) makes any detector keyed on _time read a dead source as
+   "very recently updated" and never fire -- exactly backwards. _indextime
+   is Splunk's own receipt timestamp, set by the indexer at write time and
+   immune to a sender's clock or parse config, so last_indexed below tracks
+   when Splunk last WROTE a row for the index, not when the event claims to
+   have happened. tstats aggregates _indextime the same way it aggregates
+   _time -- both are default indexed metadata fields, not something a data
+   model or acceleration is needed for.
+
+   max(), NOT latest(): tstats' latest(X) returns X from the row with the
+   single greatest _time, not the largest X across all rows. On a
+   future-dated _time row that row IS the "latest" row by _time, so
+   latest(_indextime) freezes at whatever _indextime that one row happened
+   to carry -- which can be older than a real, more-recent write from a
+   well-behaved row. max(_indextime) is not tied to any one row's _time at
+   all: it is the largest _indextime seen across the whole window,
+   independent of which row's _time sorts first. That is the only form of
+   this aggregate that stays correct regardless of what _time does.
+
+   The append+stats max fills the same fully-empty-index blind spot the
+   by_host loop above closes with appendpipe, but for a wildcarded search:
+   tstats over index=* returns one row per index that has ANY event in the
+   window, so an index with ZERO events in the whole window (never ingested,
+   or dead longer than the window) has no row at all rather than a row with a
+   stale last_indexed. Appending a synthetic last_indexed=0 row for every
+   index this role declares and taking stats max(...) by index means a real
+   tstats row wins where one exists (max picks the large real timestamp over
+   the 0 sentinel) and the sentinel wins where none does -- age_min then
+   comes out enormous, which is exactly "silent" for an index that has never
+   said a word.
+
+   threshold_minutes is a case() over the same per-index thresholds already
+   declared in splunk_docker_silence_detectors, mirroring the host_overrides
+   case() the by_host loop above already uses -- not a Splunk `| lookup`
+   against a deployed CSV, which the design draft for this change proposed.
+   A lookup needs its own transforms.conf stanza, its own file deployment
+   task and its own test surface for a table this role already regenerates
+   on every converge from data it already owns; case() gets the identical
+   result with no new moving part. Anything not in the list falls back to
+   coalesce's 1440-minute (24h) default, so a newly created index is covered
+   from the day it exists rather than only once someone remembers to add an
+   entry for it.
+
+   The lookback window has to be wide enough that the widest configured
+   threshold's own multiple of itself still falls inside it, same reasoning
+   as the by_host loop's dispatch.earliest_time above -- computed once here
+   from the widest flat threshold rather than per-stanza since this is one
+   search covering every index.
+--------------------------------------------------------------------------- #}
+{% set flat_detectors = [] %}
+{% for det in splunk_docker_silence_detectors | default([]) if not (det.by_host | default(false)) %}
+{% set _ = flat_detectors.append(det) %}
+{% endfor %}
+{% set gap_lookback_minutes = ((flat_detectors | map(attribute='threshold_minutes') | list + [1440]) | max) * splunk_docker_silence_lookback_multiplier %}
+{# Each half defaults independently (never a combined-then-defaulted
+   expression) so a caller that supplies neither -- every template test
+   except the ones exercising this stanza specifically -- still renders,
+   with an empty expected-index list rather than a Jinja UndefinedError. #}
+{% set gap_expected_indexes = (splunk_docker_indexes | default((splunk_docker_indexes_core | default([])) + (splunk_docker_indexes_extra | default([])))) | map(attribute='name') | list %}
+[index_gap_detector]
+description = Alerts when any index has gone silent longer than its configured threshold (default 1440 minutes), using the index's own last-write time rather than event time so a clock-skewed or unparsed sourcetype cannot hide behind a false "recently updated" reading. Replaces the flat per-index silence detectors with one report over every index this role creates.
+search = | tstats max(_indextime) as last_indexed where index=* _index_earliest=-{{ gap_lookback_minutes }}m _index_latest=now by index | append [ | makeresults | eval index="{{ gap_expected_indexes | join(',') }}" | eval index=split(index, ",") | mvexpand index | eval last_indexed=0 ] | stats max(last_indexed) as last_indexed by index | eval age_min = round((now() - last_indexed) / 60) | eval threshold_minutes = case({% for det in flat_detectors %}index="{{ det.index }}", {{ det.threshold_minutes }}, {% endfor %}true(), 1440) | where age_min > threshold_minutes
+dispatch.earliest_time = -{{ gap_lookback_minutes }}m
+dispatch.latest_time = now
+cron_schedule = */10 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 3
+alert.suppress = 1
+alert.suppress.period = 60m
+# Scope suppression per index: without this, the first silent index
+# suppresses the alert globally and a second index going silent inside the
+# window goes unseen -- same reasoning as alert.suppress.fields = host above.
+alert.suppress.fields = index
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
