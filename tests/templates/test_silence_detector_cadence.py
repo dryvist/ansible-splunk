@@ -50,6 +50,7 @@ env = ansible_env(ROOT / "roles/splunk_docker/templates")
 rendered = env.get_template("savedsearches.conf.j2").render(
     splunk_docker_silence_detectors=DETECTORS,
     splunk_docker_silence_lookback_multiplier=MULTIPLIER,
+    splunk_docker_silence_exempt_threshold_minutes=DEFAULTS["splunk_docker_silence_exempt_threshold_minutes"],
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
     splunk_docker_alert_ntfy_url=None,
@@ -67,11 +68,24 @@ if gap_detector_body is None:
 gap_detector_search = (re.search(r"^search = (.*)$", gap_detector_body, re.M).group(1)
                         if gap_detector_body else "")
 
+EXEMPT_THRESHOLD = DEFAULTS["splunk_docker_silence_exempt_threshold_minutes"]
+
 for det in DETECTORS:
     if not det.get("by_host"):
-        # Non-by_host: no stanza of its own. Its threshold_minutes must
-        # still reach index_gap_detector's case() expression unchanged.
-        expected_branch = f'index="{det["index"]}", {det["threshold_minutes"]}'
+        # Non-by_host: no stanza of its own. An exempt entry's case() branch
+        # must carry the shared exempt sentinel, never its own (nominal)
+        # threshold_minutes -- that value is only there so this entry does
+        # not affect gap_lookback_minutes' max(). A non-exempt entry's
+        # threshold_minutes must reach the case() expression unchanged.
+        if det.get("exempt"):
+            if not det.get("exempt_reason"):
+                errors.append(
+                    f"FAIL: splunk_docker_silence_detectors entry '{det['name']}' "
+                    "is exempt but has no exempt_reason"
+                )
+            expected_branch = f'index="{det["index"]}", {EXEMPT_THRESHOLD}'
+        else:
+            expected_branch = f'index="{det["index"]}", {det["threshold_minutes"]}'
         if expected_branch not in gap_detector_search:
             errors.append(
                 f"FAIL: index_gap_detector's case() is missing "
@@ -110,7 +124,9 @@ if errors:
     sys.exit(1)
 
 by_host_count = sum(1 for det in DETECTORS if det.get("by_host"))
+exempt_count = sum(1 for det in DETECTORS if det.get("exempt"))
 print(f"PASS: {by_host_count} by_host silence detector(s) have a threshold-derived lookback and "
       f"gate on a cadence-derived per-host threshold; the remaining "
-      f"{len(DETECTORS) - by_host_count} entries reach index_gap_detector's case() unchanged")
+      f"{len(DETECTORS) - by_host_count} entries reach index_gap_detector's case() "
+      f"({exempt_count} of them exempt, at the shared exempt threshold instead of their own)")
 print("\nAll tests passed.")
