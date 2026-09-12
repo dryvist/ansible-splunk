@@ -36,7 +36,6 @@ jobs:
       # same dirs the retired local lint job used.
       lint_args: "playbooks/ roles/"
       molecule_requirements: requirements-ci.txt
-      emit_gate: false
 
   data-contract:
     name: Data Contract
