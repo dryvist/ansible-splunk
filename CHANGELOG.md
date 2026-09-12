@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.73.1](https://github.com/dryvist/ansible-splunk/compare/v0.73.0...v0.73.1) (2026-09-12)
+
+
+### Bug Fixes
+
+* **runner:** fall back to the ansible identity when semaphore login fails ([#563](https://github.com/dryvist/ansible-splunk/issues/563)) ([660f080](https://github.com/dryvist/ansible-splunk/commit/660f080f7df53e491e50c6f798d5fe6c20028a37))
+
 ## [0.73.0](https://github.com/dryvist/ansible-splunk/compare/v0.72.1...v0.73.0) (2026-09-12)
 
 
