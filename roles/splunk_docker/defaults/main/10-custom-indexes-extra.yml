@@ -14,7 +14,7 @@ splunk_docker_indexes_extra:
     max_size_mb: "{{ splunk_docker_index_default_max_size_mb }}"
     frozen_time_secs: "{{ splunk_docker_index_default_frozen_time_secs }}"
   # netflow: high-volume UniFi IPFIX flow records (split from network) — 90-day
-  # retention + 50 GB cap per terraform-proxmox docs/SPLUNK_INDEXES.md, not the default.
+  # retention + 50 GB cap; configured for high-volume flow records.
   - name: netflow
     max_size_mb: 51200
     frozen_time_secs: 7776000
