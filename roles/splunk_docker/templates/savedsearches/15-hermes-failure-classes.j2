@@ -10,23 +10,19 @@
    - provider_exhausted: cron/scheduler.py's fallback-exhaustion message,
      rewritten by ansible-proxmox-ai's patches_cron_wall_clock.yml
      ("Classify local stops and fallback exhaustion in delivered failures")
-     to read "every fallback rung refused the request" -- upstream's own
-     wording matches providers, not the wall-clock stop below, which is
-     exactly the misattribution that patch exists to fix.
-   - cron_wall_clock_timeout: the SAME patch's wall-clock branch, "exceeded
+     to read "every fallback rung refused the request".
+   - cron_wall_clock_timeout: the same patch's wall-clock branch, "exceeded
      its aggregate wall-clock limit".
-   - kanban_block_or_stuck: two distinct upstream signals folded into one
-     class -- the per-profile digest's "Stuck >Nh:" banner
-     (roles/hermes_agent/templates/kanban-digest.py.j2::stuck_line, cards
-     sitting unsettled, including blocked) and gateway/kanban_watchers.py's
-     "kanban dispatcher stuck: ready queue non-empty" warning (the dispatcher
-     itself wedged, a distinct but related failure).
+   - kanban_block_or_stuck: two upstream signals folded into one class --
+     the per-profile digest's "Stuck >Nh:" banner
+     (roles/hermes_agent/templates/kanban-digest.py.j2::stuck_line) and
+     gateway/kanban_watchers.py's "kanban dispatcher stuck: ready queue
+     non-empty" warning.
    - slack_api_error: every Slack adapter log line is prefixed "[Slack]"
      (plugins/platforms/slack/adapter.py); paired with an error-ish keyword
      so healthy "[Slack] connected" style lines are not swept in.
    - compaction_loop: agent/conversation_loop.py's "Context compression
-     failed after N attempts" -- the W2-B4 compaction-progress guard's
-     target failure mode.
+     failed after N attempts".
 
    `profile` is not yet a confirmed extracted field at index time (no Cribl
    config in this repo to verify it) -- `stats by ... profile` degrades to an
