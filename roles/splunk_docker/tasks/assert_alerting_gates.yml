@@ -2,21 +2,24 @@
 # Alerting is deployed unconditionally (every splunk_docker_silence_detectors
 # entry ships enabled by default), but delivery is gated per-action in
 # savedsearches.conf.j2 on splunk_docker_alert_slack_webhook /
-# splunk_docker_alert_zammad_token being non-empty. A missing gate variable
-# used to render an empty [default] stanza with no error -- alerts fired,
-# nobody was told, and the converge still exited 0. Fail loudly instead.
+# splunk_docker_alert_ntfy_url / splunk_docker_alert_zammad_token being
+# non-empty. A missing gate variable used to render an empty [default]
+# stanza with no error -- alerts fired, nobody was told, and the converge
+# still exited 0. Fail loudly instead.
 - name: Assert at least one alert delivery action is configured
   ansible.builtin.assert:
     that:
       - (splunk_docker_alert_slack_webhook | default('') | length > 0) or
+        (splunk_docker_alert_ntfy_url | default('') | length > 0) or
         (splunk_docker_alert_zammad_token | default('') | length > 0)
     fail_msg: >-
-      Alerting is enabled (savedsearches deploy unconditionally) but neither
-      splunk_docker_alert_slack_webhook nor splunk_docker_alert_zammad_token
-      is set. Every fired alert would deliver nowhere. Set
-      RUNSON_ALERT_SLACK_WEBHOOK_URL and/or SPLUNK_ZAMMAD_TOKEN in the
-      converge environment, or explicitly override the gate variable if
-      alerting is intentionally being deployed with no delivery action.
+      Alerting is enabled (savedsearches deploy unconditionally) but none of
+      splunk_docker_alert_slack_webhook, splunk_docker_alert_ntfy_url or
+      splunk_docker_alert_zammad_token is set. Every fired alert would
+      deliver nowhere. Set RUNSON_ALERT_SLACK_WEBHOOK_URL, the ntfy URL
+      and/or SPLUNK_ZAMMAD_TOKEN in the converge environment, or explicitly
+      override the gate variable if alerting is intentionally being
+      deployed with no delivery action.
   tags: [alerting]
 
 # Zammad delivery has no installed alert action anywhere in this repo or any

@@ -32,11 +32,24 @@
    assert_alerting_gates.yml fails the converge if its gate variable is
    ever set for exactly that reason. The block stays as the landing point
    for when that work ships, not as evidence delivery works today.
+
+   Webhook rides the ntfy hub, gated on the same allowlisted URL
+   alert_actions.conf.j2 already sets as [webhook]'s global default and
+   scopes with allowlist.ntfy -- an unlisted URL is refused there
+   regardless of what a stanza requests. Mirrors
+   splunk_docker_saved_search_delivery_ntfy in
+   16-saved-search-overrides.yml so a search rendered here and one applied
+   as a REST override to a search in another app get the same delivery
+   shape.
 #}
 [default]
 {% if splunk_docker_alert_slack_webhook %}
 action.slack = 1
 action.slack.param.message = [$name$] $job.resultCount$ result(s) — $view_link$
+{% endif %}
+{% if splunk_docker_alert_ntfy_url %}
+action.webhook = 1
+action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}?priority=high
 {% endif %}
 {% if splunk_docker_alert_zammad_token %}
 action.zammad = 1
