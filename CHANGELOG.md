@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.74.0](https://github.com/dryvist/ansible-splunk/compare/v0.73.2...v0.74.0) (2026-09-12)
+
+
+### Features
+
+* **splunk_docker:** replace per-index silence detectors with a gap detector ([#567](https://github.com/dryvist/ansible-splunk/issues/567)) ([b8e7f49](https://github.com/dryvist/ansible-splunk/commit/b8e7f4920ab4301f471b306c14b1f6e4142904e2))
+
 ## [0.73.2](https://github.com/dryvist/ansible-splunk/compare/v0.73.1...v0.73.2) (2026-09-12)
 
 
