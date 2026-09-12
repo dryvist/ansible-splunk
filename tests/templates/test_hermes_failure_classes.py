@@ -168,6 +168,27 @@ if "_index_earliest=" not in base_search or "_index_latest=" not in base_search:
         "in the base search"
     )
 
+# --- profile is not a confirmed field: an event lacking it must still yield
+# a row (fillnull before stats), not be silently dropped by the by-clause ---
+fillnull_idx = search.find('fillnull value="unknown" profile')
+stats_idx = search.find("stats count by failure_class, host, profile")
+if fillnull_idx == -1 or stats_idx == -1 or fillnull_idx > stats_idx:
+    errors.append(
+        "FAIL: hermes_failure_classes must fillnull profile to \"unknown\" "
+        "before the stats by-clause, or events missing that field are dropped "
+        "instead of grouped"
+    )
+
+# --- slack_api_error must not fire on the adapter's own normal-teardown
+# DEBUG line (plugins/platforms/slack/adapter.py:695), which also matches
+# "[Slack]" + "failed" ------------------------------------------------------
+SLACK_TEARDOWN = "[Slack] Socket Mode task failed while stopping"
+if classify(SLACK_TEARDOWN, branches) is not None:
+    errors.append(
+        f"FAIL: normal-teardown line {SLACK_TEARDOWN!r} was classified as "
+        f"{classify(SLACK_TEARDOWN, branches)!r} -- slack_api_error is too broad"
+    )
+
 if errors:
     for err in errors:
         print(err)

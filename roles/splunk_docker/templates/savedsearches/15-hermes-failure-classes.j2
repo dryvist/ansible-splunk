@@ -19,19 +19,23 @@
      gateway/kanban_watchers.py's "kanban dispatcher stuck: ready queue
      non-empty" warning.
    - slack_api_error: every Slack adapter log line is prefixed "[Slack]"
-     (plugins/platforms/slack/adapter.py); paired with an error-ish keyword
-     so healthy "[Slack] connected" style lines are not swept in.
+     (plugins/platforms/slack/adapter.py); paired with an error-ish keyword,
+     excluding the adapter's own normal-teardown DEBUG line ("... failed
+     while stopping") so healthy shutdown and "[Slack] connected" style
+     lines are not swept in.
    - compaction_loop: agent/conversation_loop.py's "Context compression
      failed after N attempts".
 
    `profile` is not yet a confirmed extracted field at index time (no Cribl
-   config in this repo to verify it) -- `stats by ... profile` degrades to an
-   empty group per host rather than erroring if it is absent, so this ships
-   now and gets more useful the moment that extraction lands.
+   config in this repo to verify it) -- `stats by ... profile` drops every
+   row for events missing that field, so a fillnull backfills it to
+   "unknown" before the stats so the class still fires and groups when
+   `profile` is absent, and gets more useful the moment that extraction
+   lands.
 --------------------------------------------------------------------------- #}
 [hermes_failure_classes]
 description = Classifies Hermes failures into five classes from sourcetype=hermes:* content -- provider_exhausted, cron_wall_clock_timeout, kanban_block_or_stuck, slack_api_error, compaction_loop -- and reports counts by host/profile. One search instead of five near-identical ones; see the template header for the exact matched strings and their source.
-search = index=hermes sourcetype=hermes:* _index_earliest=-15m _index_latest=now | eval failure_class=case(match(_raw, "every fallback rung refused the request"), "provider_exhausted", match(_raw, "exceeded its aggregate wall-clock limit"), "cron_wall_clock_timeout", match(_raw, "Stuck >") OR match(_raw, "kanban dispatcher stuck"), "kanban_block_or_stuck", match(_raw, "\[Slack\]") AND match(_raw, "(?i)failed|error|unhealthy"), "slack_api_error", match(_raw, "Context compression failed after"), "compaction_loop") | where isnotnull(failure_class) | stats count by failure_class, host, profile | where count >= 1
+search = index=hermes sourcetype=hermes:* _index_earliest=-15m _index_latest=now | eval failure_class=case(match(_raw, "every fallback rung refused the request"), "provider_exhausted", match(_raw, "exceeded its aggregate wall-clock limit"), "cron_wall_clock_timeout", match(_raw, "Stuck >") OR match(_raw, "kanban dispatcher stuck"), "kanban_block_or_stuck", match(_raw, "\[Slack\]") AND match(_raw, "(?i)(failed|error|unhealthy)(?!.*while stopping)"), "slack_api_error", match(_raw, "Context compression failed after"), "compaction_loop") | where isnotnull(failure_class) | fillnull value="unknown" profile | stats count by failure_class, host, profile
 dispatch.earliest_time = -15m
 dispatch.latest_time = now
 cron_schedule = */5 * * * *
