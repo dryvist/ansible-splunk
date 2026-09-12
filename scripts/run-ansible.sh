@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Ansible runner — prefers a short-lived SSH certificate from the OpenBao CA
 # (ssh-certificate-authority ADR) over the shared static key, then runs the
-# playbook. Invoke under your secrets manager so BAO_ADDR + the
-# ansible-converge AppRole are ambient:
+# playbook. Invoke under your secrets manager so BAO_ADDR and one of the
+# AppRole pairs are ambient:
 #   doppler run -- scripts/run-ansible.sh playbooks/site.yml [args...]
-# Without those env vars the static PROXMOX_SSH_KEY_PATH flow is unchanged.
+# Prefers OPENBAO_APPROLE_SEMAPHORE_{ROLE,SECRET}_ID (execution-plane
+# identity); falls back to OPENBAO_APPROLE_ANSIBLE_{ROLE,SECRET}_ID (shared
+# identity). Without either pair the static PROXMOX_SSH_KEY_PATH flow is
+# unchanged.
 set -euo pipefail
 
 usage() {
@@ -51,17 +54,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Mint an ephemeral ed25519 keypair signed by ssh-client-ca/sign/
-# automation-ansible (principal `ansible`, TTL <=1h). OpenSSH pairs
-# id + id-cert.pub automatically via PROXMOX_SSH_KEY_PATH. No secret
+# Mint an ephemeral ed25519 keypair signed by the OpenBao SSH CA. OpenSSH
+# pairs id + id-cert.pub automatically via PROXMOX_SSH_KEY_PATH. No secret
 # material on any command line.
 mint_ssh_cert() {
   local mount=${SSH_CA_MOUNT:-ssh-client-ca} login token signed
   CERT_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ansible-sshcert.XXXXXX") || return 1
   chmod 700 "$CERT_DIR"
-  (umask 077 && ssh-keygen -q -t ed25519 -N '' -C "ansible-converge" -f "$CERT_DIR/id") || return 1
+  (umask 077 && ssh-keygen -q -t ed25519 -N '' -C "$CONVERGE_IDENTITY" -f "$CERT_DIR/id") || return 1
   { set +x; } 2>/dev/null
-  login=$(jq -nc --arg r "$OPENBAO_APPROLE_ANSIBLE_ROLE_ID" --arg s "$OPENBAO_APPROLE_ANSIBLE_SECRET_ID" \
+  login=$(jq -nc --arg r "$CONVERGE_ROLE_ID" --arg s "$CONVERGE_SECRET_ID" \
     '{role_id: $r, secret_id: $s}' \
     | curl -fsSL --max-time 10 -H 'Content-Type: application/json' --data @- \
       "$BAO_ADDR/v1/auth/approle/login") || return 1
@@ -71,7 +73,7 @@ mint_ssh_cert() {
     '{public_key: $pub, ttl: $ttl}' \
     | curl -fsSL --max-time 10 \
       -H @<(printf 'X-Vault-Token: %s\n' "$RUNNER_BAO_TOKEN") --data @- \
-      "$BAO_ADDR/v1/$mount/sign/automation-ansible" \
+      "$BAO_ADDR/v1/$mount/sign/$CONVERGE_SIGN_ROLE" \
     | jq -er '.data.signed_key') || return 1
   printf '%s\n' "$signed" > "$CERT_DIR/id-cert.pub"
   if [[ -z $BAO_TOKEN_WAS_SET ]]; then
@@ -80,11 +82,29 @@ mint_ssh_cert() {
   export PROXMOX_SSH_KEY_PATH="$CERT_DIR/id"
 }
 
-if [[ -n ${BAO_ADDR:-} && -n ${OPENBAO_APPROLE_ANSIBLE_ROLE_ID:-} && -n ${OPENBAO_APPROLE_ANSIBLE_SECRET_ID:-} ]] \
+# Prefer the execution plane's own AppRole (principal `semaphore`) so a
+# plane-run is distinguishable from a shared-identity run in sshd logs.
+CONVERGE_ROLE_ID="" CONVERGE_SECRET_ID="" CONVERGE_SIGN_ROLE="" CONVERGE_IDENTITY=""
+if [[ -n ${OPENBAO_APPROLE_SEMAPHORE_ROLE_ID:-} && -n ${OPENBAO_APPROLE_SEMAPHORE_SECRET_ID:-} ]]; then
+  CONVERGE_ROLE_ID="$OPENBAO_APPROLE_SEMAPHORE_ROLE_ID"
+  CONVERGE_SECRET_ID="$OPENBAO_APPROLE_SEMAPHORE_SECRET_ID"
+  CONVERGE_SIGN_ROLE="automation-semaphore"
+  CONVERGE_IDENTITY="semaphore"
+elif [[ -n ${OPENBAO_APPROLE_ANSIBLE_ROLE_ID:-} && -n ${OPENBAO_APPROLE_ANSIBLE_SECRET_ID:-} ]]; then
+  CONVERGE_ROLE_ID="$OPENBAO_APPROLE_ANSIBLE_ROLE_ID"
+  CONVERGE_SECRET_ID="$OPENBAO_APPROLE_ANSIBLE_SECRET_ID"
+  CONVERGE_SIGN_ROLE="automation-ansible"
+  CONVERGE_IDENTITY="ansible"
+  echo "WARNING: OPENBAO_APPROLE_SEMAPHORE_ROLE_ID/OPENBAO_APPROLE_SEMAPHORE_SECRET_ID not set —" >&2
+  echo "authenticating as the shared 'ansible' identity instead of the execution plane's own." >&2
+fi
+
+if [[ -n ${BAO_ADDR:-} && -n $CONVERGE_ROLE_ID && -n $CONVERGE_SECRET_ID ]] \
   && mint_ssh_cert; then
-  echo "Using a short-lived SSH certificate from the OpenBao CA (automation-ansible)."
+  echo "Using a short-lived SSH certificate from the OpenBao CA ($CONVERGE_SIGN_ROLE)."
+  echo "  authenticated as: $CONVERGE_IDENTITY"
 elif [[ -z ${PROXMOX_SSH_KEY_PATH:-} ]]; then
-  echo "ERROR: no SSH auth available — set BAO_ADDR + OPENBAO_APPROLE_ANSIBLE_* for cert" >&2
+  echo "ERROR: no SSH auth available — set BAO_ADDR + an OPENBAO_APPROLE_* pair for cert" >&2
   echo "minting, or PROXMOX_SSH_KEY_PATH for the static break-glass key." >&2
   exit 1
 fi
