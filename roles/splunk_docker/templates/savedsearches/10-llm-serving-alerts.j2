@@ -69,12 +69,12 @@ quantity = 0
 
 
 {# ---------------------------------------------------------------------------
-   PENDING DATA, all three below: they read sourcetype=llm-serving-share,
+   PENDING DATA, both below: they read sourcetype=llm-serving-share,
    the router's structured per-request line
    (llm_router_serving_share_syslog_identifier in ansible-proxmox-ai's
    llm_router role defaults). That route does not ship yet -- it lands with
    feature/llm-router-syslog in ansible-proxmox-ai, a separate PR -- so these
-   three searches return zero rows until then, same as
+   two searches return zero rows until then, same as
    llm_metal_resource_limit_detector above ("inert until that delivers").
    Field names (caller_429_rate, status, duration_ms) are unconfirmed
    against a live sample of that line; reconcile against the router's own
