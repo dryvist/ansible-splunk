@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.75.0](https://github.com/dryvist/ansible-splunk/compare/v0.74.1...v0.75.0) (2026-09-12)
+
+
+### Features
+
+* **splunk_docker:** add hermes_failure_classes saved search ([#568](https://github.com/dryvist/ansible-splunk/issues/568)) ([ed73f2c](https://github.com/dryvist/ansible-splunk/commit/ed73f2c43be7e6136e2eeb69fe3e974da3e4dc2e))
+* **splunk_docker:** add llm-serving 429 rate, leaked-counter, and watchdog alerts ([#569](https://github.com/dryvist/ansible-splunk/issues/569)) ([bf909bf](https://github.com/dryvist/ansible-splunk/commit/bf909bf05ba6b132d64313af782f3b0df674892a))
+
 ## [0.74.1](https://github.com/dryvist/ansible-splunk/compare/v0.74.0...v0.74.1) (2026-09-12)
 
 
