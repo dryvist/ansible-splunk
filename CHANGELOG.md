@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.75.1](https://github.com/dryvist/ansible-splunk/compare/v0.75.0...v0.75.1) (2026-09-12)
+
+
+### Bug Fixes
+
+* separate adjacent conf includes and correct a test-harness default ([#574](https://github.com/dryvist/ansible-splunk/issues/574)) ([29e2558](https://github.com/dryvist/ansible-splunk/commit/29e25584a08b547c65a3f66057b476fefcf20e3b))
+
 ## [0.75.0](https://github.com/dryvist/ansible-splunk/compare/v0.74.1...v0.75.0) (2026-09-12)
 
 
