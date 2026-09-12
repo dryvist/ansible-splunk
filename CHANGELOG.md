@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.74.1](https://github.com/dryvist/ansible-splunk/compare/v0.74.0...v0.74.1) (2026-09-12)
+
+
+### Bug Fixes
+
+* **runner:** retry the token revoke and read the archive credential as the run identity ([#571](https://github.com/dryvist/ansible-splunk/issues/571)) ([6e3a8bf](https://github.com/dryvist/ansible-splunk/commit/6e3a8bfefd12a51e2ea8937f14016226283c112e))
+
 ## [0.74.0](https://github.com/dryvist/ansible-splunk/compare/v0.73.2...v0.74.0) (2026-09-12)
 
 
