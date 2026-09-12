@@ -84,6 +84,7 @@ EXPECTED_INCLUDED = {
     "macos_edge_silence_detector",
     "llm_pipeline_silence_detector",
     "llm_router_silence_detector",
+    "index_gap_detector",
 }
 # Real grouped-aggregation stanzas that are NOT silence detectors (a
 # data-value threshold or a run-count/score comparison, not elapsed time
@@ -113,12 +114,26 @@ def silence_stanzas(rendered):
 
 # --- minimal SPL simulator, scoped to exactly what these searches use ------
 #
-# A "table" is a list of dict rows. Only the operators these specific search
-# strings contain are implemented: the grouped aggregation under test (as the
-# zero-events ground truth), appendpipe [ stats count | where _rows == 0 |
-# eval ... | fields - _rows ], eval minutes_silent = (now() - coalesce(field,
-# 0)) / 60, and where minutes_silent > <threshold>. This is not a general SPL
-# interpreter.
+# A "table" is a list of dict rows. Two zero-row guard shapes are recognized:
+#
+# appendpipe [ stats count | where _rows == 0 | eval ... | fields - _rows ] --
+# the by_host/legacy shape, one guard row synthesized only when the whole
+# result set is empty.
+#
+# append [ | makeresults | eval <field>=<list> | eval <field>=split(...) |
+# mvexpand <field> | eval <recency>=0 ] | stats max(<recency>) as <recency>
+# by <field> -- index_gap_detector's shape: one sentinel row PER expected
+# member of a wildcarded search (index_gap_detector's `index=*` has no
+# equivalent to appendpipe's single ungrouped-count fallback, because the
+# blind spot here is "this one group among many has zero rows", not "the
+# whole search has zero rows"). `stats max(...)` then keeps a real tstats
+# row over the 0 sentinel wherever one exists, and keeps the sentinel where
+# none does.
+#
+# Beyond the guard itself: eval <recency> = (now() - coalesce(field, 0)) / 60
+# (or, for index_gap_detector, without the /60 divide since it names its
+# field in minutes already: age_min = round((now() - last_indexed) / 60)),
+# and where <recency> > <threshold>. This is not a general SPL interpreter.
 
 
 def run_appendpipe_zero_guard(table, search):
@@ -138,6 +153,25 @@ def run_appendpipe_zero_guard(table, search):
     return table + [row]
 
 
+def run_append_stats_max_guard(search):
+    """index_gap_detector's guard shape (see module docstring). Returns None
+    when this shape is absent so `simulate()` falls back to the appendpipe
+    shape, and (sentinel table, recency field name) when it matches -- the
+    fully-silent ground truth for a wildcarded, grouped search where NO real
+    tstats row exists for any member, plus the field name to compute
+    elapsed-time from, both derived from the search rather than assumed."""
+    m = re.search(
+        r"append \[ \| makeresults \| eval (\w+)=\"([^\"]*)\" \| eval \1=split\(\1, \",\"\) "
+        r"\| mvexpand \1 \| eval (\w+)=0 \] \| stats max\(\3\) as \3 by \1",
+        search,
+    )
+    if not m:
+        return None
+    group_field, members, recency_field = m.group(1), m.group(2), m.group(3)
+    table = [{group_field: name, recency_field: 0} for name in members.split(",") if name]
+    return table, recency_field
+
+
 def run_eval_minutes_silent(table):
     now_minutes = time.time() / 60
     for row in table:
@@ -147,24 +181,39 @@ def run_eval_minutes_silent(table):
     return table
 
 
-def run_where_threshold(table, search):
-    m = re.search(r"where minutes_silent > (\S+)", search)
+def run_eval_age_min(table, recency_field):
+    now_minutes = time.time() / 60
+    for row in table:
+        value = row.get(recency_field)
+        value = value if isinstance(value, (int, float)) else 0
+        row["age_min"] = round(now_minutes - value / 60)
+    return table
+
+
+def run_where_threshold(table, search, recency_field="minutes_silent"):
+    m = re.search(rf"where {recency_field} > (\S+)", search)
     try:
         threshold = float(m.group(1)) if m else 0.0
     except ValueError:
-        # Symbolic threshold (e.g. host_threshold_minutes, derived via a
-        # case() expression bounded by a real detector's threshold_minutes).
-        # A sentinel row's last_seen is always 0, so minutes_silent is
-        # ~now()/60 -- tens of millions of minutes -- which dwarfs any
-        # realistic bounded threshold this codebase would ever configure.
+        # Symbolic threshold (e.g. host_threshold_minutes, or
+        # index_gap_detector's case()-derived threshold_minutes). A sentinel
+        # row's recency field is always computed from a 0 timestamp, so its
+        # elapsed-time value is ~now()/60 -- tens of millions of minutes --
+        # which dwarfs any realistic bounded threshold this codebase would
+        # ever configure.
         threshold = 0.0
-    return [row for row in table if row["minutes_silent"] > threshold]
+    return [row for row in table if row[recency_field] > threshold]
 
 
 def simulate(search):
     """Run a search against a fully-silent data source (a grouped
     aggregation over zero matching input rows returns zero result rows) and
     return the surviving rows -- what the alert would fire on."""
+    append_guard = run_append_stats_max_guard(search)
+    if append_guard is not None:
+        append_table, recency_field = append_guard
+        table = run_eval_age_min(append_table, recency_field)
+        return run_where_threshold(table, search, recency_field="age_min")
     table = run_appendpipe_zero_guard([], search)
     table = run_eval_minutes_silent(table)
     return run_where_threshold(table, search)
@@ -174,6 +223,13 @@ env = ansible_env(ROOT / "roles/splunk_docker/templates")
 rendered = env.get_template("savedsearches.conf.j2").render(
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
     splunk_docker_silence_lookback_multiplier=DEFAULTS["splunk_docker_silence_lookback_multiplier"],
+    # index_gap_detector's zero-row guard covers a wildcarded search, so it
+    # needs the real expected-index roster to have any members to guard --
+    # without these two, its append branch has an empty list and this test
+    # would validate nothing about it (see index_gap_detector's own template
+    # comment for why the two default independently rather than as a pair).
+    splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
+    splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
     splunk_docker_alert_ntfy_url=None,
     splunk_docker_alert_slack_webhook=None,
 )
