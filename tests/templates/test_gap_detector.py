@@ -2,16 +2,14 @@
 """
 Guard index_gap_detector's index-time requirement and index coverage.
 
-Vikunja 3111: three indexes (claude, llm, mac_perf) currently report
-NEGATIVE event age via a sourcetype-level clock-skew/parse defect -- their
-latest _time is in the future relative to the search head. A detector keyed
-on _time would read that as "very recently updated" and never fire even if
-the source stopped -- exactly backwards, and exactly the failure mode this
-detector exists to close for every other index too (a bad clock or parse
-config in ANY future sourcetype would silently blind the detector the same
-way). This test fails if the search is ever rewritten to key off _time
-instead of _indextime, or to drop the index-time bound in the tstats clause
-itself.
+A sourcetype whose reported _time drifts ahead of the search head's clock
+makes a detector keyed on _time read a dead source as "very recently
+updated" and never fire -- exactly backwards. This test fails if the
+search is ever rewritten to key off _time instead of _indextime, to use
+latest(_indextime) instead of max(_indextime) (latest() follows whichever
+row has the greatest _time, not the largest _indextime across all rows, so
+it inherits the same _time-drift blind spot this whole design avoids), or
+to drop the index-time bound in the tstats clause itself.
 
 It also checks index_gap_detector covers every index this role declares
 (splunk_docker_indexes_core + splunk_docker_indexes_extra), including one not
@@ -46,8 +44,19 @@ SEARCH_RE = re.compile(r"^search = (.*)$", re.M)
 
 
 def uses_index_time_only(search):
-    """True iff the search ages an index by _indextime and never _time."""
-    return "latest(_indextime)" in search and "latest(_time)" not in search
+    """True iff the search ages an index by max(_indextime) and never _time
+    or latest(_indextime). latest(X) returns X from the single row with the
+    greatest _time, not the largest X across all rows -- on a future-dated
+    _time row that row IS the "latest" row by _time, so latest(_indextime)
+    would freeze at whatever _indextime that one row carries, which can be
+    older than a real, more-recent write from a well-behaved row. Only
+    max(_indextime), independent of any row's _time, stays correct regardless
+    of what _time does."""
+    return (
+        "max(_indextime)" in search
+        and "latest(_time)" not in search
+        and "latest(_indextime)" not in search
+    )
 
 
 def bounds_by_index_time_in_base_search(search):
@@ -86,16 +95,14 @@ search = SEARCH_RE.search(body).group(1)
 
 if not uses_index_time_only(search):
     errors.append(
-        "FAIL: index_gap_detector does not age indexes by _indextime alone -- a "
-        "clock-skewed or unparsed sourcetype's _time would silently defeat this "
-        "detector (Vikunja 3111)"
+        "FAIL: index_gap_detector does not age indexes by max(_indextime) alone -- "
+        "either _time or latest(_indextime) would let a clock-skewed or unparsed "
+        "sourcetype defeat this detector"
     )
 if not bounds_by_index_time_in_base_search(search):
     errors.append(
         "FAIL: index_gap_detector's tstats clause has no _index_earliest/"
-        "_index_latest bound in the base search -- an event-time bound here "
-        "(or none) reintroduces the Vikunja 3111 blind spot for the tstats "
-        "scan itself, independent of which field last_indexed reads"
+        "_index_latest bound in the base search"
     )
 
 # --- covers every declared index, not just ones with a detector entry -----
@@ -135,18 +142,28 @@ else:
 EVENT_TIME_REGRESSION = "| tstats latest(_time) as last_indexed where index=* _index_earliest=-1d _index_latest=now by index"
 if uses_index_time_only(EVENT_TIME_REGRESSION):
     errors.append("FAIL: regression fixture -- an _time-only search was not flagged")
+
+LATEST_INDEXTIME_REGRESSION = (
+    "| tstats latest(_indextime) as last_indexed where index=* "
+    "_index_earliest=-1d _index_latest=now by index"
+)
+if uses_index_time_only(LATEST_INDEXTIME_REGRESSION):
+    errors.append("FAIL: regression fixture -- a latest(_indextime) search was not flagged")
+
+CORRECT_FIXTURE = (
+    "| tstats max(_indextime) as last_indexed where index=* "
+    "_index_earliest=-1d _index_latest=now by index"
+)
 if not uses_index_time_only(search):
     pass  # already reported above; avoid a duplicate message
-elif not uses_index_time_only(
-    "| tstats latest(_indextime) as last_indexed where index=* _index_earliest=-1d _index_latest=now by index"
-):
-    errors.append("FAIL: regression fixture -- a correctly _indextime-only search was flagged")
+elif not uses_index_time_only(CORRECT_FIXTURE):
+    errors.append("FAIL: regression fixture -- a correctly max(_indextime) search was flagged")
 
-NO_BOUND_REGRESSION = "| tstats latest(_indextime) as last_indexed where index=* by index"
+NO_BOUND_REGRESSION = "| tstats max(_indextime) as last_indexed where index=* by index"
 if bounds_by_index_time_in_base_search(NO_BOUND_REGRESSION):
     errors.append("FAIL: regression fixture -- a tstats clause with no index-time bound was not flagged")
 LATE_BOUND_REGRESSION = (
-    "| tstats latest(_indextime) as last_indexed where index=* by index "
+    "| tstats max(_indextime) as last_indexed where index=* by index "
     "| where _index_earliest=-1d AND _index_latest=now"
 )
 if bounds_by_index_time_in_base_search(LATE_BOUND_REGRESSION):
@@ -154,9 +171,7 @@ if bounds_by_index_time_in_base_search(LATE_BOUND_REGRESSION):
         "FAIL: regression fixture -- an index-time bound appended after the first "
         "pipe (not a base-search term) was not flagged"
     )
-if not bounds_by_index_time_in_base_search(
-    "| tstats latest(_indextime) as last_indexed where index=* _index_earliest=-1d _index_latest=now by index"
-):
+if not bounds_by_index_time_in_base_search(CORRECT_FIXTURE):
     errors.append("FAIL: regression fixture -- a correctly base-search-bounded tstats clause was flagged")
 
 if errors:
@@ -165,8 +180,9 @@ if errors:
     sys.exit(1)
 
 print(
-    "PASS: index_gap_detector ages indexes by _indextime (never _time) bounded by "
-    "_index_earliest/_index_latest in the base search, and covers every declared "
-    "index including one with no splunk_docker_silence_detectors entry of its own"
+    "PASS: index_gap_detector ages indexes by max(_indextime) (never _time or "
+    "latest(_indextime)) bounded by _index_earliest/_index_latest in the base "
+    "search, and covers every declared index including one with no "
+    "splunk_docker_silence_detectors entry of its own"
 )
 print("\nAll tests passed.")

@@ -17,8 +17,8 @@ Guard the two generic silence-detector bugs fixed here:
    host's effective threshold from its own observed average inter-event gap
    (floored at threshold_minutes), with a host_overrides escape hatch.
 
-A non-by_host entry no longer renders its own stanza (Zammad 17191 --
-index_gap_detector replaces the flat per-index stanzas with one report); this
+A non-by_host entry no longer renders its own stanza -- index_gap_detector
+replaces the flat per-index stanzas with one report; this
 test checks instead that its threshold_minutes reaches index_gap_detector's
 case() expression unchanged, so a bad merge or a typo'd index name in that
 expression is still caught here rather than only by a full render diff.

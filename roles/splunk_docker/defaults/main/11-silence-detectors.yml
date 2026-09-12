@@ -8,7 +8,7 @@
 # threshold.
 #
 # Every other entry feeds ONE shared [index_gap_detector] saved search
-# instead of rendering its own stanza (Zammad 17191): only `index` and
+# instead of rendering its own stanza: only `index` and
 # `threshold_minutes` are read from it, as one branch of that search's
 # threshold case(). `cron`, `suppress_minutes`, `sourcetype` and `disabled`
 # are BY_HOST-ONLY FIELDS as a result — setting any of them on a non-by_host

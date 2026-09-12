@@ -5,7 +5,7 @@
    for the field reference): tstats latest(_time) over the index BY HOST, fire
    when a host's own silence exceeds its cadence-derived threshold. Kept as
    its own stanza per detector rather than folded into index_gap_detector
-   below (Zammad 17191) because per-host cadence needs one row per host, which
+   below because per-host cadence needs one row per host, which
    a single cross-index report cannot express — a healthy emitter can't mask
    a dead one, and a host that has never emitted has no baseline and is not
    detected.
@@ -81,22 +81,29 @@ quantity = 0
 {% endfor %}
 {# ---------------------------------------------------------------------------
    One gap detector, replacing the flat (non-by_host) per-index stanzas the
-   loop above used to also emit (Zammad 17191: 18 hand-tuned stanzas, several
-   admittedly firing every cycle over structurally-empty indexes -- the same
-   information in one search instead of eighteen). Thresholds stay declarative
-   in splunk_docker_silence_detectors; this only changes how they render.
+   loop above used to also emit. Thresholds stay declarative in
+   splunk_docker_silence_detectors; this only changes how they render.
 
-   INDEX TIME, NOT EVENT TIME (Vikunja 3111): three indexes (claude, llm,
-   mac_perf) currently report negative event age via a sourcetype-level
-   clock-skew/parse defect -- their latest _time is in the future relative to
-   the search head. A detector keyed on _time would read that as "very
-   recently updated" and never fire even if the source went silent, exactly
-   backwards. _indextime is Splunk's own receipt timestamp, set by the
-   indexer at write time and immune to a sender's clock or parse config, so
-   last_indexed below tracks when Splunk last WROTE a row for the index, not
-   when the event claims to have happened. tstats aggregates _indextime the
-   same way it aggregates _time -- both are default indexed metadata fields,
-   not something a data model or acceleration is needed for.
+   INDEX TIME, NOT EVENT TIME. A sourcetype whose reported _time drifts
+   ahead of the search head's clock (a bad sender clock, or a parse
+   misconfiguration) makes any detector keyed on _time read a dead source as
+   "very recently updated" and never fire -- exactly backwards. _indextime
+   is Splunk's own receipt timestamp, set by the indexer at write time and
+   immune to a sender's clock or parse config, so last_indexed below tracks
+   when Splunk last WROTE a row for the index, not when the event claims to
+   have happened. tstats aggregates _indextime the same way it aggregates
+   _time -- both are default indexed metadata fields, not something a data
+   model or acceleration is needed for.
+
+   max(), NOT latest(): tstats' latest(X) returns X from the row with the
+   single greatest _time, not the largest X across all rows. On a
+   future-dated _time row that row IS the "latest" row by _time, so
+   latest(_indextime) freezes at whatever _indextime that one row happened
+   to carry -- which can be older than a real, more-recent write from a
+   well-behaved row. max(_indextime) is not tied to any one row's _time at
+   all: it is the largest _indextime seen across the whole window,
+   independent of which row's _time sorts first. That is the only form of
+   this aggregate that stays correct regardless of what _time does.
 
    The append+stats max fills the same fully-empty-index blind spot the
    by_host loop above closes with appendpipe, but for a wildcarded search:
@@ -140,7 +147,7 @@ quantity = 0
 {% set gap_expected_indexes = (splunk_docker_indexes | default((splunk_docker_indexes_core | default([])) + (splunk_docker_indexes_extra | default([])))) | map(attribute='name') | list %}
 [index_gap_detector]
 description = Alerts when any index has gone silent longer than its configured threshold (default 1440 minutes), using the index's own last-write time rather than event time so a clock-skewed or unparsed sourcetype cannot hide behind a false "recently updated" reading. Replaces the flat per-index silence detectors with one report over every index this role creates.
-search = | tstats latest(_indextime) as last_indexed where index=* _index_earliest=-{{ gap_lookback_minutes }}m _index_latest=now by index | append [ | makeresults | eval index="{{ gap_expected_indexes | join(',') }}" | eval index=split(index, ",") | mvexpand index | eval last_indexed=0 ] | stats max(last_indexed) as last_indexed by index | eval age_min = round((now() - last_indexed) / 60) | eval threshold_minutes = case({% for det in flat_detectors %}index="{{ det.index }}", {{ det.threshold_minutes }}, {% endfor %}true(), 1440) | where age_min > threshold_minutes
+search = | tstats max(_indextime) as last_indexed where index=* _index_earliest=-{{ gap_lookback_minutes }}m _index_latest=now by index | append [ | makeresults | eval index="{{ gap_expected_indexes | join(',') }}" | eval index=split(index, ",") | mvexpand index | eval last_indexed=0 ] | stats max(last_indexed) as last_indexed by index | eval age_min = round((now() - last_indexed) / 60) | eval threshold_minutes = case({% for det in flat_detectors %}index="{{ det.index }}", {{ det.threshold_minutes }}, {% endfor %}true(), 1440) | where age_min > threshold_minutes
 dispatch.earliest_time = -{{ gap_lookback_minutes }}m
 dispatch.latest_time = now
 cron_schedule = */10 * * * *

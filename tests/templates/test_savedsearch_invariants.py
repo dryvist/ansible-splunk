@@ -17,9 +17,13 @@ actually verified true for all 33 detectors it touched:
    structurally-empty index is a pager storm, not a signal -- see
    hardware_smart_failure (real disk, ~563 matches/7d) and the several
    detectors now firing "(no hosts reporting)" every cron cycle.
-2. Every splunk_docker_silence_detectors list entry declares `disabled`
+2. Every by_host splunk_docker_silence_detectors entry declares `disabled`
    explicitly rather than relying on the `| default(0)` in the template, so
-   intent is never ambiguous from reading the list alone.
+   intent is never ambiguous from reading the list alone. Scoped to by_host
+   entries only: a non-by_host entry's `disabled` field is not read by
+   index_gap_detector at all (it feeds only `index` and `threshold_minutes`
+   into that search's case() expression), so requiring it there would
+   assert a guarantee the code does not provide.
 
 Run from repo root:
   python3 tests/templates/test_savedsearch_invariants.py
@@ -53,6 +57,8 @@ template = env.get_template("savedsearches.conf.j2")
 rendered = template.render(
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
     splunk_docker_silence_lookback_multiplier=DEFAULTS["splunk_docker_silence_lookback_multiplier"],
+    splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
+    splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
     splunk_docker_alert_ntfy_url=None,
     splunk_docker_alert_slack_webhook=None,
 )
@@ -68,10 +74,11 @@ for name, body in ((m.group(1), m.group(2)) for m in STANZA_RE.finditer(rendered
         errors.append(f"FAIL: [{name}] has alert.suppress = 1 but no alert.suppress.period")
 
 for det in DEFAULTS["splunk_docker_silence_detectors"]:
-    if "disabled" not in det:
+    if det.get("by_host") and "disabled" not in det:
         errors.append(
-            f"FAIL: splunk_docker_silence_detectors entry '{det.get('name', '?')}' has no "
-            "explicit 'disabled' key (relies on the template's implicit default)"
+            f"FAIL: splunk_docker_silence_detectors entry '{det.get('name', '?')}' is "
+            "by_host and has no explicit 'disabled' key (relies on the template's "
+            "implicit default)"
         )
 
 if errors:
@@ -81,7 +88,7 @@ if errors:
 
 print(
     "PASS: every scheduled stanza suppresses its own notification rate "
-    "(alert.suppress = 1 with a period), and every silence-detector list "
-    "entry declares 'disabled' explicitly"
+    "(alert.suppress = 1 with a period), and every by_host silence-detector "
+    "list entry declares 'disabled' explicitly"
 )
 print("\nAll tests passed.")
