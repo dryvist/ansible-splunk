@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.72.1](https://github.com/dryvist/ansible-splunk/compare/v0.72.0...v0.72.1) (2026-09-12)
+
+
+### Bug Fixes
+
+* **splunk_docker:** build ingress URLs from the ingress subdomain, not the apex ([1f100f4](https://github.com/dryvist/ansible-splunk/commit/1f100f4efc4acc5f35295c9f0998de05d7f6ac66))
+* **splunk_docker:** build ingress URLs from the ingress subdomain, not the apex ([354a045](https://github.com/dryvist/ansible-splunk/commit/354a0455256c08fca6a4957ca95ecd07c2b1dc33))
+
 ## [0.72.0](https://github.com/dryvist/ansible-splunk/compare/v0.71.2...v0.72.0) (2026-09-11)
 
 
