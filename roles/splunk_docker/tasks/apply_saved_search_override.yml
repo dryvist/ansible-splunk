@@ -51,7 +51,11 @@
     force_basic_auth: true
     validate_certs: false
     body_format: form-urlencoded
-    body: "{{ splunk_docker_saved_search_delta }}"
+    # The delta decides WHETHER to post; the post carries every wanted key.
+    # Splunk validates an alert action against the parameters in the same
+    # request, so enabling `action.webhook` on its own is refused with
+    # "No Webhook URL specified" even when the URL is already stored.
+    body: "{{ splunk_docker_saved_search_wanted }}"
   when: splunk_docker_saved_search_delta | length > 0
   changed_when: true
   no_log: true
