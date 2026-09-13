@@ -54,6 +54,7 @@ env = ansible_env(ROOT / "roles/splunk_docker/templates")
 template = env.get_template("savedsearches.conf.j2")
 rendered = template.render(
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
+    splunk_docker_silence_exemptions=DEFAULTS["splunk_docker_silence_exemptions"],
     splunk_docker_silence_lookback_multiplier=DEFAULTS["splunk_docker_silence_lookback_multiplier"],
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],

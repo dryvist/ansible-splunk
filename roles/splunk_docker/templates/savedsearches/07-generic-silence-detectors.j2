@@ -139,15 +139,22 @@ quantity = 0
 {% for det in splunk_docker_silence_detectors | default([]) if not (det.by_host | default(false)) %}
 {% set _ = flat_detectors.append(det) %}
 {% endfor %}
+{% for det in splunk_docker_silence_exemptions | default([]) if not (det.by_host | default(false)) %}
+{% set _ = flat_detectors.append(det) %}
+{% endfor %}
 {% set gap_lookback_minutes = ((flat_detectors | map(attribute='threshold_minutes') | list + [1440]) | max) * splunk_docker_silence_lookback_multiplier %}
 {# Each half defaults independently (never a combined-then-defaulted
    expression) so a caller that supplies neither -- every template test
    except the ones exercising this stanza specifically -- still renders,
    with an empty expected-index list rather than a Jinja UndefinedError. #}
 {% set gap_expected_indexes = (splunk_docker_indexes | default((splunk_docker_indexes_core | default([])) + (splunk_docker_indexes_extra | default([])))) | map(attribute='name') | list %}
+{% set exempt_detectors = [] %}
+{% for det in flat_detectors if det.exempt | default(false) %}
+{% set _ = exempt_detectors.append(det) %}
+{% endfor %}
 [index_gap_detector]
-description = Alerts when any index has gone silent longer than its configured threshold (default 1440 minutes), using the index's own last-write time rather than event time so a clock-skewed or unparsed sourcetype cannot hide behind a false "recently updated" reading. Replaces the flat per-index silence detectors with one report over every index this role creates.
-search = | tstats max(_indextime) as last_indexed where index=* _index_earliest=-{{ gap_lookback_minutes }}m _index_latest=now by index | append [ | makeresults | eval index="{{ gap_expected_indexes | join(',') }}" | eval index=split(index, ",") | mvexpand index | eval last_indexed=0 ] | stats max(last_indexed) as last_indexed by index | eval age_min = round((now() - last_indexed) / 60) | eval threshold_minutes = case({% for det in flat_detectors %}index="{{ det.index }}", {{ (splunk_docker_silence_exempt_threshold_minutes | default(525600)) if det.exempt | default(false) else det.threshold_minutes }}, {% endfor %}true(), 1440) | where age_min > threshold_minutes
+description = Alerts when any index has gone silent longer than its configured threshold (default 1440 minutes), using the index's own last-write time rather than event time so a clock-skewed or unparsed sourcetype cannot hide behind a false "recently updated" reading. Replaces the flat per-index silence detectors with one report over every index this role creates. An index flagged exempt (see 11b-silence-exemptions.yml) never fires here regardless of age -- see [index_gap_exempt_report] below for the non-paging visibility into that exempt set.
+search = | tstats max(_indextime) as last_indexed where index=* _index_earliest=-{{ gap_lookback_minutes }}m _index_latest=now by index | append [ | makeresults | eval index="{{ gap_expected_indexes | join(',') }}" | eval index=split(index, ",") | mvexpand index | eval last_indexed=0 ] | stats max(last_indexed) as last_indexed by index | eval age_min = round((now() - last_indexed) / 60) | eval threshold_minutes = case({% for det in flat_detectors %}index="{{ det.index }}", {{ det.threshold_minutes }}, {% endfor %}true(), 1440){% if exempt_detectors %} | eval exempt = if(in(index{% for det in exempt_detectors %}, "{{ det.index }}"{% endfor %}), 1, 0) | where exempt=0 AND age_min > threshold_minutes{% else %} | where age_min > threshold_minutes{% endif %}
 dispatch.earliest_time = -{{ gap_lookback_minutes }}m
 dispatch.latest_time = now
 cron_schedule = */10 * * * *
@@ -165,3 +172,25 @@ alert.track = 1
 counttype = number of events
 relation = greater than
 quantity = 0
+
+{% if exempt_detectors %}
+[index_gap_exempt_report]
+description = Daily, non-paging visibility into the index_gap_detector exemption list (11b-silence-exemptions.yml): every currently-exempt index with its reason, so an exemption never silently stands unnoticed. Not an alert on a fault -- a healthy run always returns one row per exempt index.
+search = | makeresults | eval data="{% for det in exempt_detectors %}{{ det.index }}|{{ det.exempt_reason | replace('"', "'") }}|{{ det.review_by | default('') }};{% endfor %}" | eval row=split(data, ";") | mvexpand row | search row!="" | eval fields=split(row, "|") | eval index=mvindex(fields, 0), reason=mvindex(fields, 1), review_by=mvindex(fields, 2) | table index reason review_by
+dispatch.earliest_time = -15m
+dispatch.latest_time = now
+cron_schedule = 0 8 * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 1
+alert.suppress = 1
+alert.suppress.period = 1440m
+alert.track = 0
+{% if splunk_docker_alert_ntfy_url %}
+action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}?priority=low
+{% endif %}
+counttype = number of events
+relation = greater than
+quantity = 0
+{% endif %}

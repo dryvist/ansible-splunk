@@ -72,6 +72,7 @@ def bounds_by_index_time_in_base_search(search):
 env = ansible_env(ROOT / "roles/splunk_docker/templates")
 rendered = env.get_template("savedsearches.conf.j2").render(
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
+    splunk_docker_silence_exemptions=DEFAULTS["splunk_docker_silence_exemptions"],
     splunk_docker_silence_lookback_multiplier=DEFAULTS["splunk_docker_silence_lookback_multiplier"],
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
@@ -110,13 +111,17 @@ all_indexes = {
     idx["name"]
     for idx in DEFAULTS["splunk_docker_indexes_core"] + DEFAULTS["splunk_docker_indexes_extra"]
 }
-detector_indexes = {det["index"] for det in DEFAULTS["splunk_docker_silence_detectors"]}
+detector_indexes = {
+    det["index"]
+    for det in DEFAULTS["splunk_docker_silence_detectors"] + DEFAULTS["splunk_docker_silence_exemptions"]
+}
 undetected = all_indexes - detector_indexes
 if not undetected:
     errors.append(
         "FAIL: fixture assumption broken -- every declared index already has a "
-        "splunk_docker_silence_detectors entry, so this test cannot prove an "
-        "index with NO entry is still covered by the 1440-minute default"
+        "splunk_docker_silence_detectors/splunk_docker_silence_exemptions entry, "
+        "so this test cannot prove an index with NO entry is still covered by "
+        "the 1440-minute default"
     )
 else:
     sample = sorted(undetected)[0]
@@ -124,17 +129,21 @@ else:
     roster = roster_match.group(1).split(",") if roster_match else []
     if sample not in roster:
         errors.append(
-            f"FAIL: '{sample}' has no splunk_docker_silence_detectors entry and is "
-            "missing from index_gap_detector's expected-index roster -- an index "
-            "with nobody watching it explicitly must still be covered by the "
-            "gap detector, or a newly created index goes unmonitored until "
+            f"FAIL: '{sample}' has no detector/exemption entry and is missing "
+            "from index_gap_detector's expected-index roster -- an index with "
+            "nobody watching it explicitly must still be covered by the gap "
+            "detector, or a newly created index goes unmonitored until "
             "someone remembers to add one"
         )
-    case_body = search.split("case(", 1)[-1].split(") | where", 1)[0]
+    # Anchored on the case() fallback branch (a literal constant in the
+    # template), not on whatever happens to follow the case() close --
+    # that varies depending on whether any exempt entries render the
+    # boolean exempt-gate clause immediately after.
+    case_body = search.split("case(", 1)[-1].split("true(), 1440)", 1)[0]
     if f'index="{sample}"' in case_body:
         errors.append(
             f"FAIL: '{sample}' has its own case() branch despite having no "
-            "splunk_docker_silence_detectors entry -- fixture assumption broken"
+            "detector/exemption entry -- fixture assumption broken"
         )
 
 # --- prove each check can fail (same technique as the other template tests:

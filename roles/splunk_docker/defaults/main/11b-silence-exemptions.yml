@@ -1,0 +1,112 @@
+---
+# index_gap_detector exemptions, split from 11-silence-detectors.yml at the
+# CI token-budget gate. Same shape as splunk_docker_silence_detectors
+# entries (see that file's field docs), merged into index_gap_detector's
+# case() alongside it -- see 07-generic-silence-detectors.j2's
+# flat_detectors assembly. Kept in its own list/variable rather than
+# appended to splunk_docker_silence_detectors directly: defaults/main/
+# files merge by replacing a whole top-level key on collision, not by
+# concatenating lists, so a shared list key split across two files would
+# silently drop one half.
+splunk_docker_silence_exemptions:
+  # --- pre-deployment AI Docker service indexes ---------------------------
+  # index_gap_detector's first live dispatch (2026-09-12) flagged all seven
+  # as silent since creation. Each is documented in
+  # 09-custom-indexes-core.yml/10-custom-indexes-extra.yml as a
+  # "pre-deployment estimate (nothing has shipped yet)" for a container not
+  # deployed yet -- expected, not a gap. Re-measure and lower/remove exempt
+  # once each container is live and shipping (see the index's own comment
+  # in the indexes-core/-extra files for its container name).
+  - name: agentgateway
+    index: agentgateway
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+  - name: clickhouse
+    index: clickhouse
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+  - name: dify
+    index: dify
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+  - name: hindsight
+    index: hindsight
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+  - name: langflow
+    index: langflow
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+  - name: langgraph
+    index: langgraph
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+  - name: qdrant
+    index: qdrant
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+  # ai: not part of the seven AI Docker services above -- this is the older,
+  # generic index promptfoo model-eval publishes into (see
+  # 06-model-eval-regression.j2). That search's own comment already
+  # documents index=ai as zero-events-ever and inert until promptfoo
+  # actually publishes; this exemption matches that existing call.
+  - name: ai
+    index: ai
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "inert until the promptfoo model-eval integration publishes"
+  # --- metric/text indexes with no confirmed sender -----------------------
+  # index_gap_detector's first live dispatch also flagged these six as
+  # silent since creation. Unlike the eight above, this repo's own defaults
+  # comments describe each as an ALREADY-ACTIVE Telegraf/Cribl pipeline (no
+  # "pre-deployment" disclaimer), and no savedsearch anywhere reads from
+  # them. Whether the sender is genuinely wired on the Cribl/Telegraf side
+  # is unconfirmed from this repo -- exempting here to stop false-positive
+  # gap-detector rows, not because the gap is known-expected. review_by is
+  # a self-imposed deadline to force that confirmation rather than let the
+  # exemption stand indefinitely; re-measure and lower/remove exempt once
+  # ingestion is confirmed one way or the other, sooner if review_by has
+  # already passed.
+  - name: host_metrics
+    index: host_metrics
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "zero events since creation; Telegraf/Cribl sender wiring unconfirmed from this repo"
+    review_by: "2026-10-12"
+  - name: llm_metrics
+    index: llm_metrics
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "zero events since creation; Cribl sender wiring unconfirmed from this repo"
+    review_by: "2026-10-12"
+  - name: netmon_metrics
+    index: netmon_metrics
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "zero events since creation; Telegraf/Cribl sender wiring unconfirmed from this repo"
+    review_by: "2026-10-12"
+  - name: os_metrics
+    index: os_metrics
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "zero events since creation; Cribl sender wiring unconfirmed from this repo"
+    review_by: "2026-10-12"
+  - name: unifi_metrics
+    index: unifi_metrics
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "zero events since creation; Telegraf/Cribl sender wiring unconfirmed from this repo"
+    review_by: "2026-10-12"
+  - name: workstation
+    index: workstation
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "zero events since creation; Cribl sender wiring unconfirmed from this repo"
+    review_by: "2026-10-12"

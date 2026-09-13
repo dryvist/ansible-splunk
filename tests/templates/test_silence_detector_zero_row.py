@@ -190,8 +190,21 @@ def run_eval_age_min(table, recency_field):
     return table
 
 
+def run_eval_exempt(table, search):
+    """index_gap_detector-only: `eval exempt = if(in(index, "a", "b", ...),
+    1, 0)`. Marks each row exempt=1/0 by whether its index is named in the
+    boolean gate; a search with no such clause leaves every row exempt=0
+    (nothing to filter, matching plain `where age_min > threshold_minutes`
+    with no exempt gate at all)."""
+    m = re.search(r'eval exempt = if\(in\(index((?:, "[^"]*")*)\), 1, 0\)', search)
+    exempt_indexes = re.findall(r'"([^"]*)"', m.group(1)) if m else []
+    for row in table:
+        row["exempt"] = 1 if row.get("index") in exempt_indexes else 0
+    return table
+
+
 def run_where_threshold(table, search, recency_field="minutes_silent"):
-    m = re.search(rf"where {recency_field} > (\S+)", search)
+    m = re.search(rf"where (?:exempt=0 AND )?{recency_field} > (\S+)", search)
     try:
         threshold = float(m.group(1)) if m else 0.0
     except ValueError:
@@ -202,7 +215,7 @@ def run_where_threshold(table, search, recency_field="minutes_silent"):
         # which dwarfs any realistic bounded threshold this codebase would
         # ever configure.
         threshold = 0.0
-    return [row for row in table if row[recency_field] > threshold]
+    return [row for row in table if row.get("exempt", 0) == 0 and row[recency_field] > threshold]
 
 
 def simulate(search):
@@ -213,6 +226,7 @@ def simulate(search):
     if append_guard is not None:
         append_table, recency_field = append_guard
         table = run_eval_age_min(append_table, recency_field)
+        table = run_eval_exempt(table, search)
         return run_where_threshold(table, search, recency_field="age_min")
     table = run_appendpipe_zero_guard([], search)
     table = run_eval_minutes_silent(table)
@@ -222,6 +236,7 @@ def simulate(search):
 env = ansible_env(ROOT / "roles/splunk_docker/templates")
 rendered = env.get_template("savedsearches.conf.j2").render(
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
+    splunk_docker_silence_exemptions=DEFAULTS["splunk_docker_silence_exemptions"],
     splunk_docker_silence_lookback_multiplier=DEFAULTS["splunk_docker_silence_lookback_multiplier"],
     # index_gap_detector's zero-row guard covers a wildcarded search, so it
     # needs the real expected-index roster to have any members to guard --
@@ -256,6 +271,28 @@ for name, search in detectors.items():
         errors.append(
             f"FAIL: [{name}] produced no result row over a fully-silent data "
             f"source -- the alert would stay quiet through total silence"
+        )
+
+# --- exempt indexes must never fire; a non-exempt silent index still must -
+# (against the REAL rendered index_gap_detector, not a synthetic fixture) --
+gap_search = detectors.get("index_gap_detector")
+if gap_search:
+    exempt_indexes = {
+        det["index"] for det in DEFAULTS["splunk_docker_silence_exemptions"] if det.get("exempt")
+    }
+    fired_indexes = {row["index"] for row in simulate(gap_search)}
+    exempt_that_fired = exempt_indexes & fired_indexes
+    if exempt_that_fired:
+        errors.append(
+            f"FAIL: index_gap_detector fired on exempt index(es) {sorted(exempt_that_fired)} "
+            "over a fully-silent data source -- raising a threshold does not suppress a "
+            "never-ingested index (its age_min already exceeds any finite threshold), "
+            "only a boolean exempt=0 gate does"
+        )
+    if exempt_indexes and not (fired_indexes - exempt_indexes):
+        errors.append(
+            "FAIL: fixture assumption broken -- every fired row was exempt, so this "
+            "test cannot prove a non-exempt silent index still fires"
         )
 
 # --- regression fixtures: prove the derivation catches a reintroduced bug,
@@ -297,6 +334,49 @@ UPPERCASE_BY = (
 )
 if not is_silence_detector(UPPERCASE_BY):
     errors.append("FAIL: regression fixture -- inclusion rule is case-sensitive to the BY keyword")
+
+# Exempt-gate regression: a raised threshold is a no-op for a never-ingested
+# index (see module docstring for why), so the fix is a boolean gate. This
+# fixture reproduces index_gap_detector's shape with one exempt and one
+# non-exempt index, both fully silent, and proves only the boolean gate
+# tells them apart -- catching a regression back to a threshold-only
+# "exemption" that fires on both.
+EXEMPT_GATE_SEARCH = (
+    '| tstats max(_indextime) as last_indexed where index=* by index '
+    '| append [ | makeresults | eval index="exempt_idx,real_idx" '
+    '| eval index=split(index, ",") | mvexpand index | eval last_indexed=0 ] '
+    '| stats max(last_indexed) as last_indexed by index '
+    '| eval age_min = round((now() - last_indexed) / 60) '
+    '| eval threshold_minutes = case(index="exempt_idx", 1440, index="real_idx", 1440, true(), 1440) '
+    '| eval exempt = if(in(index, "exempt_idx"), 1, 0) '
+    '| where exempt=0 AND age_min > threshold_minutes'
+)
+exempt_gate_fired = {row["index"] for row in simulate(EXEMPT_GATE_SEARCH)}
+if "exempt_idx" in exempt_gate_fired:
+    errors.append(
+        "FAIL: regression fixture -- exempt_idx fired despite the exempt=0 gate"
+    )
+if "real_idx" not in exempt_gate_fired:
+    errors.append(
+        "FAIL: regression fixture -- real_idx (non-exempt, fully silent) did not fire"
+    )
+
+# The defect this whole mechanism replaces: raising exempt_idx's threshold
+# instead of gating it boolean. Proves the simulator (and by extension the
+# real search, which uses the identical shape) would have caught it: a
+# never-ingested index's age_min is effectively unbounded, so no finite
+# raised threshold suppresses it.
+THRESHOLD_ONLY_SEARCH = EXEMPT_GATE_SEARCH.replace(
+    'index="exempt_idx", 1440, index="real_idx", 1440,', 'index="exempt_idx", 525600, index="real_idx", 1440,'
+).replace(' | eval exempt = if(in(index, "exempt_idx"), 1, 0) | where exempt=0 AND age_min > threshold_minutes',
+          ' | where age_min > threshold_minutes')
+if "exempt_idx" not in {row["index"] for row in simulate(THRESHOLD_ONLY_SEARCH)}:
+    errors.append(
+        "FAIL: regression fixture -- expected a raised-threshold-only exemption to "
+        "still fire on a never-ingested index (proving the mechanism this PR replaced "
+        "was in fact a no-op); it did not, so this fixture no longer demonstrates the "
+        "defect it exists to guard against"
+    )
 
 if errors:
     for err in errors:

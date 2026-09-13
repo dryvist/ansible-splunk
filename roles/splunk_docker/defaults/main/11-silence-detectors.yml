@@ -52,18 +52,28 @@
 #                       exclude the index from splunk_docker_indexes instead.
 #   sourcetype        — BY_HOST ONLY, optional filter added to the tstats
 #                       WHERE clause.
-#   exempt            — optional, default false. Read by every entry.
-#                       index_gap_detector-only: renders this index's case()
-#                       branch with splunk_docker_silence_exempt_threshold_minutes
-#                       instead of threshold_minutes, so a structurally empty
-#                       or pre-deployment index never fires no matter how
-#                       long it has been silent. threshold_minutes is still
-#                       required (kept at a nominal value) so this entry's
-#                       contribution to gap_lookback_minutes' max() does not
-#                       balloon the shared tstats lookback window every index
-#                       in the report is queried over.
+#   exempt            — optional, default false. index_gap_detector-only:
+#                       excludes this index from the firing check entirely
+#                       (a boolean gate, evaluated separately from
+#                       threshold_minutes -- an exempt, never-ingested index
+#                       enters the report through the synthetic zero-row
+#                       append, same as any other undetected index, so its
+#                       age_min is always enormous and would exceed any
+#                       finite threshold). threshold_minutes is still
+#                       required on an exempt entry (nominal; unused for
+#                       firing) so this entry's contribution to
+#                       gap_lookback_minutes' max() does not balloon the
+#                       shared tstats lookback window every index in the
+#                       report is queried over. Exempt indexes are listed
+#                       separately from splunk_docker_silence_detectors, in
+#                       splunk_docker_silence_exemptions
+#                       (11b-silence-exemptions.yml) -- see that file.
 #   exempt_reason     — required when exempt is true. One sentence: why this
 #                       index is expected to stay silent, not broken.
+#   review_by         — optional, exempt entries only. ISO date; a
+#                       self-imposed deadline to revisit an exemption whose
+#                       reason is itself uncertain, rather than let it stand
+#                       indefinitely.
 #
 # dispatch.earliest_time (the search lookback) is threshold_minutes x this
 # multiplier — see the comment above each rendered stanza in
@@ -72,13 +82,6 @@
 # residual limit (a host silent longer than the window still has no row for
 # tstats to return, same as an index with zero events in the whole window).
 splunk_docker_silence_lookback_multiplier: 2000
-
-# index_gap_detector's case() threshold for any entry marked exempt: true
-# below. One year — long enough that an exempt index never fires regardless
-# of how long it has been silent, without feeding that same huge number into
-# gap_lookback_minutes' max() (each exempt entry still carries its own
-# nominal threshold_minutes for that purpose).
-splunk_docker_silence_exempt_threshold_minutes: 525600
 
 # Surfaces shown by the [llm_surface_freshness] report (savedsearches.conf.j2).
 # Single definition: the template joins this list into both the roster and the
@@ -285,95 +288,3 @@ splunk_docker_silence_detectors:
     cron: "0 */2 * * *"
     suppress_minutes: 1440
     disabled: 0
-  # --- exempt: pre-deployment AI Docker service indexes -------------------
-  # index_gap_detector's first live dispatch (2026-09-12) flagged all seven
-  # as silent since creation. Each is documented in
-  # 09-custom-indexes-core.yml/10-custom-indexes-extra.yml as a
-  # "pre-deployment estimate (nothing has shipped yet)" for a container not
-  # deployed yet -- expected, not a gap. Re-measure and lower/remove exempt
-  # once each container is live and shipping (see the index's own comment
-  # in the indexes-core/-extra files for its container name).
-  - name: agentgateway
-    index: agentgateway
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
-  - name: clickhouse
-    index: clickhouse
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
-  - name: dify
-    index: dify
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
-  - name: hindsight
-    index: hindsight
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
-  - name: langflow
-    index: langflow
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
-  - name: langgraph
-    index: langgraph
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
-  - name: qdrant
-    index: qdrant
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
-  # ai: not part of the seven AI Docker services above -- this is the older,
-  # generic index promptfoo model-eval publishes into (see
-  # 06-model-eval-regression.j2). That search's own comment already
-  # documents index=ai as zero-events-ever and inert until promptfoo
-  # actually publishes; this exemption matches that existing call.
-  - name: ai
-    index: ai
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "inert until the promptfoo model-eval integration publishes"
-  # --- exempt: metric/text indexes with no confirmed sender -----------------
-  # index_gap_detector's first live dispatch also flagged these six as
-  # silent since creation. Unlike the seven above, this repo's own defaults
-  # comments describe each as an ALREADY-ACTIVE Telegraf/Cribl pipeline (no
-  # "pre-deployment" disclaimer), and no savedsearch anywhere reads from
-  # them. Whether the sender is genuinely wired on the Cribl/Telegraf side
-  # is unconfirmed from this repo -- exempting here to stop false-positive
-  # gap-detector rows, not because the gap is known-expected. Re-measure and
-  # lower/remove exempt once ingestion is confirmed one way or the other.
-  - name: host_metrics
-    index: host_metrics
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "zero events since creation; Telegraf/Cribl sender wiring unconfirmed from this repo"
-  - name: llm_metrics
-    index: llm_metrics
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "zero events since creation; Cribl sender wiring unconfirmed from this repo"
-  - name: netmon_metrics
-    index: netmon_metrics
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "zero events since creation; Telegraf/Cribl sender wiring unconfirmed from this repo"
-  - name: os_metrics
-    index: os_metrics
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "zero events since creation; Cribl sender wiring unconfirmed from this repo"
-  - name: unifi_metrics
-    index: unifi_metrics
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "zero events since creation; Telegraf/Cribl sender wiring unconfirmed from this repo"
-  - name: workstation
-    index: workstation
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "zero events since creation; Cribl sender wiring unconfirmed from this repo"
