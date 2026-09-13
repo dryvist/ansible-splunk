@@ -388,6 +388,13 @@
   ansible.builtin.include_tasks: audit_undeclared_tokens.yml
   when: splunk_docker_manage_users | default(false) | bool
 
+# Separate from manage_users.yml: this identity holds no MCP token of its own
+# (it mints/revokes OTHER users' tokens via basic auth), so it must never join
+# splunk_docker_users — see defaults/main/03-users-tokens-mcp.yml.
+- name: Manage the MCP-token rotator identity
+  ansible.builtin.include_tasks: manage_mcp_rotator.yml
+  when: splunk_docker_manage_mcp_rotator | bool
+
 # Configure DB Connect post-install (Java path for Task/Query servers)
 - name: Configure DB Connect
   ansible.builtin.include_tasks: dbconnect.yml

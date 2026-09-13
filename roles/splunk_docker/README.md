@@ -138,6 +138,20 @@ replacement and leaves the old snapshot untouched; if final revocation fails,
 both old and new tokens remain usable. Leave the option at its default `false`
 for ordinary converges; default mode still repairs an undelivered token.
 
+### MCP-token rotator identity
+
+`splunk_docker_manage_mcp_rotator` (`tasks/manage_mcp_rotator.yml`) creates a
+separate `svc-mcp-rotator` user holding only the `mcp_token_minter` role
+(capability `edit_tokens_all` — mint/manage tokens for any user, nothing
+else). Unlike every user in `splunk_docker_users`, it is never itself the
+owner of a minted MCP token: an external, schedule-driven rotator
+authenticates AS this user (HTTP basic auth) to mint/revoke tokens for the
+managed users above. Its password is generated once at creation and published
+to OpenBao `secret/apps/splunk-rotator` (fields `mgmt_url`, `username`,
+`password`); an existing user's password is never regenerated, and a
+converge fails loud if that published credential ever goes missing, since it
+cannot be recovered from Splunk.
+
 ### Available MCP Tools
 
 | Tool | Description |

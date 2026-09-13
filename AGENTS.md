@@ -251,6 +251,7 @@ connection is an output published to OpenBao when explicitly enabled:
 | `HEC_NAMESPACE` | UUID namespace for per-index HEC token derivation (required) |
 | `SPLUNK_HEC_TOKEN` | Shared legacy HEC token (always required) |
 | `SPLUNK_MCP_TOKEN` | Client-side MCP Bearer token minted per managed user and published with `SPLUNK_MCP_URL` to OpenBao `secret/ai/mcp/splunk` |
+| svc-mcp-rotator creds | Basic-auth credential for the scheduled rotator that mints/revokes MCP tokens; published to `secret/apps/splunk-rotator` |
 | `PROXMOX_SSH_KEY_PATH` | SSH key for VM access |
 | `SPLUNK_LICENSE` | Raw `.lic` XML for the cluster license master; required — clustering cannot run on a Free license. Re-applied on every converge |
 

@@ -1,0 +1,182 @@
+---
+# Create/reconcile the svc-mcp-rotator Splunk identity and publish its
+# password to OpenBao so the splunk-mcp-rotate scheduled rotator
+# (ansible-proxmox-apps) can authenticate to Splunk with it.
+#
+# Deliberately NOT manage_one_user.yml: that task mints an MCP token for its
+# user and CAS-publishes it to the ONE shared secret at
+# splunk_docker_token_openbao_path — this identity must hold zero tokens of
+# its own (see defaults/main/03-users-tokens-mcp.yml) and needs its PASSWORD
+# published instead, which manage_one_user.yml deliberately never stores.
+#
+# Runs after manage_roles.yml (mcp_token_minter must exist first) and after
+# wait_for_splunk (the REST API must be live). See tasks/main.yml.
+
+- name: "Look up Splunk user {{ splunk_docker_mcp_rotator_user }}"
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authentication/users/{{ splunk_docker_mcp_rotator_user }}?output_mode=json"
+    method: GET
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+  register: splunk_docker_rotator_lookup
+  no_log: true
+  check_mode: false
+
+- name: "Generate password for {{ splunk_docker_mcp_rotator_user }}"
+  ansible.builtin.set_fact:
+    splunk_docker_rotator_new_password: >-
+      {{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=40') }}
+  when: splunk_docker_rotator_lookup.status == 404
+  no_log: true
+
+- name: "Create Splunk user {{ splunk_docker_mcp_rotator_user }}"
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authentication/users"
+    method: POST
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: form-urlencoded
+    body:
+      name: "{{ splunk_docker_mcp_rotator_user }}"
+      password: "{{ splunk_docker_rotator_new_password }}"
+      roles: ["{{ splunk_docker_mcp_rotator_role }}"]
+    status_code: [200, 201]
+  when: splunk_docker_rotator_lookup.status == 404
+  no_log: true
+
+- name: "Reconcile role for {{ splunk_docker_mcp_rotator_user }}"
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authentication/users/{{ splunk_docker_mcp_rotator_user }}"
+    method: POST
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: form-urlencoded
+    body:
+      roles: ["{{ splunk_docker_mcp_rotator_role }}"]
+    status_code: [200]
+  when: splunk_docker_rotator_lookup.status == 200
+  no_log: true
+
+# Only reached when the user was just created (splunk_docker_rotator_new_password
+# is set). An existing user's password is never regenerated here — the OpenBao
+# secret is the only place it is recoverable from, so publish exactly once.
+- name: "Publish {{ splunk_docker_mcp_rotator_user }} credentials to OpenBao"
+  when:
+    - splunk_docker_token_publish_openbao | bool
+    - splunk_docker_rotator_lookup.status == 404
+  block:
+    - name: "Read current OpenBao secret at {{ splunk_docker_mcp_rotator_openbao_path }}"
+      ansible.builtin.uri:
+        url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/data/{{ splunk_docker_mcp_rotator_openbao_path }}"
+        method: GET
+        headers:
+          X-Vault-Token: "{{ splunk_docker_token_openbao_token }}"
+        validate_certs: true
+        status_code: [200, 404]
+      delegate_to: localhost
+      register: splunk_docker_rotator_bao_current
+      no_log: true
+
+    - name: "Read current OpenBao metadata at {{ splunk_docker_mcp_rotator_openbao_path }}"
+      ansible.builtin.uri:
+        url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/metadata/{{ splunk_docker_mcp_rotator_openbao_path }}"
+        method: GET
+        headers:
+          X-Vault-Token: "{{ splunk_docker_token_openbao_token }}"
+        validate_certs: true
+        status_code: [200, 404]
+      delegate_to: localhost
+      register: splunk_docker_rotator_bao_metadata
+      no_log: true
+
+    # ponytail: no soft-delete/undelete recovery here (unlike
+    # extract_openbao_state.yml) — this role is the SOLE writer of this path
+    # (the rotator AppRole's policy grants it only `read`), so there is no
+    # concurrent writer whose soft-deleted version needs recovering. Add the
+    # undelete dance back if a second writer of this path ever appears.
+    - name: "CAS-publish {{ splunk_docker_mcp_rotator_user }} credentials"
+      vars:
+        cas_version: >-
+          {{ (splunk_docker_rotator_bao_metadata.json | default({}, true)).get('data', {}).get(
+               'current_version',
+               (splunk_docker_rotator_bao_current.json | default({}, true)).get('data', {}).get('metadata', {}).get('version', 0)
+             ) | int }}
+        source_data: >-
+          {{ (splunk_docker_rotator_bao_current.json | default({}, true)).get('data', {}).get('data', {})
+             if splunk_docker_rotator_bao_current.status | int == 200 else {} }}
+      ansible.builtin.uri:
+        url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/data/{{ splunk_docker_mcp_rotator_openbao_path }}"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ splunk_docker_token_openbao_token }}"
+        body_format: json
+        body:
+          data: >-
+            {{ source_data | combine({
+                   'mgmt_url': splunk_docker_mgmt_base_url,
+                   'username': splunk_docker_mcp_rotator_user,
+                   'password': splunk_docker_rotator_new_password
+                 }) }}
+          options:
+            cas: "{{ cas_version | int }}"
+        validate_certs: true
+        status_code: [200, 204]
+      delegate_to: localhost
+      no_log: true
+
+- name: "Rotator credential publication deferred for {{ splunk_docker_mcp_rotator_user }}"
+  ansible.builtin.debug:
+    msg: >-
+      splunk_docker_token_publish_openbao is off: user
+      '{{ splunk_docker_mcp_rotator_user }}' ensured but its password was not
+      published to {{ splunk_docker_token_openbao_mount }}/{{ splunk_docker_mcp_rotator_openbao_path }}.
+      The splunk-mcp-rotate AppRole cannot authenticate to Splunk until it is.
+  when:
+    - not (splunk_docker_token_publish_openbao | bool)
+    - splunk_docker_rotator_lookup.status == 404
+
+# The user already existed this run (not just created), so its password was
+# never generated above — verify OpenBao still holds the credential rather
+# than silently leaving a rotator that will fail its next login with no
+# converge-time signal. The password itself cannot be recovered here if lost:
+# it exists only in Splunk's own store and in this OpenBao secret.
+- name: "Verify published credential still exists for {{ splunk_docker_mcp_rotator_user }}"
+  when:
+    - splunk_docker_token_publish_openbao | bool
+    - splunk_docker_rotator_lookup.status == 200
+  block:
+    - name: "Read published OpenBao secret at {{ splunk_docker_mcp_rotator_openbao_path }}"
+      ansible.builtin.uri:
+        url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/data/{{ splunk_docker_mcp_rotator_openbao_path }}"
+        method: GET
+        headers:
+          X-Vault-Token: "{{ splunk_docker_token_openbao_token }}"
+        validate_certs: true
+        status_code: [200, 404]
+      delegate_to: localhost
+      register: splunk_docker_rotator_bao_existing
+      changed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: "Assert {{ splunk_docker_mcp_rotator_user }} still has a published password"
+      ansible.builtin.assert:
+        that:
+          - splunk_docker_rotator_bao_existing.status | int == 200
+          - (splunk_docker_rotator_bao_existing.json.data.data.password | default('')) | length > 0
+        fail_msg: >-
+          {{ splunk_docker_mcp_rotator_user }} exists in Splunk but
+          {{ splunk_docker_token_openbao_mount }}/{{ splunk_docker_mcp_rotator_openbao_path }}
+          has no password. It cannot be recovered from Splunk (passwords are
+          write-only there) — reset the user's password via the Splunk admin
+          API/UI, then hand-write it to that OpenBao path before the
+          splunk-mcp-rotate AppRole's next scheduled run.
+        success_msg: "{{ splunk_docker_mcp_rotator_user }} credential is published."
+      no_log: true
