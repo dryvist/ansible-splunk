@@ -9,14 +9,7 @@
 # concatenating lists, so a shared list key split across two files would
 # silently drop one half.
 splunk_docker_silence_exemptions:
-  # --- pre-deployment AI Docker service indexes ---------------------------
-  # index_gap_detector's first live dispatch (2026-09-12) flagged all seven
-  # as silent since creation. Each is documented in
-  # 09-custom-indexes-core.yml/10-custom-indexes-extra.yml as a
-  # "pre-deployment estimate (nothing has shipped yet)" for a container not
-  # deployed yet -- expected, not a gap. Re-measure and lower/remove exempt
-  # once each container is live and shipping (see the index's own comment
-  # in the indexes-core/-extra files for its container name).
+  # --- never-ingested -------------------------------------------------
   - name: agentgateway
     index: agentgateway
     threshold_minutes: 1440
@@ -52,28 +45,12 @@ splunk_docker_silence_exemptions:
     threshold_minutes: 1440
     exempt: true
     exempt_reason: "never-ingested"
-  # ai: not part of the seven AI Docker services above -- this is the older,
-  # generic index promptfoo model-eval publishes into (see
-  # 06-model-eval-regression.j2). That search's own comment already
-  # documents index=ai as zero-events-ever and inert until promptfoo
-  # actually publishes; this exemption matches that existing call.
   - name: ai
     index: ai
     threshold_minutes: 1440
     exempt: true
     exempt_reason: "never-ingested"
-  # --- metric/text indexes with no confirmed sender -----------------------
-  # index_gap_detector's first live dispatch also flagged these six as
-  # silent since creation. Unlike the eight above, this repo's own defaults
-  # comments describe each as an ALREADY-ACTIVE Telegraf/Cribl pipeline (no
-  # "pre-deployment" disclaimer), and no savedsearch anywhere reads from
-  # them. Whether the sender is genuinely wired on the Cribl/Telegraf side
-  # is unconfirmed from this repo -- exempting here to stop false-positive
-  # gap-detector rows, not because the gap is known-expected. review_by is
-  # a self-imposed deadline to force that confirmation rather than let the
-  # exemption stand indefinitely; re-measure and lower/remove exempt once
-  # ingestion is confirmed one way or the other, sooner if review_by has
-  # already passed.
+  # --- pipeline-unconfirmed --------------------------------------------
   - name: host_metrics
     index: host_metrics
     threshold_minutes: 1440

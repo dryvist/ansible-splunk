@@ -125,7 +125,7 @@ def _parse_case_thresholds(search, field_name):
     by_host cadence case()'s `max(coalesce(avg_gap_minutes, 0) * k, floor)`)
     -- in which case the caller falls back to the old always-0.0 behaviour,
     unchanged for that shape."""
-    m = re.search(rf"eval {re.escape(field_name)} = case\((.*?)\)", search)
+    m = re.search(rf"eval {re.escape(field_name)} = case\((.*)\)", search)
     if not m:
         return None
     body = m.group(1)

@@ -160,6 +160,37 @@ if "exempt_idx" not in {row["index"] for row in simulate(THRESHOLD_ONLY_SEARCH)}
         "not, so this fixture no longer demonstrates the defect it exists to guard against"
     )
 
+# The parser must READ the number, not silently fall back to 0.0 (which
+# would make every finite threshold indistinguishable from each other). A
+# threshold 200,000x larger than the 525,600 sentinel -- 105,120,000,000
+# minutes, far past even a never-ingested index's synthetic age_min
+# (~now()/60, tens of millions of minutes) -- must genuinely suppress
+# exempt_idx where the smaller sentinel did not. If the parser were still
+# inert (defaulting to 0.0 regardless of the search text), both searches
+# would fire identically, and this test would not be able to tell.
+HUGE_THRESHOLD_SEARCH = THRESHOLD_ONLY_SEARCH.replace(
+    'index="exempt_idx", 525600,', 'index="exempt_idx", 105120000000,'
+)
+small_threshold_fired = "exempt_idx" in {
+    row["index"] for row in simulate(THRESHOLD_ONLY_SEARCH)
+}
+huge_threshold_fired = "exempt_idx" in {
+    row["index"] for row in simulate(HUGE_THRESHOLD_SEARCH)
+}
+if huge_threshold_fired:
+    errors.append(
+        "FAIL: parser regression -- exempt_idx still fired against a "
+        "105,120,000,000-minute threshold (200,000x the 525,600 sentinel); the "
+        "case()-derived threshold parser is not reading the real number (falling "
+        "back to 0.0 would produce exactly this)"
+    )
+if small_threshold_fired == huge_threshold_fired:
+    errors.append(
+        "FAIL: parser regression -- raising exempt_idx's threshold 200,000x had no "
+        "effect on whether it fires; the parser is not reading the case()-derived "
+        "number at all"
+    )
+
 if errors:
     for err in errors:
         print(err)
