@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.0](https://github.com/dryvist/ansible-splunk/compare/v0.75.1...v0.76.0) (2026-09-13)
+
+
+### Features
+
+* **splunk_docker:** add MCP-token rotator identity, drop expiry to 47d ([#577](https://github.com/dryvist/ansible-splunk/issues/577)) ([c4e12f1](https://github.com/dryvist/ansible-splunk/commit/c4e12f107770fa28da93b85ef38082a6ffbd3c04))
+
 ## [0.75.1](https://github.com/dryvist/ansible-splunk/compare/v0.75.0...v0.75.1) (2026-09-12)
 
 
