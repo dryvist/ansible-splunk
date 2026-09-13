@@ -91,12 +91,26 @@ splunk_docker_roles:
       - "_*"
     capabilities:
       - mcp_tool_execute
+  # Grants ONLY the capability to mint/manage tokens for other users — no
+  # imported_roles, no index access. Held by svc-mcp-rotator (below), never by
+  # hermes: minting is a separate identity from searching.
+  - name: mcp_token_minter
+    capabilities:
+      - edit_tokens_all
 
 splunk_docker_manage_users: true
 splunk_docker_users:
   - name: hermes
     roles:
       - hermes_search
+
+# svc-mcp-rotator is NOT in splunk_docker_users above — see
+# defaults/main/03-users-tokens-mcp.yml for why. This turns on its separate
+# management path (tasks/manage_mcp_rotator.yml) and publishes its password to
+# secret/apps/splunk-rotator, which the splunk-mcp-rotate OpenBao AppRole
+# (ansible-proxmox-apps) reads to mint/revoke hermes's MCP token on a
+# schedule.
+splunk_docker_manage_mcp_rotator: true
 
 # Publish the shared Splunk MCP connection (SPLUNK_MCP_URL + minted
 # SPLUNK_MCP_TOKEN) to OpenBao secret/ai/mcp/splunk. Requires a write-capable

@@ -45,7 +45,9 @@ splunk_docker_token_owner_exceptions: []
 
 # Relative expiry for minted tokens (Splunk relative-time syntax, e.g. +90d).
 # Empty string omits expires_on so Splunk applies its default token lifetime.
-splunk_docker_token_expires_on: "+90d"
+# 47d matches this estate's rotation hard ceiling (openbao_rotation_max_days
+# in ansible-proxmox-apps) rather than Splunk's own 90d default.
+splunk_docker_token_expires_on: "+47d"
 
 # When true, publish the shared MCP connection to OpenBao. Requires a
 # write-capable OpenBao AppRole in the converge environment (see the
@@ -84,7 +86,36 @@ splunk_docker_mcp_host: >-
 # `splunk-mgmt.<apex>` resolves to nothing that answers, and publishing it
 # left every MCP consumer pointed at a dead name (2026-09-11). Fall back to
 # the raw mgmt URL only when the converge env carries no ingress base.
-splunk_docker_mcp_url: >-
-  {{ ('https://splunk-mgmt.' ~ lookup('env', 'PROXMOX_SUBDOMAIN') ~ '/services/mcp')
+splunk_docker_mgmt_base_url: >-
+  {{ ('https://splunk-mgmt.' ~ lookup('env', 'PROXMOX_SUBDOMAIN'))
      if lookup('env', 'PROXMOX_SUBDOMAIN')
-     else 'https://' ~ splunk_docker_mcp_host ~ ':' ~ splunk_docker_mgmt_port ~ '/services/mcp' }}
+     else 'https://' ~ splunk_docker_mcp_host ~ ':' ~ splunk_docker_mgmt_port }}
+splunk_docker_mcp_url: "{{ splunk_docker_mgmt_base_url }}/services/mcp"
+
+# --- MCP-token rotator identity ---------------------------------------------
+# A dedicated Splunk user that ONLY the OpenBao-side scheduled rotator
+# (ansible-proxmox-apps roles/openbao/templates/rotators/splunk-mcp.sh.j2)
+# authenticates as, via HTTP basic auth, to mint/revoke MCP tokens for OTHER
+# users (currently `hermes`) on a schedule — separate from the per-converge
+# minting this role already does in manage_one_user.yml. Off by default; the
+# splunk inventory group turns it on.
+#
+# Deliberately NOT a member of splunk_docker_users: that list's reconciliation
+# mints an MCP token for every member and CAS-publishes it to the ONE shared
+# secret at splunk_docker_token_openbao_path — a second member would clobber
+# the first's published token. This identity never mints a token for itself
+# (edit_tokens_all lets it mint for others without needing tokens of its own),
+# so it is also correctly absent from audit_undeclared_tokens.yml's declared
+# set: it is expected to hold zero live tokens.
+splunk_docker_manage_mcp_rotator: false
+splunk_docker_mcp_rotator_user: "svc-mcp-rotator"
+# Grants ONLY edit_tokens_all (create/view/manage tokens for any user) —
+# nothing broader. No imported_roles: this identity never searches, so it
+# gets no index access at all, unlike hermes_search.
+splunk_docker_mcp_rotator_role: "mcp_token_minter"
+# secret/apps/splunk-rotator — the exact path + field names
+# (mgmt_url/username/password) the splunk-mcp-rotate AppRole's minter_secret
+# already expects (ansible-proxmox-apps defaults/main/09-snapshots-and-rotation.yml).
+# Mount reuses splunk_docker_token_openbao_mount; the rotator script forms its
+# own KV data path as "<mount>/data/apps/splunk-rotator".
+splunk_docker_mcp_rotator_openbao_path: "apps/splunk-rotator"
