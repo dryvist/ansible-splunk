@@ -21,37 +21,37 @@ splunk_docker_silence_exemptions:
     index: agentgateway
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+    exempt_reason: "never-ingested"
   - name: clickhouse
     index: clickhouse
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+    exempt_reason: "never-ingested"
   - name: dify
     index: dify
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+    exempt_reason: "never-ingested"
   - name: hindsight
     index: hindsight
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+    exempt_reason: "never-ingested"
   - name: langflow
     index: langflow
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+    exempt_reason: "never-ingested"
   - name: langgraph
     index: langgraph
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+    exempt_reason: "never-ingested"
   - name: qdrant
     index: qdrant
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "pre-deployment AI Docker service, no sender wired yet"
+    exempt_reason: "never-ingested"
   # ai: not part of the seven AI Docker services above -- this is the older,
   # generic index promptfoo model-eval publishes into (see
   # 06-model-eval-regression.j2). That search's own comment already
@@ -61,7 +61,7 @@ splunk_docker_silence_exemptions:
     index: ai
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "inert until the promptfoo model-eval integration publishes"
+    exempt_reason: "never-ingested"
   # --- metric/text indexes with no confirmed sender -----------------------
   # index_gap_detector's first live dispatch also flagged these six as
   # silent since creation. Unlike the eight above, this repo's own defaults
@@ -78,35 +78,35 @@ splunk_docker_silence_exemptions:
     index: host_metrics
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "zero events since creation; Telegraf/Cribl sender wiring unconfirmed from this repo"
+    exempt_reason: "pipeline-unconfirmed"
     review_by: "2026-10-12"
   - name: llm_metrics
     index: llm_metrics
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "zero events since creation; Cribl sender wiring unconfirmed from this repo"
+    exempt_reason: "pipeline-unconfirmed"
     review_by: "2026-10-12"
   - name: netmon_metrics
     index: netmon_metrics
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "zero events since creation; Telegraf/Cribl sender wiring unconfirmed from this repo"
+    exempt_reason: "pipeline-unconfirmed"
     review_by: "2026-10-12"
   - name: os_metrics
     index: os_metrics
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "zero events since creation; Cribl sender wiring unconfirmed from this repo"
+    exempt_reason: "pipeline-unconfirmed"
     review_by: "2026-10-12"
   - name: unifi_metrics
     index: unifi_metrics
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "zero events since creation; Telegraf/Cribl sender wiring unconfirmed from this repo"
+    exempt_reason: "pipeline-unconfirmed"
     review_by: "2026-10-12"
   - name: workstation
     index: workstation
     threshold_minutes: 1440
     exempt: true
-    exempt_reason: "zero events since creation; Cribl sender wiring unconfirmed from this repo"
+    exempt_reason: "pipeline-unconfirmed"
     review_by: "2026-10-12"

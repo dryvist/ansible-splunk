@@ -76,16 +76,31 @@ for stanza in re.finditer(r"^\[(\S+)\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S):
 gap_detector_body = by_name.get("index_gap_detector")
 if gap_detector_body is None:
     errors.append("FAIL: [index_gap_detector] not found in rendered output")
-gap_detector_search = (re.search(r"^search = (.*)$", gap_detector_body, re.M).group(1)
-                        if gap_detector_body else "")
+gap_detector_search = (
+    re.search(r"^search = (.*)$", gap_detector_body, re.M).group(1)
+    if gap_detector_body
+    else ""
+)
 
 # --- every non-by_host entry (detector or exemption) reaches the case() ----
 for det in DETECTORS + EXEMPTIONS:
     if det.get("by_host"):
         continue
     if det.get("exempt") and not det.get("exempt_reason"):
+        errors.append(f"FAIL: entry '{det['name']}' is exempt but has no exempt_reason")
+    # Fixed enum, not free text: the specifics behind an exemption belong in
+    # its tracking task, not this public repo (see 11-silence-detectors.yml's
+    # field doc).
+    if det.get("exempt") and det.get("exempt_reason") not in (
+        None,
+        "never-ingested",
+        "pipeline-unconfirmed",
+        "retired",
+        "low-volume",
+    ):
         errors.append(
-            f"FAIL: entry '{det['name']}' is exempt but has no exempt_reason"
+            f"FAIL: entry '{det['name']}' has exempt_reason "
+            f"{det.get('exempt_reason')!r}, not one of the fixed enum values"
         )
     expected_branch = f'index="{det["index"]}", {det["threshold_minutes"]}'
     if expected_branch not in gap_detector_search:
@@ -104,12 +119,18 @@ for idx in exempt_indexes:
             "'in(index, ...)' boolean exempt gate in its search"
         )
         break
-    if expected_membership not in gap_detector_search.split("in(index", 1)[1].split(")", 1)[0]:
+    if (
+        expected_membership
+        not in gap_detector_search.split("in(index", 1)[1].split(")", 1)[0]
+    ):
         errors.append(
             f"FAIL: exempt index {idx!r} is not named in index_gap_detector's "
             "in(index, ...) exempt gate"
         )
-if exempt_indexes and "where exempt=0 AND age_min > threshold_minutes" not in gap_detector_search:
+if (
+    exempt_indexes
+    and "where exempt=0 AND age_min > threshold_minutes" not in gap_detector_search
+):
     errors.append(
         "FAIL: index_gap_detector does not gate firing on exempt=0 -- an "
         "exempt index's case() threshold alone cannot suppress it, since a "
@@ -141,9 +162,13 @@ for det in DETECTORS:
     # 2. by_host detectors must compare against a computed per-host threshold,
     # not the flat threshold_minutes directly.
     if "where minutes_silent > host_threshold_minutes" not in body:
-        errors.append(f"FAIL: [{name}] is by_host but does not gate on host_threshold_minutes")
+        errors.append(
+            f"FAIL: [{name}] is by_host but does not gate on host_threshold_minutes"
+        )
     if "avg_gap_minutes" not in body:
-        errors.append(f"FAIL: [{name}] is by_host but computes no per-host cadence baseline")
+        errors.append(
+            f"FAIL: [{name}] is by_host but computes no per-host cadence baseline"
+        )
 
 if errors:
     for err in errors:
@@ -152,9 +177,11 @@ if errors:
 
 by_host_count = sum(1 for det in DETECTORS if det.get("by_host"))
 non_by_host_count = len(DETECTORS) - by_host_count + len(EXEMPTIONS)
-print(f"PASS: {by_host_count} by_host silence detector(s) have a threshold-derived lookback and "
-      f"gate on a cadence-derived per-host threshold; the remaining "
-      f"{non_by_host_count} entries reach index_gap_detector's case() with their own "
-      f"threshold_minutes, and {len(exempt_indexes)} of them are excluded from firing by "
-      f"the separate exempt=0 boolean gate")
+print(
+    f"PASS: {by_host_count} by_host silence detector(s) have a threshold-derived lookback and "
+    f"gate on a cadence-derived per-host threshold; the remaining "
+    f"{non_by_host_count} entries reach index_gap_detector's case() with their own "
+    f"threshold_minutes, and {len(exempt_indexes)} of them are excluded from firing by "
+    f"the separate exempt=0 boolean gate"
+)
 print("\nAll tests passed.")

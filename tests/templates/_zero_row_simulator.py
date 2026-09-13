@@ -44,7 +44,9 @@ SILENCE_SIGNATURE_RE = re.compile(r"now\(\)")
 
 
 def is_silence_detector(search):
-    return bool(GROUPED_AGG_RE.search(search)) and bool(SILENCE_SIGNATURE_RE.search(search))
+    return bool(GROUPED_AGG_RE.search(search)) and bool(
+        SILENCE_SIGNATURE_RE.search(search)
+    )
 
 
 def run_appendpipe_zero_guard(table, search):
@@ -79,7 +81,9 @@ def run_append_stats_max_guard(search):
     if not m:
         return None
     group_field, members, recency_field = m.group(1), m.group(2), m.group(3)
-    table = [{group_field: name, recency_field: 0} for name in members.split(",") if name]
+    table = [
+        {group_field: name, recency_field: 0} for name in members.split(",") if name
+    ]
     return table, recency_field
 
 
@@ -114,19 +118,59 @@ def run_eval_exempt(table, search):
     return table
 
 
+def _parse_case_thresholds(search, field_name):
+    """Parse `eval {field_name} = case(index="a", N, index="b", M, ...,
+    true(), D)` into ({index: N, ...}, D). Returns None when no such eval is
+    present, or when the true() fallback is not a plain number (e.g. the
+    by_host cadence case()'s `max(coalesce(avg_gap_minutes, 0) * k, floor)`)
+    -- in which case the caller falls back to the old always-0.0 behaviour,
+    unchanged for that shape."""
+    m = re.search(rf"eval {re.escape(field_name)} = case\((.*?)\)", search)
+    if not m:
+        return None
+    body = m.group(1)
+    true_default = re.search(r"true\(\),\s*([\d.]+)", body)
+    if not true_default:
+        return None
+    per_index = dict(re.findall(r'index="([^"]*)",\s*([\d.]+)', body))
+    return {k: float(v) for k, v in per_index.items()}, float(true_default.group(1))
+
+
 def run_where_threshold(table, search, recency_field="minutes_silent"):
-    m = re.search(rf"where (?:exempt=0 AND )?{recency_field} > (\S+)", search)
-    try:
-        threshold = float(m.group(1)) if m else 0.0
-    except ValueError:
-        # Symbolic threshold (e.g. host_threshold_minutes, or
-        # index_gap_detector's case()-derived threshold_minutes). A sentinel
-        # row's recency field is always computed from a 0 timestamp, so its
-        # elapsed-time value is ~now()/60 -- tens of millions of minutes --
-        # which dwarfs any realistic bounded threshold this codebase would
-        # ever configure.
-        threshold = 0.0
-    return [row for row in table if row.get("exempt", 0) == 0 and row[recency_field] > threshold]
+    # The exempt digit is READ, not assumed: an inverted `where exempt=1 AND
+    # ...` (which would suppress every real gap and page only on the exempt
+    # indexes) must filter on exempt==1, not silently keep behaving like the
+    # correct exempt==0 gate. Absence of any exempt clause means no exempt
+    # filtering at all, matching a search that never gates on it.
+    m = re.search(rf"where (?:exempt=(\d) AND )?{recency_field} > (\S+)", search)
+    expected_exempt = int(m.group(1)) if m and m.group(1) is not None else None
+    threshold_token = m.group(2) if m else None
+
+    per_index_thresholds, default_threshold = None, 0.0
+    if threshold_token is not None:
+        try:
+            default_threshold = float(threshold_token)
+        except ValueError:
+            # Symbolic threshold field (host_threshold_minutes, or
+            # index_gap_detector's case()-derived threshold_minutes) --
+            # resolve it from the case() expression that computed it rather
+            # than assuming 0.0 for every row.
+            parsed = _parse_case_thresholds(search, threshold_token)
+            if parsed is not None:
+                per_index_thresholds, default_threshold = parsed
+
+    rows = table
+    if expected_exempt is not None:
+        rows = [row for row in rows if row.get("exempt", 0) == expected_exempt]
+
+    out = []
+    for row in rows:
+        threshold = default_threshold
+        if per_index_thresholds is not None:
+            threshold = per_index_thresholds.get(row.get("index"), default_threshold)
+        if row[recency_field] > threshold:
+            out.append(row)
+    return out
 
 
 def simulate(search):

@@ -68,8 +68,10 @@
 #                       separately from splunk_docker_silence_detectors, in
 #                       splunk_docker_silence_exemptions
 #                       (11b-silence-exemptions.yml) -- see that file.
-#   exempt_reason     — required when exempt is true. One sentence: why this
-#                       index is expected to stay silent, not broken.
+#   exempt_reason     — required when exempt is true. One of a fixed enum:
+#                       never-ingested, pipeline-unconfirmed, retired,
+#                       low-volume. The specifics behind an entry belong in
+#                       its tracking task, not this public repo.
 #   review_by         — optional, exempt entries only. ISO date; a
 #                       self-imposed deadline to revisit an exemption whose
 #                       reason is itself uncertain, rather than let it stand
