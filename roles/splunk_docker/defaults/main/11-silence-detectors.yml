@@ -52,6 +52,30 @@
 #                       exclude the index from splunk_docker_indexes instead.
 #   sourcetype        — BY_HOST ONLY, optional filter added to the tstats
 #                       WHERE clause.
+#   exempt            — optional, default false. index_gap_detector-only:
+#                       excludes this index from the firing check entirely
+#                       (a boolean gate, evaluated separately from
+#                       threshold_minutes -- an exempt, never-ingested index
+#                       enters the report through the synthetic zero-row
+#                       append, same as any other undetected index, so its
+#                       age_min is always enormous and would exceed any
+#                       finite threshold). threshold_minutes is still
+#                       required on an exempt entry (nominal; unused for
+#                       firing) so this entry's contribution to
+#                       gap_lookback_minutes' max() does not balloon the
+#                       shared tstats lookback window every index in the
+#                       report is queried over. Exempt indexes are listed
+#                       separately from splunk_docker_silence_detectors, in
+#                       splunk_docker_silence_exemptions
+#                       (11b-silence-exemptions.yml) -- see that file.
+#   exempt_reason     — required when exempt is true. One of a fixed enum:
+#                       never-ingested, pipeline-unconfirmed, retired,
+#                       low-volume. The specifics behind an entry belong in
+#                       its tracking task, not this public repo.
+#   review_by         — optional, exempt entries only. ISO date; a
+#                       self-imposed deadline to revisit an exemption whose
+#                       reason is itself uncertain, rather than let it stand
+#                       indefinitely.
 #
 # dispatch.earliest_time (the search lookback) is threshold_minutes x this
 # multiplier — see the comment above each rendered stanza in

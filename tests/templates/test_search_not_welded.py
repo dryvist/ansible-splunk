@@ -91,6 +91,7 @@ assert not _clean, f"check_welded flagged a clean fixture: {_clean}"
 
 rendered = ansible_env(TEMPLATES).get_template("savedsearches.conf.j2").render(
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
+    splunk_docker_silence_exemptions=DEFAULTS["splunk_docker_silence_exemptions"],
     splunk_docker_silence_lookback_multiplier=DEFAULTS[
         "splunk_docker_silence_lookback_multiplier"
     ],

@@ -80,6 +80,7 @@ assert expected, (
 
 rendered = ansible_env(TEMPLATES).get_template("savedsearches.conf.j2").render(
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
+    splunk_docker_silence_exemptions=DEFAULTS["splunk_docker_silence_exemptions"],
     splunk_docker_silence_lookback_multiplier=DEFAULTS["splunk_docker_silence_lookback_multiplier"],
     splunk_docker_llm_freshness_indexes=DEFAULTS["splunk_docker_llm_freshness_indexes"],
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],

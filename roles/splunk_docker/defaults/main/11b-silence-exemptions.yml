@@ -1,0 +1,89 @@
+---
+# index_gap_detector exemptions, split from 11-silence-detectors.yml at the
+# CI token-budget gate. Same shape as splunk_docker_silence_detectors
+# entries (see that file's field docs), merged into index_gap_detector's
+# case() alongside it -- see 07-generic-silence-detectors.j2's
+# flat_detectors assembly. Kept in its own list/variable rather than
+# appended to splunk_docker_silence_detectors directly: defaults/main/
+# files merge by replacing a whole top-level key on collision, not by
+# concatenating lists, so a shared list key split across two files would
+# silently drop one half.
+splunk_docker_silence_exemptions:
+  # --- never-ingested -------------------------------------------------
+  - name: agentgateway
+    index: agentgateway
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "never-ingested"
+  - name: clickhouse
+    index: clickhouse
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "never-ingested"
+  - name: dify
+    index: dify
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "never-ingested"
+  - name: hindsight
+    index: hindsight
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "never-ingested"
+  - name: langflow
+    index: langflow
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "never-ingested"
+  - name: langgraph
+    index: langgraph
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "never-ingested"
+  - name: qdrant
+    index: qdrant
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "never-ingested"
+  - name: ai
+    index: ai
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "never-ingested"
+  # --- pipeline-unconfirmed --------------------------------------------
+  - name: host_metrics
+    index: host_metrics
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pipeline-unconfirmed"
+    review_by: "2026-10-12"
+  - name: llm_metrics
+    index: llm_metrics
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pipeline-unconfirmed"
+    review_by: "2026-10-12"
+  - name: netmon_metrics
+    index: netmon_metrics
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pipeline-unconfirmed"
+    review_by: "2026-10-12"
+  - name: os_metrics
+    index: os_metrics
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pipeline-unconfirmed"
+    review_by: "2026-10-12"
+  - name: unifi_metrics
+    index: unifi_metrics
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pipeline-unconfirmed"
+    review_by: "2026-10-12"
+  - name: workstation
+    index: workstation
+    threshold_minutes: 1440
+    exempt: true
+    exempt_reason: "pipeline-unconfirmed"
+    review_by: "2026-10-12"

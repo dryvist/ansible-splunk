@@ -23,6 +23,16 @@ test checks instead that its threshold_minutes reaches index_gap_detector's
 case() expression unchanged, so a bad merge or a typo'd index name in that
 expression is still caught here rather than only by a full render diff.
 
+Exempt entries (splunk_docker_silence_exemptions) carry the SAME
+threshold_minutes into that case() as any other entry -- exemption is a
+separate boolean gate (`eval exempt=if(in(index, ...), 1, 0) | where
+exempt=0 AND ...`), not a raised threshold. An earlier version of this
+search raised an exempt entry's case() threshold instead, which is a no-op
+for a never-ingested index: its age_min enters through the synthetic
+zero-row append at roughly "since epoch", which exceeds any finite
+threshold regardless of how high it is raised. This test checks the boolean
+gate, not a threshold substitution.
+
 Run from repo root:
   python3 tests/templates/test_silence_detector_cadence.py
 """
@@ -44,11 +54,13 @@ except ImportError:
 ROOT = Path(__file__).parent.parent.parent
 DEFAULTS = load_defaults(ROOT)
 DETECTORS = DEFAULTS["splunk_docker_silence_detectors"]
+EXEMPTIONS = DEFAULTS["splunk_docker_silence_exemptions"]
 MULTIPLIER = DEFAULTS["splunk_docker_silence_lookback_multiplier"]
 
 env = ansible_env(ROOT / "roles/splunk_docker/templates")
 rendered = env.get_template("savedsearches.conf.j2").render(
     splunk_docker_silence_detectors=DETECTORS,
+    splunk_docker_silence_exemptions=EXEMPTIONS,
     splunk_docker_silence_lookback_multiplier=MULTIPLIER,
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
@@ -64,20 +76,70 @@ for stanza in re.finditer(r"^\[(\S+)\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S):
 gap_detector_body = by_name.get("index_gap_detector")
 if gap_detector_body is None:
     errors.append("FAIL: [index_gap_detector] not found in rendered output")
-gap_detector_search = (re.search(r"^search = (.*)$", gap_detector_body, re.M).group(1)
-                        if gap_detector_body else "")
+gap_detector_search = (
+    re.search(r"^search = (.*)$", gap_detector_body, re.M).group(1)
+    if gap_detector_body
+    else ""
+)
 
+# --- every non-by_host entry (detector or exemption) reaches the case() ----
+for det in DETECTORS + EXEMPTIONS:
+    if det.get("by_host"):
+        continue
+    if det.get("exempt") and not det.get("exempt_reason"):
+        errors.append(f"FAIL: entry '{det['name']}' is exempt but has no exempt_reason")
+    # Fixed enum, not free text: the specifics behind an exemption belong in
+    # its tracking task, not this public repo (see 11-silence-detectors.yml's
+    # field doc).
+    if det.get("exempt") and det.get("exempt_reason") not in (
+        None,
+        "never-ingested",
+        "pipeline-unconfirmed",
+        "retired",
+        "low-volume",
+    ):
+        errors.append(
+            f"FAIL: entry '{det['name']}' has exempt_reason "
+            f"{det.get('exempt_reason')!r}, not one of the fixed enum values"
+        )
+    expected_branch = f'index="{det["index"]}", {det["threshold_minutes"]}'
+    if expected_branch not in gap_detector_search:
+        errors.append(
+            f"FAIL: index_gap_detector's case() is missing "
+            f"{expected_branch!r} for entry '{det['name']}'"
+        )
+
+# --- every exempt entry's index is named in the boolean exempt gate -------
+exempt_indexes = [det["index"] for det in DETECTORS + EXEMPTIONS if det.get("exempt")]
+for idx in exempt_indexes:
+    expected_membership = f'"{idx}"'
+    if "in(index" not in gap_detector_search:
+        errors.append(
+            "FAIL: index_gap_detector has exempt entries but no "
+            "'in(index, ...)' boolean exempt gate in its search"
+        )
+        break
+    if (
+        expected_membership
+        not in gap_detector_search.split("in(index", 1)[1].split(")", 1)[0]
+    ):
+        errors.append(
+            f"FAIL: exempt index {idx!r} is not named in index_gap_detector's "
+            "in(index, ...) exempt gate"
+        )
+if (
+    exempt_indexes
+    and "where exempt=0 AND age_min > threshold_minutes" not in gap_detector_search
+):
+    errors.append(
+        "FAIL: index_gap_detector does not gate firing on exempt=0 -- an "
+        "exempt index's case() threshold alone cannot suppress it, since a "
+        "never-ingested index's age_min already exceeds any finite threshold"
+    )
+
+# --- by_host entries: unchanged behaviour -----------------------------------
 for det in DETECTORS:
     if not det.get("by_host"):
-        # Non-by_host: no stanza of its own. Its threshold_minutes must
-        # still reach index_gap_detector's case() expression unchanged.
-        expected_branch = f'index="{det["index"]}", {det["threshold_minutes"]}'
-        if expected_branch not in gap_detector_search:
-            errors.append(
-                f"FAIL: index_gap_detector's case() is missing "
-                f"{expected_branch!r} for splunk_docker_silence_detectors "
-                f"entry '{det['name']}'"
-            )
         continue
 
     name = f"{det['name']}_silence_detector"
@@ -100,9 +162,13 @@ for det in DETECTORS:
     # 2. by_host detectors must compare against a computed per-host threshold,
     # not the flat threshold_minutes directly.
     if "where minutes_silent > host_threshold_minutes" not in body:
-        errors.append(f"FAIL: [{name}] is by_host but does not gate on host_threshold_minutes")
+        errors.append(
+            f"FAIL: [{name}] is by_host but does not gate on host_threshold_minutes"
+        )
     if "avg_gap_minutes" not in body:
-        errors.append(f"FAIL: [{name}] is by_host but computes no per-host cadence baseline")
+        errors.append(
+            f"FAIL: [{name}] is by_host but computes no per-host cadence baseline"
+        )
 
 if errors:
     for err in errors:
@@ -110,7 +176,12 @@ if errors:
     sys.exit(1)
 
 by_host_count = sum(1 for det in DETECTORS if det.get("by_host"))
-print(f"PASS: {by_host_count} by_host silence detector(s) have a threshold-derived lookback and "
-      f"gate on a cadence-derived per-host threshold; the remaining "
-      f"{len(DETECTORS) - by_host_count} entries reach index_gap_detector's case() unchanged")
+non_by_host_count = len(DETECTORS) - by_host_count + len(EXEMPTIONS)
+print(
+    f"PASS: {by_host_count} by_host silence detector(s) have a threshold-derived lookback and "
+    f"gate on a cadence-derived per-host threshold; the remaining "
+    f"{non_by_host_count} entries reach index_gap_detector's case() with their own "
+    f"threshold_minutes, and {len(exempt_indexes)} of them are excluded from firing by "
+    f"the separate exempt=0 boolean gate"
+)
 print("\nAll tests passed.")
