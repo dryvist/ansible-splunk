@@ -1,0 +1,50 @@
+{# ---------------------------------------------------------------------------
+   Proxmox per-node health (index=os_proxmox sourcetype=pve:health).
+
+   Zammad #1000415: a node's I/O pressure stall (PSI) climbing and staying
+   high is the earliest visible symptom of a saturated backing disk — it
+   shows up here before the ZFS pool that caused it is ever queried
+   directly. The event is syslog-wrapped (same shape as index=openbao_audit
+   in the splunk-homelab skill notes): sourcetype=pve:health is set, but the
+   key=value pairs sit in _raw and are NOT field-extracted, so a bare
+   `psi_io_avg60=*` search matches nothing and reads exactly like "no such
+   field" — verified against live 2026-09-19 events. `rex` pulls it out
+   below.
+
+   pve-health emits roughly once a minute per host (measured cadence 60-65s,
+   2026-09-19). "3 consecutive samples" is read literally as the 3 most
+   recent events for that host, not a fixed time window, so a slow or
+   delayed emitter does not silently satisfy the condition with fewer than
+   3 real samples — `where samples>=3` guards that.
+
+   No pool allocation / fragmentation metric exists anywhere in Splunk for
+   this estate (checked index=os_proxmox and index=hardware, 2026-09-19) —
+   pve-health does not emit it and no other sourcetype does either. That
+   alert is NOT added here; it needs pve-health (or a sibling exporter) to
+   start emitting pool alloc%/frag% before Splunk can see it at all.
+--------------------------------------------------------------------------- #}
+[proxmox_node_io_pressure_sustained]
+description = Fires when a Proxmox node's I/O pressure-stall average (psi_io_avg60, from pve-health) has been over 25% for its last 3 consecutive samples (~3 min at the ~60s emit cadence). Sustained I/O pressure is the earliest visible symptom of a saturated backing disk — this is what a full/fragmented ZFS pool looks like from the node's own scheduler before the pool itself is ever queried (Zammad #1000415).
+search = index=os_proxmox sourcetype=pve:health \
+| rex field=_raw "psi_io_avg60=(?<psi_io_avg60>[\d.]+)" \
+| sort 0 host, -_time \
+| streamstats count AS sample_n BY host \
+| where sample_n<=3 \
+| stats count AS samples, count(eval(psi_io_avg60>25)) AS high_samples, latest(psi_io_avg60) AS latest_psi_io_avg60, latest(_time) AS latest_time BY host \
+| where samples>=3 AND high_samples=3 \
+| eval latest_time=strftime(latest_time, "%Y-%m-%d %H:%M:%S") \
+| table host, latest_psi_io_avg60, latest_time, samples
+dispatch.earliest_time = -6m
+dispatch.latest_time = now
+cron_schedule = */2 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 4
+alert.suppress = 1
+alert.suppress.period = 30m
+alert.suppress.fields = host
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
