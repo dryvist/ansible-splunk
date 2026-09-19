@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.77.1](https://github.com/dryvist/ansible-splunk/compare/v0.77.0...v0.77.1) (2026-09-19)
+
+
+### Bug Fixes
+
+* **ci:** forward the router secrets to ai-pr-care with secrets: inherit ([37de88c](https://github.com/dryvist/ansible-splunk/commit/37de88c7be12fd3c2db899f562e5ddcb30dbf110))
+* **ci:** forward the router secrets to ai-pr-care with secrets: inherit ([a8e5a9c](https://github.com/dryvist/ansible-splunk/commit/a8e5a9cdab4cca569f75e1d87d1c1247ea9fa0f8))
+
 ## [0.77.0](https://github.com/dryvist/ansible-splunk/compare/v0.76.0...v0.77.0) (2026-09-13)
 
 
