@@ -48,7 +48,22 @@ jobs:
       # so a half-command leaves a dependency missing until something later
       # fails on it. This repo has a real `roles:` entry (splunk.splunk), so the
       # narrower form was already leaving it uninstalled here.
+      # Cache Galaxy content keyed on requirements.yml. On a hit the collections
+      # (and any roles) are already present, so the install below is skipped;
+      # on a miss (requirements.yml changed) it runs and repopulates the cache.
+      # Same key/paths as dryvist/.github's _ansible-ci.yml so a warm run of
+      # either workflow warms the other.
+      - name: Cache Ansible Galaxy content
+        id: galaxy-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.ansible/collections
+            ~/.ansible/roles
+          key: ansible-galaxy-${{ runner.os }}-${{ hashFiles('requirements.yml') }}
+
       - name: Install Ansible dependencies
+        if: steps.galaxy-cache.outputs.cache-hit != 'true'
         run: |
           ansible-galaxy install -r requirements.yml
 
@@ -103,9 +118,27 @@ jobs:
       # installed here, and this run is what proves the collection resolves it.
       # `install` covers both sections; `collection install` and `role install`
       # each silently ignore the other and still exit zero.
+      # Cache Galaxy content keyed on requirements.yml. On a hit the collections
+      # (and any roles) are already present, so the install below is skipped;
+      # on a miss (requirements.yml changed) it runs and repopulates the cache.
+      # Same key/paths as dryvist/.github's _ansible-ci.yml so a warm run of
+      # either workflow warms the other.
+      - name: Cache Ansible Galaxy content
+        id: galaxy-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.ansible/collections
+            ~/.ansible/roles
+          key: ansible-galaxy-${{ runner.os }}-${{ hashFiles('requirements.yml') }}
+
       - name: Install Ansible and dependencies
         run: |
           pip install ansible ansible-core netaddr
+
+      - name: Install Ansible collections
+        if: steps.galaxy-cache.outputs.cache-hit != 'true'
+        run: |
           ansible-galaxy collection install ansible.utils
           ansible-galaxy install -r requirements.yml
 
