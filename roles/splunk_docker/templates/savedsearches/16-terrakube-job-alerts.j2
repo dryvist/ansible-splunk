@@ -1,23 +1,16 @@
 {# ---------------------------------------------------------------------------
    Terrakube job-failure alerts.
 
-   Vikunja #3227/#3267a. The Terrakube API/executor container's stdout
-   reaches Splunk via the host's journald docker driver as plain syslog —
-   there is no dedicated `terrakube` index and no structured job-status
-   event (unlike Semaphore's `index=semaphore sourcetype=semaphore:run`
-   push). The container is identified by host (the `iac` VM), not by a
-   `terrakube` string in the log line — the docker driver logs lines
-   prefixed with the container's short hash, so a keyword search for
-   "terrakube" across `index=*` misses the app's own logs entirely and
-   only catches the ingress layer (Traefik/Authelia access logs).
-   Verified live 2026-09-22: `index=os host=iac` carries plain Java stack
-   traces at ERROR level for both a real job failure and an orphaned
-   Quartz trigger repeatedly throwing `IllegalStateException: Job <id> not
-   found` (`org.quartz.core.JobExecutionProcessException`) — the exact
-   #3267a symptom.
+   The Terrakube API/executor container's stdout reaches Splunk via the
+   host's journald docker driver as plain syslog under `index=os host=iac`
+   — there is no dedicated `terrakube` index. The container is identified
+   by host, not by a "terrakube" string in the log line, since the docker
+   driver tags lines by the container's short hash rather than its name
+   (see the compose `logging.tag` fix — once deployed, scope this search
+   by the container identifier instead of bare host).
 --------------------------------------------------------------------------- #}
 [terrakube_job_error_detector]
-description = Alerts when the Terrakube API/executor container (host=iac) logs an unhandled job exception — a real job failure or an orphaned Quartz trigger (IllegalStateException: Job <id> not found is the #3267a symptom: a trigger left behind after its job row was deleted, firing every ~30s). Terrakube exposes no structured job-status event today (contrast Semaphore's index=semaphore sourcetype=semaphore:run push) — this reads the container's own ERROR-level stack traces instead. Threshold is a count over the dispatch window so one blip doesn't page; sustained recurrence (an orphaned trigger firing every cycle) crosses it quickly.
+description = Alerts when the Terrakube API/executor container (host=iac) logs an unhandled job exception — a real job failure or an orphaned Quartz trigger left behind after its job row is deleted. Terrakube exposes no structured job-status event, so this reads the container's own ERROR-level stack traces. Threshold is a count over the dispatch window so one blip doesn't page; sustained recurrence crosses it quickly.
 search = index=os host=iac sourcetype=syslog ("JobExecutionProcessException" OR "threw an unhandled Exception" OR "threw an exception") | rex "Job (?<quartz_job>DEFAULT\.\S+) threw" | stats count values(quartz_job) as quartz_jobs | where count > 3
 dispatch.earliest_time = -15m
 dispatch.latest_time = now
