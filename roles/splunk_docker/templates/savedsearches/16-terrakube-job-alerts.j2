@@ -1,0 +1,27 @@
+{# ---------------------------------------------------------------------------
+   Terrakube job-failure alerts.
+
+   The Terrakube API/executor container's stdout reaches Splunk via the
+   host's journald docker driver as plain syslog under `index=os host=iac`
+   — there is no dedicated `terrakube` index. The container is identified
+   by host, not by a "terrakube" string in the log line, since the docker
+   driver tags lines by the container's short hash rather than its name
+   (see the compose `logging.tag` fix — once deployed, scope this search
+   by the container identifier instead of bare host).
+--------------------------------------------------------------------------- #}
+[terrakube_job_error_detector]
+description = Alerts when the Terrakube API/executor container (host=iac) logs an unhandled job exception — a real job failure or an orphaned Quartz trigger left behind after its job row is deleted. Terrakube exposes no structured job-status event, so this reads the container's own ERROR-level stack traces. Threshold is a count over the dispatch window so one blip doesn't page; sustained recurrence crosses it quickly.
+search = index=os host=iac sourcetype=syslog ("JobExecutionProcessException" OR "threw an unhandled Exception" OR "threw an exception") | rex "Job (?<quartz_job>DEFAULT\.\S+) threw" | stats count values(quartz_job) as quartz_jobs | where count > 3
+dispatch.earliest_time = -15m
+dispatch.latest_time = now
+cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 3
+alert.suppress = 1
+alert.suppress.period = 60m
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
