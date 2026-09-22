@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.79.0](https://github.com/dryvist/ansible-splunk/compare/v0.78.0...v0.79.0) (2026-09-22)
+
+
+### Features
+
+* **splunk:** add openbao ingress backend-burst alert ([#589](https://github.com/dryvist/ansible-splunk/issues/589)) ([5a0e4cc](https://github.com/dryvist/ansible-splunk/commit/5a0e4ccfd456cc10f4d43fa2f0e179fe67a8e65d))
+
 ## [0.78.0](https://github.com/dryvist/ansible-splunk/compare/v0.77.2...v0.78.0) (2026-09-22)
 
 
