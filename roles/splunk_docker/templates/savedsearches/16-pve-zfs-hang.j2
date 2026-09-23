@@ -1,22 +1,9 @@
 {# ---------------------------------------------------------------------------
-   PVE ZFS I/O-stall detector (index=os).
-
-   Catches a ZFS backing device that stops completing I/O under a PVE node's
-   rpool: the kernel's hung-task watchdog logs a `txg_sync` (ZFS transaction-
-   group sync thread) stuck in uninterruptible sleep before the node hard-
-   resets. Fires even though the host then crashes, because the line is
-   already shipped via pve_syslog_forwarder before the reset. Backtested
-   against a real 5-crash incident: matched all 3 crashes that logged before
-   dying (verbatim `task:txg_sync ... state:D`), and confirmed a
-   systemd-pstore panic-dump line reaches index=os too, though the dump
-   content itself does not (closed separately, ansible-proxmox
-   crash_diagnostics role: Storage=journal drop-in).
-   roles/zfs_fault_alert (ansible-proxmox) only watches zed's own
-   checksum/delay event classes, which never fire when the device stops
-   completing I/O entirely -- this detector closes that gap.
+   PVE ZFS I/O-stall detector (index=os): a kernel hung-task warning for
+   ZFS's txg_sync thread (state:D).
 --------------------------------------------------------------------------- #}
 [pve_zfs_io_stall]
-description = Fires when a PVE node logs a kernel hung-task warning for ZFS's txg_sync thread (state:D) -- an rpool/pool backing device that has stopped completing I/O, usually just before the node hard-resets. Complements roles/zfs_fault_alert (ansible-proxmox), which only sees zed's checksum/delay events and cannot fire when the device stops responding entirely.
+description = Fires on a kernel hung-task warning for ZFS's txg_sync thread (state:D).
 search = index=os "state:D" ("txg_sync" OR "blocked for more than")
 dispatch.earliest_time = -10m
 dispatch.latest_time = now
