@@ -1,0 +1,21 @@
+{# ---------------------------------------------------------------------------
+   PVE ZFS I/O-stall detector (index=os): a kernel hung-task warning for
+   ZFS's txg_sync thread (state:D).
+--------------------------------------------------------------------------- #}
+[pve_zfs_io_stall]
+description = Fires on a kernel hung-task warning for ZFS's txg_sync thread (state:D).
+search = index=os "state:D" ("txg_sync" OR "blocked for more than")
+dispatch.earliest_time = -10m
+dispatch.latest_time = now
+cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 5
+alert.suppress = 1
+alert.suppress.period = 30m
+alert.suppress.fields = host
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
