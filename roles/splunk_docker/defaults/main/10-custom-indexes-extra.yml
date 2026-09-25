@@ -18,6 +18,10 @@ splunk_docker_indexes_extra:
   - name: netflow
     max_size_mb: 51200
     frozen_time_secs: 7776000
+  # cribl_internal: Cribl Stream's own internal metrics/health events.
+  - name: cribl_internal
+    max_size_mb: 2500
+    frozen_time_secs: "{{ splunk_docker_index_default_frozen_time_secs }}"
   # netmon_metrics: high-volume per-WAN probe telemetry (Telegraf via Cribl) — 90-day
   # retention per terraform-proxmox docs/NETWORK_DIAGNOSIS.md, not the 365-day default.
   # Telegraf ships splunkmetric -> metric index (queryable via mstats), NOT events.
