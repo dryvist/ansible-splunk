@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.81.2](https://github.com/dryvist/ansible-splunk/compare/v0.81.1...v0.81.2) (2026-09-25)
+
+
+### Bug Fixes
+
+* **splunk:** add the docling index ([#599](https://github.com/dryvist/ansible-splunk/issues/599)) ([924933d](https://github.com/dryvist/ansible-splunk/commit/924933d81353ea11cec24be1be43cc67612a74b6))
+
 ## [0.81.1](https://github.com/dryvist/ansible-splunk/compare/v0.81.0...v0.81.1) (2026-09-25)
 
 
