@@ -45,6 +45,10 @@ provisioner:
         splunk_docker_wait_enabled: false
   env:
     SPLUNK_DOCKER_PASSWORD: "molecule-test-password"
+    # community.docker modules read DOCKER_TIMEOUT (default 60s). Removing the
+    # test container also removes its nested Splunk image layers, which runs
+    # past 60s on a busy runner.
+    DOCKER_TIMEOUT: "300"
 
 verifier:
   name: ansible
