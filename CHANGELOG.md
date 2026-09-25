@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.81.1](https://github.com/dryvist/ansible-splunk/compare/v0.81.0...v0.81.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* **molecule:** raise the Docker API timeout for instance create and destroy ([#597](https://github.com/dryvist/ansible-splunk/issues/597)) ([96b7efd](https://github.com/dryvist/ansible-splunk/commit/96b7efd1a13ddcce26190a62db0cd7c954a530a9))
+
 ## [0.81.0](https://github.com/dryvist/ansible-splunk/compare/v0.80.0...v0.81.0) (2026-09-23)
 
 
