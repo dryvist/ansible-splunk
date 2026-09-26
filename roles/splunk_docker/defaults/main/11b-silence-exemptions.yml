@@ -25,11 +25,6 @@ splunk_docker_silence_exemptions:
     threshold_minutes: 1440
     exempt: true
     exempt_reason: "never-ingested"
-  - name: hindsight
-    index: hindsight
-    threshold_minutes: 1440
-    exempt: true
-    exempt_reason: "never-ingested"
   - name: langflow
     index: langflow
     threshold_minutes: 1440
