@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.82.0](https://github.com/dryvist/ansible-splunk/compare/v0.81.3...v0.82.0) (2026-09-26)
+
+
+### Features
+
+* **savedsearches:** alert on unhealthy workstation off-box copy jobs ([#604](https://github.com/dryvist/ansible-splunk/issues/604)) ([cb297b3](https://github.com/dryvist/ansible-splunk/commit/cb297b385d7b72065d1415e1409a9968a78b6395))
+
 ## [0.81.3](https://github.com/dryvist/ansible-splunk/compare/v0.81.2...v0.81.3) (2026-09-25)
 
 
