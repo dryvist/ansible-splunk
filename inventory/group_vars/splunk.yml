@@ -89,8 +89,14 @@ splunk_docker_roles:
     srch_indexes_default:
       - "*"
       - "_*"
+    # license_read/license_view_warnings grant read-only licenser pools/usage
+    # and license warning messages; list_health grants read-only splunkd
+    # health details.
     capabilities:
       - mcp_tool_execute
+      - license_read
+      - license_view_warnings
+      - list_health
   # Grants ONLY the capability to mint/manage tokens for other users — no
   # imported_roles, no index access. Held by svc-mcp-rotator (below), never by
   # hermes: minting is a separate identity from searching.
