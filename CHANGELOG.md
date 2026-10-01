@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.84.0](https://github.com/dryvist/ansible-splunk/compare/v0.83.0...v0.84.0) (2026-10-01)
+
+
+### Features
+
+* **alerting:** page on Hindsight bank-DR export/drill failure and silence ([#607](https://github.com/dryvist/ansible-splunk/issues/607)) ([36c58a3](https://github.com/dryvist/ansible-splunk/commit/36c58a31024393e736220dbbf30b53092a8103ba))
+
 ## [0.83.0](https://github.com/dryvist/ansible-splunk/compare/v0.82.1...v0.83.0) (2026-09-28)
 
 
