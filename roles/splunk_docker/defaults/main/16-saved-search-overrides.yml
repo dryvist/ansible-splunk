@@ -9,11 +9,8 @@
 # test instance that does not expose the management port declares none.
 splunk_docker_saved_search_overrides: []
 
-# Delivery keys merged into every override. Each channel is present only
-# when it is configured, matching the [default] block in savedsearches.conf.j2.
-splunk_docker_saved_search_delivery_slack:
-  action.slack: 1
-  action.slack.param.message: "[$name$] $job.resultCount$ result(s) — $view_link$"
+# Delivery keys merged into every override, matching the [default] block in
+# savedsearches.conf.j2.
 splunk_docker_saved_search_delivery_ntfy:
   action.webhook: 1
   action.webhook.param.url: "{{ splunk_docker_alert_ntfy_url }}?priority=high"

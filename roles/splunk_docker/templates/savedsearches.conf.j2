@@ -8,55 +8,21 @@
    declares it -- also measured: a `[default]` in a throwaway app reached
    its own searches and none of the 787 owned by the other 24 apps.
 
-   So delivery is declared ONCE here instead of per-stanza. Adding a saved
-   search below gets Slack with no per-search configuration; there is no
-   macro to remember to call. Replaces alert_deliver(), deleted with
-   savedsearches/00-macros.j2.
+   So delivery is declared ONCE here instead of per-stanza. Every saved
+   search below is delivered by one webhook to the ntfy alert hub, which
+   fans out to Slack and Zammad. Splunk posts nowhere else.
 
-   $name$ is the stanza name, so the message needs no per-search title.
-   The action stays gated on its credential being present: enabling an
-   action whose alert_actions.conf half is unconfigured fires the alert and
-   then fails delivery silently.
-
-   Slack rides the [slack] action shipped by the official "Slack
-   Notification Alert" app (Splunkbase 2878, splunk/slack-alerts --
-   splunk_docker_addons in vars/addons.yml). A prior [webhook]-based
-   attempt failed Slack's incoming-webhook payload validation with 400 --
-   Splunk's built-in webhook action sends a fixed JSON schema it cannot
-   customize, and Slack requires {"text": ...}. This app's alert action
-   generates that shape itself; alert_actions.conf.j2 sets its global
-   default webhook URL, `message` is the one required per-search param.
-
-   Zammad is declared below but NOT a working channel -- no Zammad alert
-   action is installed anywhere, and
-   assert_alerting_gates.yml fails the converge if its gate variable is
-   ever set for exactly that reason. The block stays as the landing point
-   for when that work ships, not as evidence delivery works today.
-
-   Webhook rides the ntfy hub, gated on the same allowlisted URL
-   alert_actions.conf.j2 already sets as [webhook]'s global default and
-   scopes with allowlist.ntfy -- an unlisted URL is refused there
-   regardless of what a stanza requests. Mirrors
-   splunk_docker_saved_search_delivery_ntfy in
-   16-saved-search-overrides.yml so a search rendered here and one applied
-   as a REST override to a search in another app get the same delivery
-   shape.
+   $name$ is the stanza name, so the hub message needs no per-search title.
+   The URL is allowlisted in alert_actions.conf.j2, and
+   assert_alerting_gates.yml fails the converge when it is empty. Mirrors
+   splunk_docker_saved_search_delivery_ntfy in 16-saved-search-overrides.yml
+   so a search rendered here and one applied as a REST override to a search
+   in another app get the same delivery shape.
 #}
 [default]
-{% if splunk_docker_alert_slack_webhook %}
-action.slack = 1
-action.slack.param.message = [$name$] $job.resultCount$ result(s) — $view_link$
-{% endif %}
 {% if splunk_docker_alert_ntfy_url %}
 action.webhook = 1
 action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}?priority=high
-{% endif %}
-{% if splunk_docker_alert_zammad_token %}
-action.zammad = 1
-action.zammad.param.group = {{ splunk_docker_alert_zammad_group }}
-action.zammad.param.priority = 2 normal
-action.zammad.param.state = new
-action.zammad.param.correlation_key = $name$
 {% endif %}
 
 {% include 'savedsearches/01-macos-edge.j2' %}
