@@ -9,6 +9,7 @@
    assumes each event carries `model`, `suite`, and a numeric `score` field.
 --------------------------------------------------------------------------- #}
 [model_eval_regression]
+{{ alert_delivery -}}
 description = Alerts when a promptfoo model-eval run regresses: the latest score for a model+suite drops more than 0.05 below the previous run's score. Reads index=ai sourcetype=model_eval events (fields: model, suite, score). Catches quality regressions from a model swap or routing-policy change before they reach consumers.
 search = index=ai sourcetype=model_eval | sort 0 model suite -_time | streamstats count as run_rank by model suite | where run_rank <= 2 | stats first(score) as latest_score last(score) as prev_score by model suite | where (prev_score - latest_score) > 0.05 | table model suite latest_score prev_score
 dispatch.earliest_time = -7d

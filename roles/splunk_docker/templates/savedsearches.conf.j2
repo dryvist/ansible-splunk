@@ -1,4 +1,4 @@
-{# Default alert actions for EVERY saved search below.
+{# Alert actions for every scheduled alert stanza below.
 
    Splunk `.conf` files have NO prefix-based stanza inheritance -- a stanza
    named `[Foo - bar]` inherits nothing from `[Foo]` (verified empirically
@@ -8,22 +8,27 @@
    declares it -- also measured: a `[default]` in a throwaway app reached
    its own searches and none of the 787 owned by the other 24 apps.
 
-   So delivery is declared ONCE here instead of per-stanza. Every saved
-   search below is delivered by one webhook to the ntfy alert hub, which
-   fans out to Slack and Zammad. Splunk posts nowhere else.
+   Delivery is NOT a [default]. The app's metadata exports it to the system
+   namespace (export = system), and an exported [default] reaches every
+   other app's scheduled searches too, so each of their runs fires these
+   actions. It is declared once here as `alert_delivery` and rendered into
+   each scheduled alert stanza; test_savedsearch_invariants.py fails on a
+   scheduled alert stanza without it.
 
-   $name$ is the stanza name, so the hub message needs no per-search title.
-   The URL is allowlisted in alert_actions.conf.j2, and
-   assert_alerting_gates.yml fails the converge when it is empty. Mirrors
+   Every scheduled alert is delivered by one webhook to the ntfy alert hub,
+   which fans out to Slack and Zammad. Splunk posts nowhere else. The URL
+   is allowlisted in alert_actions.conf.j2, and assert_alerting_gates.yml
+   fails the converge when it is not an https URL. Mirrors
    splunk_docker_saved_search_delivery_ntfy in 16-saved-search-overrides.yml
    so a search rendered here and one applied as a REST override to a search
    in another app get the same delivery shape.
 #}
-[default]
+{% set alert_delivery %}
 {% if splunk_docker_alert_ntfy_url %}
 action.webhook = 1
-action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}?priority=high
+action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}{{ splunk_docker_alert_ntfy_query }}
 {% endif %}
+{% endset %}
 
 {% include 'savedsearches/01-macos-edge.j2' %}
 

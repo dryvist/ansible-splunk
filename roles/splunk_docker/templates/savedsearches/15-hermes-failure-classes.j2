@@ -34,6 +34,7 @@
    lands.
 --------------------------------------------------------------------------- #}
 [hermes_failure_classes]
+{{ alert_delivery -}}
 description = Classifies Hermes failures into five classes from sourcetype=hermes:* content -- provider_exhausted, cron_wall_clock_timeout, kanban_block_or_stuck, slack_api_error, compaction_loop -- and reports counts by host/profile. One search instead of five near-identical ones; see the template header for the exact matched strings and their source.
 search = index=hermes sourcetype=hermes:* _index_earliest=-15m _index_latest=now | eval failure_class=case(match(_raw, "every fallback rung refused the request"), "provider_exhausted", match(_raw, "exceeded its aggregate wall-clock limit"), "cron_wall_clock_timeout", match(_raw, "Stuck >") OR match(_raw, "kanban dispatcher stuck"), "kanban_block_or_stuck", match(_raw, "\[Slack\]") AND match(_raw, "(?i)(failed|error|unhealthy)(?!.*while stopping)"), "slack_api_error", match(_raw, "Context compression failed after"), "compaction_loop") | where isnotnull(failure_class) | fillnull value="unknown" profile | stats count by failure_class, host, profile
 dispatch.earliest_time = -15m
