@@ -72,6 +72,27 @@ for name, body in ((m.group(1), m.group(2)) for m in STANZA_RE.finditer(rendered
     elif not SUPPRESS_PERIOD_RE.search(body):
         errors.append(f"FAIL: [{name}] has alert.suppress = 1 but no alert.suppress.period")
 
+# 3. Delivery is rendered into each scheduled stanza, never into [default]:
+#    the app exports to the system namespace, so a [default] action would
+#    fire on every other app's scheduled searches too.
+delivered = template.render(
+    splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
+    splunk_docker_silence_exemptions=DEFAULTS["splunk_docker_silence_exemptions"],
+    splunk_docker_silence_lookback_multiplier=DEFAULTS["splunk_docker_silence_lookback_multiplier"],
+    splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
+    splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
+    splunk_docker_alert_ntfy_url="https://ntfy.example.test/keystone",
+    splunk_docker_alert_ntfy_query=DEFAULTS["splunk_docker_alert_ntfy_query"],
+    splunk_docker_alert_slack_webhook=None,
+)
+if re.search(r"^\[default\]$", delivered, re.M):
+    errors.append("FAIL: a [default] stanza is rendered; it would export actions to every app")
+for name, body in ((m.group(1), m.group(2)) for m in STANZA_RE.finditer(delivered)):
+    if ENABLED_RE.search(body) and not re.search(r"^action\.webhook = 1$", body, re.M):
+        errors.append(f"FAIL: [{name}] is scheduled but carries no action.webhook delivery")
+    elif ENABLED_RE.search(body) and "&tpl=yes&t=" not in body:
+        errors.append(f"FAIL: [{name}] hub URL lacks the ntfy title/message templates")
+
 for det in DEFAULTS["splunk_docker_silence_detectors"]:
     if det.get("by_host") and "disabled" not in det:
         errors.append(
@@ -87,7 +108,8 @@ if errors:
 
 print(
     "PASS: every scheduled stanza suppresses its own notification rate "
-    "(alert.suppress = 1 with a period), and every by_host silence-detector "
+    "(alert.suppress = 1 with a period) and carries its own hub delivery, "
+    "no [default] stanza is rendered, and every by_host silence-detector "
     "list entry declares 'disabled' explicitly"
 )
 print("\nAll tests passed.")

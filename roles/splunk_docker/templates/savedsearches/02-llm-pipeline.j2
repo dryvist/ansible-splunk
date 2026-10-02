@@ -1,4 +1,5 @@
 [llm_pipeline_silence_detector]
+{{ alert_delivery -}}
 description = Alerts when any llama-swap emitter feeding the llm index goes silent for more than 30 minutes. Detection is PER-HOST (`by host`) so a healthy emitter can never mask a dead one — with the fabric running multiple llama-swap serving guests, an index-wide `latest(_time)` would stay fresh as long as a single host reports, hiding the failure of every other host. Each silent host produces its own result row, so the alert fires once per dead emitter. A host that has never emitted has no baseline and cannot be detected here (same inherent limitation as the macOS edge detector).
 # `by host` over a fully-empty index returns ZERO rows, not a null-last_seen
 # row for a synthetic host — so a plain eval/where guard never runs during a

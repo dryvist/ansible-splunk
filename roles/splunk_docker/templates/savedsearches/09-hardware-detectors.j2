@@ -10,6 +10,7 @@
    bad drive/host cannot mute alerts for another.
 --------------------------------------------------------------------------- #}
 [hardware_smart_failure]
+{{ alert_delivery -}}
 description = Fires on SMART failure signatures in the hardware index: a drive self-check FAILED, an attribute crossed into FAILING_NOW, pending / offline-uncorrectable sectors are present, or the raw value of a sector-health counter moved. These are the predictive signals that precede a disk dropping out of a pool (the bulk-pool case, 2026-07).
 # The "<name> changed" phrases catch the raw-value tracking emitted for
 # attributes 5 / 197 / 198. They are the counters that actually matter, and
@@ -41,6 +42,7 @@ relation = greater than
 quantity = 0
 
 [hardware_zfs_fault]
+{{ alert_delivery -}}
 description = Fires when a ZFS vdev enters a non-healthy state (FAULTED / DEGRADED / UNAVAIL / REMOVED) via zed statechange events or the zpool exec pack. A raidz1/mirror losing a member drops to zero/reduced redundancy — the bulk-pool failure that started this workstream.
 search = index=hardware ("vdev_state=FAULTED" OR "vdev_state=DEGRADED" OR "vdev_state=UNAVAIL" OR "vdev_state=REMOVED" OR "state: FAULTED" OR "state: DEGRADED" OR "state: UNAVAIL")
 dispatch.earliest_time = -20m
@@ -59,6 +61,7 @@ relation = greater than
 quantity = 0
 
 [hardware_ipmi_sel_critical]
+{{ alert_delivery -}}
 description = Fires on critical IPMI/BMC System Event Log entries (PSU / fan / thermal / voltage / drive-backplane faults) shipped by the ipmi exec pack from the bare-metal Dell hosts — hardware faults the OS never sees. Deasserted (recovery) events are excluded.
 search = index=hardware sourcetype=ipmi:sel (Critical OR "Non-recoverable" OR Failure OR Asserted) NOT Deasserted
 dispatch.earliest_time = -20m
