@@ -1,4 +1,4 @@
-{# Default alert actions for EVERY saved search below.
+{# Alert actions for every scheduled alert stanza below.
 
    Splunk `.conf` files have NO prefix-based stanza inheritance -- a stanza
    named `[Foo - bar]` inherits nothing from `[Foo]` (verified empirically
@@ -8,10 +8,12 @@
    declares it -- also measured: a `[default]` in a throwaway app reached
    its own searches and none of the 787 owned by the other 24 apps.
 
-   So delivery is declared ONCE here instead of per-stanza. Adding a saved
-   search below gets Slack with no per-search configuration; there is no
-   macro to remember to call. Replaces alert_deliver(), deleted with
-   savedsearches/00-macros.j2.
+   Delivery is NOT a [default]. The app's metadata exports it to the system
+   namespace (export = system), and an exported [default] reaches every
+   other app's scheduled searches too, so each of their runs fires these
+   actions. It is declared once here as `alert_delivery` and rendered into
+   each scheduled alert stanza; test_savedsearch_invariants.py fails on a
+   scheduled alert stanza without it.
 
    $name$ is the stanza name, so the message needs no per-search title.
    The action stays gated on its credential being present: enabling an
@@ -42,7 +44,7 @@
    as a REST override to a search in another app get the same delivery
    shape.
 #}
-[default]
+{% set alert_delivery %}
 {% if splunk_docker_alert_slack_webhook %}
 action.slack = 1
 action.slack.param.message = [$name$] $job.resultCount$ result(s) — $view_link$
@@ -58,6 +60,7 @@ action.zammad.param.priority = 2 normal
 action.zammad.param.state = new
 action.zammad.param.correlation_key = $name$
 {% endif %}
+{% endset %}
 
 {% include 'savedsearches/01-macos-edge.j2' %}
 

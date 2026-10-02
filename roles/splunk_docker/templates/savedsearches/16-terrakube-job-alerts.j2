@@ -10,6 +10,7 @@
    by the container identifier instead of bare host).
 --------------------------------------------------------------------------- #}
 [terrakube_job_error_detector]
+{{ alert_delivery -}}
 description = Alerts when the Terrakube API/executor container (host=iac) logs an unhandled job exception — a real job failure or an orphaned Quartz trigger left behind after its job row is deleted. Terrakube exposes no structured job-status event, so this reads the container's own ERROR-level stack traces. Threshold is a count over the dispatch window so one blip doesn't page; sustained recurrence crosses it quickly.
 search = index=os host=iac sourcetype=syslog ("JobExecutionProcessException" OR "threw an unhandled Exception" OR "threw an exception") | rex "Job (?<quartz_job>DEFAULT\.\S+) threw" | stats count values(quartz_job) as quartz_jobs | where count > 3
 dispatch.earliest_time = -15m
