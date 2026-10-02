@@ -16,4 +16,17 @@ splunk_docker_saved_search_delivery_slack:
   action.slack.param.message: "[$name$] $job.resultCount$ result(s) — $view_link$"
 splunk_docker_saved_search_delivery_ntfy:
   action.webhook: 1
-  action.webhook.param.url: "{{ splunk_docker_alert_ntfy_url }}?priority=high"
+  action.webhook.param.url: "{{ splunk_docker_alert_ntfy_url }}{{ splunk_docker_alert_ntfy_query }}"
+
+# Query string on every hub publish. ntfy renders Splunk's webhook JSON body
+# with these URL-encoded Go templates (tpl=yes):
+#   title:   Splunk: {{.search_name}}
+#   message: {{.search_name}} fired in {{.app}}, <each first-result field as k=v>
+# so Slack and Zammad get a readable title (also the Zammad dedupe key) rather
+# than the raw JSON. Literal braces are URL-encoded, so Jinja leaves them alone.
+splunk_docker_alert_ntfy_query: "?priority=high&tpl=yes\
+  &t=Splunk%3A%20%7B%7B.search_name%7D%7D\
+  &m=%7B%7B.search_name%7D%7D%20fired%20in%20%7B%7B.app%7D%7D%2C%20\
+  %7B%7Bif%20.result%7D%7D%7B%7Brange%20%24k%2C%20%24v%20%3A%3D%20.result%7D%7D\
+  %7B%7B%24k%7D%7D%3D%7B%7B%24v%7D%7D%20%7B%7Bend%7D%7D\
+  %7B%7Belse%7D%7Dno%20result%20fields%7B%7Bend%7D%7D"

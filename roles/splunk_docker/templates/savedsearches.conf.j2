@@ -51,7 +51,7 @@ action.slack.param.message = [$name$] $job.resultCount$ result(s) — $view_link
 {% endif %}
 {% if splunk_docker_alert_ntfy_url %}
 action.webhook = 1
-action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}?priority=high
+action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}{{ splunk_docker_alert_ntfy_query }}
 {% endif %}
 {% if splunk_docker_alert_zammad_token %}
 action.zammad = 1
