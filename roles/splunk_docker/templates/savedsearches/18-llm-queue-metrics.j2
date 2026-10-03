@@ -1,0 +1,39 @@
+{# ---------------------------------------------------------------------------
+   Mac LLM queue saturation (index=llm_metrics, metric datatype).
+
+   Fed by ansible-proxmox-apps roles/cribl_stream's mlx_metrics_normalize
+   pipeline, which republishes the Mac Edge in_queue_metrics scrape of
+   HAProxy's native Prometheus exporter (haproxy promex addon) as native
+   Splunk metric events. Series used here, confirmed against the exporter's
+   own source (addons/promex/service-prometheus.c, label "proxy" identifies
+   the frontend/backend by name):
+     - haproxy_backend_current_queue{proxy=<model backend>} -- queue depth.
+     - haproxy_frontend_http_responses_total{proxy=<frontend>, code=<class>}
+       -- a cumulative counter bucketed by status-code CLASS (1xx..5xx,
+       other), never by individual code. HAProxy's own queue-timeout
+       response and an unhealthy backend's 502/504 are the only things that
+       land a 5xx on the llm_wait frontend in this topology, so code="5xx"
+       is the finest-grained match for "a 503" the exporter exposes.
+
+   Frontend/backend names are nix-ai's modules/mlx/local-queue-cfg.nix:
+   llm_wait queues per backend (one backend per resident/swapped model) and
+   answers HAProxy's own 503 after `timeout queue`; llm_direct never queues.
+--------------------------------------------------------------------------- #}
+[llm_queue_saturation]
+{{ alert_delivery -}}
+description = Fires when any Mac LLM model backend's HAProxy queue (haproxy_backend_current_queue) stays at or above 4 for a sustained 5 minutes (min() over the window, so a dip below 4 at any point resets it), OR the llm_wait frontend serves any HTTP 5xx response (haproxy_frontend_http_responses_total{proxy="llm_wait", code="5xx"}, a cumulative counter, so this leg checks it increased in the last 5 minutes) -- both read index=llm_metrics.
+search = | mstats min(haproxy_backend_current_queue) as queue WHERE index=llm_metrics earliest=-5m BY proxy | where queue >= 4 | eval reason="queue depth " . queue . " sustained on backend " . proxy | table reason proxy | append [ | mstats max(haproxy_frontend_http_responses_total) as hi min(haproxy_frontend_http_responses_total) as lo WHERE index=llm_metrics proxy="llm_wait" code="5xx" earliest=-5m | where (hi - lo) > 0 | eval reason="llm_wait frontend served a 5xx response", proxy="llm_wait" | table reason proxy ]
+dispatch.earliest_time = -5m
+dispatch.latest_time = now
+cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 4
+alert.suppress = 1
+alert.suppress.period = 15m
+alert.suppress.fields = proxy
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
