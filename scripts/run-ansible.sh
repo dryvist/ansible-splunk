@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
 # Ansible runner — prefers a short-lived SSH certificate from the OpenBao CA
 # (ssh-certificate-authority ADR) over the shared static key, then runs the
-# playbook. Invoke under your secrets manager so BAO_ADDR and one of the
-# AppRole pairs are ambient:
-#   doppler run -- scripts/run-ansible.sh playbooks/site.yml [args...]
-# Prefers OPENBAO_APPROLE_SEMAPHORE_{ROLE,SECRET}_ID (execution-plane
-# identity); falls back to OPENBAO_APPROLE_ANSIBLE_{ROLE,SECRET}_ID (shared
-# identity). Without either pair the static PROXMOX_SSH_KEY_PATH flow is
-# unchanged.
+# playbook. Reads SECRET_STORE_ADDR, SSH_SIGNER_ROLE_ID/SSH_SIGNER_SECRET_ID,
+# SSH_CA_MOUNT and SSH_SIGNER_ROLE from the environment.
+#   scripts/run-ansible.sh playbooks/site.yml [args...]
+# The older AppRole names are still read as a fallback. Without any signer
+# pair the static PROXMOX_SSH_KEY_PATH flow is unchanged.
 set -euo pipefail
 
 usage() {
   echo "Usage: $0 <playbook> [ansible-playbook args...]"
-  echo "Example: doppler run -- $0 playbooks/site.yml --limit vms"
+  echo "Example: $0 playbooks/site.yml --limit vms"
   exit 1
 }
 
@@ -103,8 +101,22 @@ mint_ssh_cert() {
 
 # Prefer the execution plane's own AppRole (principal `semaphore`) so a
 # plane-run is distinguishable from a shared-identity run in sshd logs.
+# The generic signer names are read first; the legacy names below are the
+# fallback and keep today's behaviour while only they are set.
 CONVERGE_ROLE_ID="" CONVERGE_SECRET_ID="" CONVERGE_SIGN_ROLE="" CONVERGE_IDENTITY=""
-if [[ -n ${OPENBAO_APPROLE_SEMAPHORE_ROLE_ID:-} && -n ${OPENBAO_APPROLE_SEMAPHORE_SECRET_ID:-} ]]; then
+if [[ -n ${SECRET_STORE_ADDR:-} ]]; then
+  export BAO_ADDR="$SECRET_STORE_ADDR"
+fi
+if [[ -n ${SSH_SIGNER_ROLE_ID:-} && -n ${SSH_SIGNER_SECRET_ID:-} ]]; then
+  if [[ -z ${SSH_CA_MOUNT:-} || -z ${SSH_SIGNER_ROLE:-} ]]; then
+    echo "ERROR: SSH_SIGNER_ROLE_ID/SSH_SIGNER_SECRET_ID are set but SSH_CA_MOUNT or SSH_SIGNER_ROLE is not." >&2
+    exit 1
+  fi
+  CONVERGE_ROLE_ID="$SSH_SIGNER_ROLE_ID"
+  CONVERGE_SECRET_ID="$SSH_SIGNER_SECRET_ID"
+  CONVERGE_SIGN_ROLE="$SSH_SIGNER_ROLE"
+  CONVERGE_IDENTITY="signer"
+elif [[ -n ${OPENBAO_APPROLE_SEMAPHORE_ROLE_ID:-} && -n ${OPENBAO_APPROLE_SEMAPHORE_SECRET_ID:-} ]]; then
   CONVERGE_ROLE_ID="$OPENBAO_APPROLE_SEMAPHORE_ROLE_ID"
   CONVERGE_SECRET_ID="$OPENBAO_APPROLE_SEMAPHORE_SECRET_ID"
   CONVERGE_SIGN_ROLE="automation-semaphore"
@@ -123,7 +135,7 @@ if [[ -n ${BAO_ADDR:-} && -n $CONVERGE_ROLE_ID && -n $CONVERGE_SECRET_ID ]] \
   echo "Using a short-lived SSH certificate from the OpenBao CA ($CONVERGE_SIGN_ROLE)."
   echo "  authenticated as: $CONVERGE_IDENTITY"
 elif [[ -z ${PROXMOX_SSH_KEY_PATH:-} ]]; then
-  echo "ERROR: no SSH auth available — set BAO_ADDR + an OPENBAO_APPROLE_* pair for cert" >&2
+  echo "ERROR: no SSH auth available — set SECRET_STORE_ADDR + SSH_SIGNER_* for cert" >&2
   echo "minting, or PROXMOX_SSH_KEY_PATH for the static break-glass key." >&2
   exit 1
 fi
