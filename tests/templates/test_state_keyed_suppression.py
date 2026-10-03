@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Guard the hardware detectors (savedsearches/09-hardware-detectors.j2):
+Guard state-keyed suppression on the hardware and quorum detectors
+(savedsearches/09-hardware-detectors.j2, 14-openbao.j2):
 
 1. hardware_smart_failure and hardware_zfs_fault match a failure phrase only
    from its owning program (indexed appname) or a non-syslog event, in the
@@ -9,9 +10,11 @@ Guard the hardware detectors (savedsearches/09-hardware-detectors.j2):
 2. hardware_smart_failure suppresses on failing_set, the sorted set of
    failing lines, so a standing state pages once per period and a change
    pages at once.
+3. openbao_raft_quorum suppresses on quorum_state, so a standing voter
+   deficit pages once per period and a change in the count pages at once.
 
 Run from repo root:
-  python3 tests/templates/test_hardware_detectors.py
+  python3 tests/templates/test_state_keyed_suppression.py
 """
 
 import re
@@ -63,10 +66,16 @@ if "eventstats values(signature) as failing_set" not in (value(smart, "search") 
 if value(smart, "alert.suppress.fields") != "failing_set":
     errors.append("FAIL: hardware_smart_failure does not suppress on failing_set")
 
+quorum = stanzas.get("openbao_raft_quorum", "")
+if "eval quorum_state = " not in (value(quorum, "search") or ""):
+    errors.append("FAIL: openbao_raft_quorum does not compute quorum_state")
+if value(quorum, "alert.suppress.fields") != "quorum_state":
+    errors.append("FAIL: openbao_raft_quorum does not suppress on quorum_state")
+
 if errors:
     for err in errors:
         print(err)
     sys.exit(1)
 
-print("PASS: hardware detectors filter on the emitter and suppress on the failing set")
+print("PASS: hardware detectors filter on the emitter; SMART and quorum alerts suppress on their state")
 print("\nAll tests passed.")
