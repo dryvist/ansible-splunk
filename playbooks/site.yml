@@ -12,7 +12,7 @@
 # air-gapped and only pulls from object storage. Fail-soft: a Splunkbase outage is
 # rescued inside this playbook and the deploy proceeds from whatever the bucket
 # already holds. Requires the Splunkbase + object-storage secrets in the
-# environment (provided by `doppler run --`). Skippable with
+# environment. Skippable with
 # `--skip-tags splunkbase` when the object store is not reachable from the
 # controller.
 - name: Sync latest Splunkbase apps into object storage (in-flow, fail-soft)
@@ -20,8 +20,8 @@
 
 # Configure NTP time synchronization BEFORE deploying Splunk. Splunk's
 # _time correlation depends on accurate clocks; points at the Proxmox
-# hosts (stratum-2 servers managed by ansible-proxmox) when Doppler
-# provides PROXMOX_NTP_SERVERS, falls back to Debian public pool when not.
+# hosts (stratum-2 servers managed by ansible-proxmox) when
+# PROXMOX_NTP_SERVERS is set, falls back to Debian public pool when not.
 - name: Configure NTP time synchronization
   hosts: splunk
   become: true
@@ -91,9 +91,8 @@
               - lookup('env', 'SPLUNK_HEC_TOKEN') | length > 0
               - lookup('env', 'HEC_NAMESPACE') | length > 0
             fail_msg: >-
-              SPLUNK_PASSWORD, SPLUNK_HEC_TOKEN, and HEC_NAMESPACE must be set
-              (use: doppler run -- ansible-playbook ...). HEC_NAMESPACE is no
-              longer optional: every per-index HEC token is derived from it, so
+              SPLUNK_PASSWORD, SPLUNK_HEC_TOKEN, and HEC_NAMESPACE must be set.
+              HEC_NAMESPACE is no longer optional: every per-index HEC token is derived from it, so
               a run without it silently re-templates inputs.conf down to only
               the legacy token and drops every per-index sender's token —
               causing a live multi-index ingest outage on the next restart.

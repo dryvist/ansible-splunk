@@ -9,10 +9,10 @@
 # during migration.
 #
 # Usage:
-#   doppler run -- ansible-playbook -i inventory/hosts.yml \
+#   ansible-playbook -i inventory/hosts.yml \
 #     playbooks/deploy-cluster.yml
 #
-# Required environment (injection-agnostic; wrapper supplies them):
+# Required environment:
 #   SPLUNK_PASSWORD, SPLUNK_PACKAGE_URL_FULL, SPLUNK_IDXC_PASS4SYMMKEY,
 #   SPLUNK_GENERAL_PASS4SYMMKEY, PROXMOX_DOMAIN, PROXMOX_SSH_KEY_PATH,
 #   SPLUNK_LICENSE (raw .lic XML — clustering cannot run on a Free license)
@@ -38,8 +38,7 @@
         fail_msg: >-
           Set SPLUNK_PASSWORD, SPLUNK_PACKAGE_URL_FULL,
           SPLUNK_IDXC_PASS4SYMMKEY, SPLUNK_GENERAL_PASS4SYMMKEY,
-          PROXMOX_DOMAIN, SPLUNK_LICENSE and PROXMOX_SSH_KEY_PATH
-          (doppler run -- ansible-playbook ...).
+          PROXMOX_DOMAIN, SPLUNK_LICENSE and PROXMOX_SSH_KEY_PATH.
 
 # Order matters: install everywhere, then license master, then cluster manager,
 # then peers, then attach search heads, then the monitoring console.

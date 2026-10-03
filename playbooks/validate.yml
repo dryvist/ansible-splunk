@@ -3,7 +3,7 @@
 # Run this after deploy.yml to verify success
 #
 # Usage:
-#   doppler run -- ansible-playbook playbooks/validate.yml
+#   ansible-playbook playbooks/validate.yml
 
 - name: Load OpenTofu inventory
   ansible.builtin.import_playbook: ../inventory/load_tofu.yml

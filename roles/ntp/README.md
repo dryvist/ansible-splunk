@@ -31,7 +31,7 @@ playbook in the `roles:` block — no Galaxy install needed:
 
 ## Usage
 
-`playbooks/site.yml` wires `ntp_servers` from `PROXMOX_NTP_SERVERS` (Doppler) and
+`playbooks/site.yml` wires `ntp_servers` from `PROXMOX_NTP_SERVERS` and
 runs the role on the Splunk VM:
 
 ```yaml
@@ -41,7 +41,7 @@ runs the role on the Splunk VM:
 ```
 
 An empty `PROXMOX_NTP_SERVERS` leaves only the pool fallback, so the role stays
-safe when Doppler omits it.
+safe when it is unset.
 
 ### Variables
 

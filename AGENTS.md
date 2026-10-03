@@ -121,9 +121,8 @@ documented once at
 
 ## Commands
 
-The inventory loader reads a secret-store read token from `BAO_TOKEN`.
-`scripts/run-ansible.sh` sets one for the run. Running `ansible-playbook`
-directly requires `BAO_TOKEN` in the environment; never write it to a file.
+The inventory loader reads a secret-store read token from `BAO_TOKEN`, which
+must be present in the environment.
 Without a token the loader cannot read the object-storage credential, so it
 cannot fetch the published inventory. It does not stop. It falls back to the static host entry
 in `hosts.yml`, and the run dies later on `'tofu_data' is undefined` — after it

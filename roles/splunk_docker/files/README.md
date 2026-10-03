@@ -10,7 +10,7 @@ No manual installation is required — add-ons are installed by running the
 `splunk_docker` role:
 
 ```bash
-doppler run -- ansible-playbook playbooks/site.yml
+ansible-playbook playbooks/site.yml
 ```
 
 The role reads `../vars/addons.yml` and, for each entry, issues an

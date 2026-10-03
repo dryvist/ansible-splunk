@@ -12,8 +12,8 @@
 #
 # Idempotent: a guest already holding the declared address is left untouched.
 #
-# Usage (same wrapper as the other playbooks):
-#   doppler run -- ansible-playbook -i inventory/hosts.yml \
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml \
 #     playbooks/align_guest_network.yml --diff
 
 - name: Load OpenTofu inventory

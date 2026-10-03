@@ -25,7 +25,7 @@ splunk_docker_image: "splunk/splunk:10.4.3"
 splunk_docker_hostname: splunk
 splunk_docker_container_name: splunk
 
-# Splunk credentials (from Doppler) - set in playbook vars
+# Splunk credentials - set in playbook vars
 splunk_docker_password: ""
 
 # Saved-search alert delivery: the ntfy alert hub, which fans out to Slack and
