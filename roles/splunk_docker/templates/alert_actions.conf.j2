@@ -9,6 +9,8 @@
 # ?title/&priority query suffix.
 enable_allowlist = true
 allowlist.ntfy = ^{{ splunk_docker_alert_ntfy_url | regex_escape }}(\?.*)?$
+# The network topic on the same hub (savedsearches/19-unifi-wan.j2).
+allowlist.ntfy_network = ^{{ (splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] ~ '/network') | regex_escape }}(\?.*)?$
 {% endif %}
 {% if splunk_docker_alert_slack_webhook %}
 [slack]

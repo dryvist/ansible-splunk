@@ -1,0 +1,66 @@
+{# ---------------------------------------------------------------------------
+   Gateway WAN health (index=unifi, sourcetype=ubiquiti:unifi).
+
+   The UniFi controller emits one CEF syslog event per WAN transition, with
+   category "Internet and WAN", the CEF signature id and name, and
+   UNIFIwanName / UNIFIwanId / msg extensions:
+
+     100 Internet Down                  107 Internet Restored
+     101 Multiple Internet Disconnections
+     105 Temporary Internet Failover    106 Temporary LTE Failover
+
+   unifi_wan_transition publishes every one of those to the hub's network
+   topic, one notification per event (alert.digest_mode = 0), so a down and
+   its recovery each arrive. It reads a contiguous index-time slice per run
+   (two minutes, one minute behind now), so each event is sent exactly once.
+
+   unifi_wan_down is the state: a WAN whose latest Down/Restored event is
+   Down. It escalates to the keystone topic through alert_delivery and
+   repeats per WAN while the link stays down.
+--------------------------------------------------------------------------- #}
+{% set unifi_wan_base %}index=unifi sourcetype=ubiquiti:unifi "UNIFIcategory=Internet and WAN"{% endset %}
+{% set unifi_wan_fields %}rex "CEF:0\|Ubiquiti\|UniFi Network\|[^|]*\|(?<cef_id>\d+)\|(?<event>[^|]*)\|" | rex "UNIFIwanName=(?<wan>.+?) UNIFIwanId=(?<wan_id>\S+)" | rex " msg=(?<detail>.+)$"{% endset %}
+{% set network_delivery %}
+{% if splunk_docker_alert_ntfy_url %}
+action.webhook = 1
+action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/network{{ splunk_docker_alert_ntfy_query | replace('priority=high', 'priority=default') }}
+{% endif %}
+{% endset %}
+[unifi_wan_transition]
+{{ network_delivery -}}
+description = Publishes every gateway WAN transition (Internet Down, Internet Restored, Multiple Internet Disconnections, Temporary Internet/LTE Failover) from the UniFi controller's CEF events to the hub's network topic, one notification per event.
+search = {{ unifi_wan_base }} _index_earliest=-3m@m _index_latest=-1m@m | {{ unifi_wan_fields }} | search cef_id IN (100, 101, 105, 106, 107) | table _time wan wan_id event detail
+dispatch.earliest_time = -60m
+dispatch.latest_time = now
+cron_schedule = */2 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 3
+alert.digest_mode = 0
+alert.suppress = 1
+alert.suppress.period = 5m
+alert.suppress.fields = wan_id,event
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
+
+[unifi_wan_down]
+{{ alert_delivery -}}
+description = Alerts while a gateway WAN link is down: its latest Internet Down / Internet Restored event in the last 7 days is Internet Down. One row per WAN, repeated every 4 hours until the link is restored.
+search = {{ unifi_wan_base }} | {{ unifi_wan_fields }} | search cef_id IN (100, 107) | stats latest(cef_id) as state_id latest(_time) as since latest(detail) as detail by wan wan_id | where state_id="100" | eval since = strftime(since, "%F %T %Z") | table wan wan_id since detail
+dispatch.earliest_time = -7d
+dispatch.latest_time = now
+cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 5
+alert.suppress = 1
+alert.suppress.period = 240m
+alert.suppress.fields = wan_id
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
