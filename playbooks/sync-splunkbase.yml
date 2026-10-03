@@ -15,12 +15,12 @@
 # deploy can still proceed. This playbook also runs as an in-flow pre-play of
 # site.yml; it stays usable standalone for manual/scheduled syncs.
 #
-# Credentials (Doppler):
+# Credentials (environment):
 #   SPLUNKBASE_USERNAME      / SPLUNKBASE_PASSWORD          — Splunkbase account (download only)
 #   OBJECT_STORAGE_ROOT_USER / OBJECT_STORAGE_ROOT_PASSWORD — object-storage bucket write auth
 #
 # Usage:
-#   doppler run -- ansible-playbook playbooks/sync-splunkbase.yml
+#   ansible-playbook playbooks/sync-splunkbase.yml
 #
 # Runs entirely on localhost (the Ansible controller, which has internet egress).
 # The Splunk VM never contacts Splunkbase — air-gap preserved.

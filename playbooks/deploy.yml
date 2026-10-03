@@ -15,7 +15,6 @@
           - lookup('env', 'SPLUNK_HEC_TOKEN') | length > 0
         fail_msg: >-
           SPLUNK_PASSWORD and SPLUNK_HEC_TOKEN environment variables must be set
-          (use: doppler run -- ansible-playbook ...)
       run_once: true
       delegate_to: localhost
 

@@ -25,7 +25,7 @@ Splunk role would be missing and the play would fail on an unrelated error.
 ## Requirements
 
 - Debian-based target host
-- Doppler secrets for SPLUNK_PASSWORD and SPLUNK_HEC_TOKEN
+- `SPLUNK_PASSWORD` and `SPLUNK_HEC_TOKEN` in the environment
 - VM provisioned by tofu-proxmox with appropriate disk space
 
 ## Role Variables
@@ -72,7 +72,6 @@ splunk_docker_addons:
 
 - community.docker collection
 - tofu-proxmox for VM provisioning
-- Doppler for secrets management
 
 ## HEC Token Setup
 
@@ -82,25 +81,15 @@ splunk_docker_addons:
 Token = uuidv5(HEC_NAMESPACE, "splunk-hec-<index_name>")
 ```
 
-The `HEC_NAMESPACE` UUID is stored in Doppler. Any system with access to that
-namespace can derive tokens locally. `SPLUNK_HEC_TOKEN` is the shared legacy
+Any system holding the `HEC_NAMESPACE` UUID can derive tokens locally.
+`SPLUNK_HEC_TOKEN` is the shared legacy
 fallback that grants access to all indexes.
-
-### One-time Doppler Setup
-
-```bash
-# Generate a random namespace UUID (enables per-index tokens)
-doppler secrets set HEC_NAMESPACE "$(uuidgen)"
-
-# Set the shared legacy token (always required)
-doppler secrets set SPLUNK_HEC_TOKEN "$(uuidgen)"
-```
 
 ### Adding a New Index + Token
 
 1. Add the index to `splunk_docker_indexes_core` or `splunk_docker_indexes_extra`
    in `defaults/main/09-custom-indexes-core.yml` / `10-custom-indexes-extra.yml`
-2. Run `doppler run -- ansible-playbook playbooks/site.yml` — token is auto-derived
+2. Run `ansible-playbook playbooks/site.yml` — token is auto-derived
 3. Senders derive the same token locally:
 
 ```bash
@@ -119,7 +108,7 @@ Tokens are minted via the app's `/services/mcp_token` endpoint. Configure the MC
 When OpenBao publication is enabled, the role writes the shared connection as
 `SPLUNK_MCP_URL` and `SPLUNK_MCP_TOKEN` at `secret/ai/mcp/splunk`. The KV-v2
 write preserves sibling fields and uses metadata-based compare-and-set, including
-when the latest secret version was soft-deleted. The publisher AppRole needs
+when the latest secret version was soft-deleted. The publishing token needs
 KV-v2 data read/write, metadata read, and undelete access for this exact path.
 Every converge validates the published JWT's subject, audience, validity window,
 and token ID against Splunk; inventory presence alone never suppresses repair of
@@ -164,7 +153,7 @@ cannot be recovered from Splunk.
 
 ```bash
 # Check MCP Server app is installed and REST API responds
-doppler run -- ansible-playbook playbooks/validate.yml
+ansible-playbook playbooks/validate.yml
 
 # Direct REST API test
 curl -sk https://<SPLUNK_HOST_IP>:8089/services/apps/local/splunk-mcp-server \

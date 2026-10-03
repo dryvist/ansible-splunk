@@ -149,7 +149,7 @@
       - splunkbase_token | length > 0
     fail_msg: >-
       Splunkbase login returned no session token. Check
-      SPLUNKBASE_USERNAME / SPLUNKBASE_PASSWORD in Doppler.
+      SPLUNKBASE_USERNAME / SPLUNKBASE_PASSWORD.
   when: splunkbase_to_sync | length > 0
 
 - name: Download drifted entries from Splunkbase

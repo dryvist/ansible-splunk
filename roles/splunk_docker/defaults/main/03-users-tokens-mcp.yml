@@ -49,9 +49,9 @@ splunk_docker_token_owner_exceptions: []
 # in ansible-proxmox-apps) rather than Splunk's own 90d default.
 splunk_docker_token_expires_on: "+47d"
 
-# When true, publish the shared MCP connection to OpenBao. Requires a
-# write-capable OpenBao AppRole in the converge environment (see the
-# *_openbao_* vars below), including KV-v2 data read/write, metadata read, and
+# When true, publish the shared MCP connection to OpenBao. Reads a
+# write-capable OpenBao token (see the
+# *_openbao_* vars below) with KV-v2 data read/write, metadata read, and
 # undelete access for the exact secret path. Inert by default: the user is
 # created, but a token is minted only when it can be written to the canonical
 # shared secret.
@@ -114,7 +114,7 @@ splunk_docker_mcp_rotator_user: "svc-mcp-rotator"
 # gets no index access at all, unlike hermes_search.
 splunk_docker_mcp_rotator_role: "mcp_token_minter"
 # secret/apps/splunk-rotator — the exact path + field names
-# (mgmt_url/username/password) the splunk-mcp-rotate AppRole's minter_secret
+# (mgmt_url/username/password) the scheduled rotator's minter_secret
 # already expects (ansible-proxmox-apps defaults/main/09-snapshots-and-rotation.yml).
 # Mount reuses splunk_docker_token_openbao_mount; the rotator script forms its
 # own KV data path as "<mount>/data/apps/splunk-rotator".

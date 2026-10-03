@@ -113,14 +113,13 @@ splunk_docker_users:
 # svc-mcp-rotator is NOT in splunk_docker_users above — see
 # defaults/main/03-users-tokens-mcp.yml for why. This turns on its separate
 # management path (tasks/manage_mcp_rotator.yml) and publishes its password to
-# secret/apps/splunk-rotator, which the splunk-mcp-rotate OpenBao AppRole
-# (ansible-proxmox-apps) reads to mint/revoke hermes's MCP token on a
-# schedule.
+# secret/apps/splunk-rotator, which the scheduled rotator
+# (ansible-proxmox-apps) reads to mint/revoke hermes's MCP token.
 splunk_docker_manage_mcp_rotator: true
 
 # Publish the shared Splunk MCP connection (SPLUNK_MCP_URL + minted
-# SPLUNK_MCP_TOKEN) to OpenBao secret/ai/mcp/splunk. Requires a write-capable
-# OpenBao AppRole token (BAO_ADDR/BAO_TOKEN) in the converge environment.
+# SPLUNK_MCP_TOKEN) to OpenBao secret/ai/mcp/splunk. Reads a write-capable
+# token from BAO_ADDR/BAO_TOKEN.
 splunk_docker_token_publish_openbao: true
 
 # Archive frozen buckets rather than deleting them.

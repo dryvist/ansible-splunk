@@ -98,7 +98,7 @@
 
     # ponytail: no soft-delete/undelete recovery here (unlike
     # extract_openbao_state.yml) — this role is the SOLE writer of this path
-    # (the rotator AppRole's policy grants it only `read`), so there is no
+    # (the scheduled rotator only reads it), so there is no
     # concurrent writer whose soft-deleted version needs recovering. Add the
     # undelete dance back if a second writer of this path ever appears.
     - name: "CAS-publish {{ splunk_docker_mcp_rotator_user }} credentials"
@@ -137,7 +137,7 @@
       splunk_docker_token_publish_openbao is off: user
       '{{ splunk_docker_mcp_rotator_user }}' ensured but its password was not
       published to {{ splunk_docker_token_openbao_mount }}/{{ splunk_docker_mcp_rotator_openbao_path }}.
-      The splunk-mcp-rotate AppRole cannot authenticate to Splunk until it is.
+      The scheduled rotator cannot authenticate to Splunk until it is.
   when:
     - not (splunk_docker_token_publish_openbao | bool)
     - splunk_docker_rotator_lookup.status == 404
@@ -177,6 +177,6 @@
           has no password. It cannot be recovered from Splunk (passwords are
           write-only there) — reset the user's password via the Splunk admin
           API/UI, then hand-write it to that OpenBao path before the
-          splunk-mcp-rotate AppRole's next scheduled run.
+          scheduled rotator's next run.
         success_msg: "{{ splunk_docker_mcp_rotator_user }} credential is published."
       no_log: true

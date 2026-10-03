@@ -10,7 +10,7 @@ provides guidelines and information for contributors.
 - [Nix](https://nixos.org/) with flakes enabled
 - [direnv](https://direnv.net/) (recommended — activates the dev shell automatically)
 - Docker (for molecule tests)
-- Access to Doppler secrets (for integration testing)
+- The deployment environment variables (for integration testing)
 
 ### Local Environment Setup
 
@@ -82,12 +82,12 @@ For testing against a real Proxmox VM:
    tofu-proxmox apply (needs only AWS read creds) → the local
    gitignored cache the apply's after-hook writes. No manual sync step.
 
-2. Run playbooks with Doppler:
+2. Run playbooks:
 
    ```bash
-   doppler run -- ansible-playbook playbooks/deploy.yml
-   doppler run -- ansible-playbook playbooks/configure_indexes.yml
-   doppler run -- ansible-playbook playbooks/validate.yml
+   ansible-playbook playbooks/deploy.yml
+   ansible-playbook playbooks/configure_indexes.yml
+   ansible-playbook playbooks/validate.yml
    ```
 
 ## Code Style

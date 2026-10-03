@@ -3,11 +3,11 @@
 # This playbook uses the splunk_docker role for containerized deployment
 #
 # Prerequisites:
-# - Doppler secrets loaded (SPLUNK_PASSWORD, SPLUNK_HEC_TOKEN)
+# - SPLUNK_PASSWORD and SPLUNK_HEC_TOKEN set in the environment
 # - OpenTofu inventory resolvable (S3 read creds, local cache, or TOFU_INVENTORY_PATH)
 #
 # Usage:
-#   doppler run -- uv run ansible-playbook playbooks/deploy_docker.yml
+#   uv run ansible-playbook playbooks/deploy_docker.yml
 
 # Load dynamic inventory from OpenTofu outputs
 # This assumes the standard repo layout: playbooks/ and inventory/ are sibling directories.
