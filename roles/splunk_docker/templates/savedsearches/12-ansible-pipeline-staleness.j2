@@ -14,6 +14,7 @@
    ABSENCE must never be built on one.
 --------------------------------------------------------------------------- #}
 [ansible_stale_converge]
+{{ alert_delivery -}}
 description = A host reported a successful converge at some point in the last 30 days but not in the last 7. Configuration drift on it is now unmanaged: a merged role change reaches a host only when that host is converged, so an un-converged host keeps serving whatever it last rendered, indefinitely and without complaint.
 # `stats ... BY host` over zero matching converge events (index=ansible dead:
 # HEC token expired, the callback plugin broken, or the index itself
@@ -47,6 +48,7 @@ relation = greater than
 quantity = 0
 
 [ansible_orphan_host]
+{{ alert_delivery -}}
 description = A host is present in the Ansible inventory roster but has no successful converge event at all in the last 30 days. It is provisioned and entirely unmanaged.
 # Same zero-row blind spot as ansible_stale_converge above: `stats ... BY
 # host` over a fully-silent index=ansible (roster AND converge producers both
@@ -80,6 +82,7 @@ relation = greater than
 quantity = 0
 
 [ansible_apply_owed]
+{{ alert_delivery -}}
 description = Desired state has been edited but no apply has republished the inventory artifact from it, so every converge is consuming an artifact that contradicts desired state. Applying only re-renders the artifact and converging only consumes whatever the artifact currently says, so a converge run in this state produces a confidently wrong result rather than an error. Fires on the fingerprint the converge itself reports, not on a clock, so a desired-state edit that happens to change nothing downstream cannot false-fire.
 # Same zero-row blind spot as the two detectors above, but NOT a pure
 # elapsed-time check: the drift filter (desired_state_current) moves from the

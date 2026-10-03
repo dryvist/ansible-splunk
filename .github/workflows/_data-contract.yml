@@ -91,6 +91,10 @@ jobs:
           uv pip install --system -r tests/templates/requirements.txt
           bash scripts/run-template-tests.sh
 
+      - name: Run run-ansible.sh identity tests
+        run: |
+          python3 -m unittest discover -s tests/run_ansible -v
+
       - name: Verify Splunk MCP OpenBao publication contract
         run: |
           ansible-playbook tests/openbao_publish/verify.yml

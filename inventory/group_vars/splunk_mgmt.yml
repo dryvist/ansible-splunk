@@ -6,9 +6,8 @@
 # distributed search, or authentication — a license that permits clustering is
 # REQUIRED, and deploy-cluster.yml asserts it is present before converging.
 #
-# SPLUNK_LICENSE holds the raw .lic XML and is read injection-agnostically like
-# every other secret (see splunk_cluster.yml) — the wrapper that runs the
-# playbook decides where the value comes from. deploy-cluster.yml writes it to
+# SPLUNK_LICENSE holds the raw .lic XML and is read via lookup('env', ...) like
+# every other secret (see splunk_cluster.yml). deploy-cluster.yml writes it to
 # the license master, so a changed license re-applies on the next converge.
 splunk_license_group: Enterprise
 splunk_license_xml: "{{ lookup('env', 'SPLUNK_LICENSE') }}"

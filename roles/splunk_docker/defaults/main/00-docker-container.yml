@@ -25,42 +25,19 @@ splunk_docker_image: "splunk/splunk:10.4.3"
 splunk_docker_hostname: splunk
 splunk_docker_container_name: splunk
 
-# Splunk credentials (from Doppler) - set in playbook vars
+# Splunk credentials - set in playbook vars
 splunk_docker_password: ""
 
-# Saved-search alert delivery: ntfy + Slack, never email (operator directive
-# 2026-07-16). Empty string disables that channel on every alert (the saved
-# search still runs and surfaces in the Splunk UI's Triggered Alerts panel).
+# Saved-search alert delivery: the ntfy alert hub, which fans out to Slack and
+# Zammad. Required: assert_alerting_gates.yml fails the converge when empty.
 #
-# ntfy: full topic URL, delivered via Splunk's built-in webhook alert action
-# (the URL is allowlisted in alert_actions.conf.j2). Defaults to the keystone
-# topic — the same one the hermes brain-watchdog pushes to. ntfy is a Traefik
-# ingress route, so its name lives under the ingress subdomain
-# (PROXMOX_SUBDOMAIN, the same base the traefik role serves), never the apex:
-# the apex name resolves to the raw guest, which has no TLS on this port.
+# Full topic URL, delivered via Splunk's built-in webhook alert action (the URL
+# is allowlisted in alert_actions.conf.j2). ntfy is a Traefik ingress route, so
+# its name lives under the ingress subdomain (PROXMOX_SUBDOMAIN, the same base
+# the traefik role serves), never the apex.
 splunk_docker_alert_ntfy_url: >-
   {{ ('https://ntfy.' ~ lookup('env', 'PROXMOX_SUBDOMAIN') ~ '/keystone')
      if lookup('env', 'PROXMOX_SUBDOMAIN') else '' }}
-# Slack: incoming-webhook URL for TA-slack-add-on-for-splunk, sourced from the
-# shared alerting webhook (RUNSON_ALERT_SLACK_WEBHOOK_URL in the converge env,
-# e.g. under `doppler run -p iac-conf-mgmt -c prd`). Rendered into
-# alert_actions.conf (0600) — never into savedsearches.conf.
-splunk_docker_alert_slack_webhook: >-
-  {{ lookup('env', 'RUNSON_ALERT_SLACK_WEBHOOK_URL') | default('', true) }}
-
-# Zammad: incident delivery for the `zammad` custom alert action shipped by the
-# splunk-homelab-alerts app. Empty by default -- the [default] stanza in
-# savedsearches.conf.j2 gates `action.zammad` on this, so the action stays off
-# until the svc-splunk token is wired rather than firing into a 401.
-# Sourced from OpenBao secret/ai/mcp/splunk (SPLUNK_ZAMMAD_TOKEN); the handler
-# reads it back from storage/passwords, never from savedsearches.conf.
-splunk_docker_alert_zammad_token: >-
-  {{ lookup('env', 'SPLUNK_ZAMMAD_TOKEN') | default('', true) }}
-splunk_docker_alert_zammad_url: >-
-  {{ lookup('env', 'SPLUNK_ZAMMAD_URL') | default('', true) }}
-# Default Zammad group for Splunk-opened incidents; per-search override is one
-# `action.zammad.param.group` line in the stanza.
-splunk_docker_alert_zammad_group: Homelab Infrastructure
 
 # Splunk General Terms acceptance string for SPLUNK_GENERAL_TERMS env var.
 # Override in staging to point at non-prod terms acceptance strings if Splunk

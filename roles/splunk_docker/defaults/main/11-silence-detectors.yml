@@ -27,9 +27,9 @@
 #                       entry. For a non-by_host entry this is the only
 #                       threshold. For a by_host entry it is the FLOOR: the
 #                       effective per-host threshold is max(that floor, the
-#                       host's own observed avg_gap_minutes x
-#                       cadence_multiplier), so a naturally-quiet host is not
-#                       held to the same bar as a chatty one.
+#                       host's own p95_gap_minutes x cadence_multiplier), so
+#                       a naturally-quiet host is not held to the same bar as
+#                       a chatty one.
 #   cron              — BY_HOST ONLY. Schedule (keep period well below the
 #                       threshold).
 #   suppress_minutes  — BY_HOST ONLY. alert.suppress.period; throttles
@@ -39,13 +39,23 @@
 #                       can't mask a dead one, using each host's own cadence
 #                       (see threshold_minutes above). Note: a host that has
 #                       never emitted has no baseline and cannot be detected.
-#   cadence_multiplier — by_host only, optional, default 4. Multiplies a
-#                       host's observed average inter-event gap to get its
-#                       effective threshold.
+#   cadence_multiplier — by_host only, optional, default 3. Multiplies a
+#                       host's 95th-percentile gap between non-empty
+#                       10-minute bins to get its effective threshold.
+#   min_active_bins   — by_host only, optional, default 3. A host with fewer
+#                       non-empty 10-minute bins in the lookback has no
+#                       baseline and is not evaluated.
+#   max_baseline_minutes — by_host only, optional. A host whose p95 gap
+#                       exceeds this writes on events rather than on a
+#                       schedule and is not evaluated.
+#   lookback_minutes  — by_host only, optional. Replaces the derived
+#                       threshold_minutes x splunk_docker_silence_lookback_multiplier
+#                       window. It is also how long a retired or renamed host
+#                       keeps firing before it ages out.
 #   host_overrides    — by_host only, optional, default {}. Map of
 #                       hostname -> exact threshold_minutes, for a host whose
 #                       computed cadence baseline is wrong (commonly: too new
-#                       to have a representative average yet).
+#                       to have a representative gap history yet).
 #   disabled          — BY_HOST ONLY, optional, default 0. Set 1 to ship the
 #                       stanza disabled (e.g. index exists but no emitter
 #                       yet). A non-by_host entry has no per-index disable —
@@ -124,7 +134,7 @@ splunk_docker_silence_detectors:
     index: os
     threshold_minutes: 15
     cron: "*/5 * * * *"
-    suppress_minutes: 60
+    suppress_minutes: 360
     by_host: true
     disabled: 0
   # hardware: alert if the hardware index stops receiving telemetry (packs /
@@ -143,8 +153,14 @@ splunk_docker_silence_detectors:
     index: hardware
     threshold_minutes: 60
     cron: "*/15 * * * *"
-    suppress_minutes: 120
+    suppress_minutes: 360
     by_host: true
+    # Only a scheduled, sustained emitter has a baseline here: the nodes'
+    # periodic disk/snapshot telemetry. Guests only relay occasional host
+    # kernel lines, which this filters out by their sparse, irregular gaps.
+    min_active_bins: 144
+    max_baseline_minutes: 60
+    lookback_minutes: 30000
     disabled: 0
   - name: claude
     index: claude

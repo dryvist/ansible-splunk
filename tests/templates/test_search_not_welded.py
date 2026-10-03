@@ -96,7 +96,6 @@ rendered = ansible_env(TEMPLATES).get_template("savedsearches.conf.j2").render(
         "splunk_docker_silence_lookback_multiplier"
     ],
     splunk_docker_alert_ntfy_url=None,
-    splunk_docker_alert_slack_webhook=None,
 )
 
 welded = check_welded(rendered)

@@ -347,6 +347,4 @@
       Set it true, with BAO_ADDR/BAO_TOKEN in the environment, to mint + publish
       {{ splunk_docker_url_openbao_key }} and {{ splunk_docker_token_openbao_key }} to
       {{ splunk_docker_token_openbao_mount }}/{{ splunk_docker_token_openbao_path }}.
-      The ansible-converge AppRole already carries create/update/read on exactly
-      that one secret — no additional grant is needed.
   when: not (splunk_docker_token_publish_openbao | bool)

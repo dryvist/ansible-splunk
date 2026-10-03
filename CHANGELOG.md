@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.87.0](https://github.com/dryvist/ansible-splunk/compare/v0.86.1...v0.87.0) (2026-10-03)
+
+
+### Features
+
+* **splunk_docker:** deliver alerts only through the ntfy hub ([d76a7ea](https://github.com/dryvist/ansible-splunk/commit/d76a7eafcdca7a52859538abe7842b8bb47ab256))
+
+## [0.86.1](https://github.com/dryvist/ansible-splunk/compare/v0.86.0...v0.86.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **alerting:** silence and hardware alerts suppress on the matched set ([#622](https://github.com/dryvist/ansible-splunk/issues/622)) ([b3e9d18](https://github.com/dryvist/ansible-splunk/commit/b3e9d180663f8e2828c5f0fcf1fda32b4d3388e5))
+
+## [0.86.0](https://github.com/dryvist/ansible-splunk/compare/v0.85.1...v0.86.0) (2026-10-03)
+
+
+### Features
+
+* **alerting:** gateway WAN transition and down-state alerts ([#619](https://github.com/dryvist/ansible-splunk/issues/619)) ([8dbcb66](https://github.com/dryvist/ansible-splunk/commit/8dbcb662639a4fef79d463dffc300ca20595a071))
+
+## [0.85.1](https://github.com/dryvist/ansible-splunk/compare/v0.85.0...v0.85.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **alerting:** per-host silence baseline from p95 bin gaps ([#617](https://github.com/dryvist/ansible-splunk/issues/617)) ([082c0d5](https://github.com/dryvist/ansible-splunk/commit/082c0d5189a7807e8e7369e7cbbec25d2e9418b2))
+
+## [0.85.0](https://github.com/dryvist/ansible-splunk/compare/v0.84.1...v0.85.0) (2026-10-03)
+
+
+### Features
+
+* **savedsearches:** alert on Mac LLM HAProxy queue saturation or 5xx ([#615](https://github.com/dryvist/ansible-splunk/issues/615)) ([7cc8877](https://github.com/dryvist/ansible-splunk/commit/7cc887708b7efaec2e39da138f636d859a15d7b9))
+
+## [0.84.1](https://github.com/dryvist/ansible-splunk/compare/v0.84.0...v0.84.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **splunk_docker:** per-stanza hub delivery with readable ntfy messages ([#613](https://github.com/dryvist/ansible-splunk/issues/613)) ([bda593e](https://github.com/dryvist/ansible-splunk/commit/bda593ec1cf251d544e29985a2871b1135e4558f))
+
+## [0.84.0](https://github.com/dryvist/ansible-splunk/compare/v0.83.0...v0.84.0) (2026-10-01)
+
+
+### Features
+
+* **alerting:** page on Hindsight bank-DR export/drill failure and silence ([#607](https://github.com/dryvist/ansible-splunk/issues/607)) ([36c58a3](https://github.com/dryvist/ansible-splunk/commit/36c58a31024393e736220dbbf30b53092a8103ba))
+
 ## [0.83.0](https://github.com/dryvist/ansible-splunk/compare/v0.82.1...v0.83.0) (2026-09-28)
 
 

@@ -3,6 +3,7 @@
    ZFS's txg_sync thread (state:D).
 --------------------------------------------------------------------------- #}
 [pve_zfs_io_stall]
+{{ alert_delivery -}}
 description = Fires on a kernel hung-task warning for ZFS's txg_sync thread (state:D).
 search = index=os "state:D" ("txg_sync" OR "blocked for more than")
 dispatch.earliest_time = -10m

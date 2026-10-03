@@ -1,46 +1,16 @@
 ---
-# Alerting is deployed unconditionally (every splunk_docker_silence_detectors
-# entry ships enabled by default), but delivery is gated per-action in
-# savedsearches.conf.j2 on splunk_docker_alert_slack_webhook /
-# splunk_docker_alert_ntfy_url / splunk_docker_alert_zammad_token being
-# non-empty. A missing gate variable used to render an empty [default]
-# stanza with no error -- alerts fired, nobody was told, and the converge
-# still exited 0. Fail loudly instead.
-- name: Assert at least one alert delivery action is configured
+# Alerting is deployed unconditionally, and its only delivery is the ntfy hub
+# webhook. An empty or non-https URL would render a [default] stanza that
+# delivers nowhere while the converge still exits 0, so fail loudly instead.
+# Zammad and Slack are reached through the hub, never directly from Splunk.
+- name: Assert the ntfy hub delivery URL is configured
   ansible.builtin.assert:
     that:
-      - (splunk_docker_alert_slack_webhook | default('') | length > 0) or
-        (splunk_docker_alert_ntfy_url | default('') | length > 0) or
-        (splunk_docker_alert_zammad_token | default('') | length > 0)
+      - splunk_docker_alert_ntfy_url | default('', true) is match('https://')
     fail_msg: >-
-      Alerting is enabled (savedsearches deploy unconditionally) but none of
-      splunk_docker_alert_slack_webhook, splunk_docker_alert_ntfy_url or
-      splunk_docker_alert_zammad_token is set. Every fired alert would
-      deliver nowhere. Set RUNSON_ALERT_SLACK_WEBHOOK_URL, the ntfy URL
-      and/or SPLUNK_ZAMMAD_TOKEN in the converge environment, or explicitly
-      override the gate variable if alerting is intentionally being
-      deployed with no delivery action.
-  tags: [alerting]
-
-# Zammad delivery has no installed alert action anywhere in this repo or any
-# shipped app (Vikunja 2150: needs a Zammad service user, an API token, an
-# OpenBao secret path, and a real action -- none of which exist yet). Slack
-# hit exactly this failure mode: a gate var was accepted, a custom action
-# was declared, and nothing was ever installed to run it -- every alert
-# silently failed delivery for as long as it shipped. Rather than repeat
-# that for Zammad, the channel stays unconfigured until those operator
-# decisions land. Setting the token before then declares a channel with
-# nothing behind it, so fail loudly instead of silently.
-- name: Assert Zammad delivery is not declared before a real action exists
-  ansible.builtin.assert:
-    that:
-      - (splunk_docker_alert_zammad_token | default('') | length == 0)
-    fail_msg: >-
-      splunk_docker_alert_zammad_token is set, but no Zammad alert action is
-      installed anywhere in this role or app (see Vikunja 2150) -- setting
-      it declares a delivery channel that silently fails, the exact defect
-      this file exists to catch for Slack. Do not set this variable until a
-      real Zammad alert action ships.
+      splunk_docker_alert_ntfy_url is not an https URL. Every fired alert
+      would deliver nowhere. Set PROXMOX_SUBDOMAIN in the converge
+      environment, or override splunk_docker_alert_ntfy_url.
   tags: [alerting]
 
 # A silence detector that watches an index Splunk never created cannot ever

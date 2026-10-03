@@ -14,8 +14,9 @@ Guard the two generic silence-detector bugs fixed here:
 2. Flat-threshold bug: a by_host detector applied ONE threshold_minutes to
    every host on the index regardless of that host's normal logging cadence,
    so a naturally-quiet host fires continuously. Fixed by deriving each
-   host's effective threshold from its own observed average inter-event gap
-   (floored at threshold_minutes), with a host_overrides escape hatch.
+   host's effective threshold from the 95th percentile of its own gaps
+   between non-empty 10-minute bins (floored at threshold_minutes), with a
+   host_overrides escape hatch.
 
 A non-by_host entry no longer renders its own stanza -- index_gap_detector
 replaces the flat per-index stanzas with one report; this
@@ -65,7 +66,6 @@ rendered = env.get_template("savedsearches.conf.j2").render(
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
     splunk_docker_alert_ntfy_url=None,
-    splunk_docker_alert_slack_webhook=None,
 )
 
 errors = []
@@ -151,12 +151,12 @@ for det in DETECTORS:
     # 1. Lookback must derive from THIS detector's own threshold, not a flat
     # constant. Assert the exact expected value so a regression to any other
     # hardcoded number (old or new) is caught, not just the specific one fixed.
-    expected_lookback = f"-{det['threshold_minutes'] * MULTIPLIER}m"
+    expected_lookback = f"-{det.get('lookback_minutes', det['threshold_minutes'] * MULTIPLIER)}m"
     m = re.search(r"^dispatch\.earliest_time = (\S+)$", body, re.M)
     if not m or m.group(1) != expected_lookback:
         errors.append(
             f"FAIL: [{name}] dispatch.earliest_time = {m.group(1) if m else 'MISSING'}, "
-            f"expected {expected_lookback} (threshold_minutes x lookback multiplier)"
+            f"expected {expected_lookback} (lookback_minutes, else threshold_minutes x lookback multiplier)"
         )
 
     # 2. by_host detectors must compare against a computed per-host threshold,
@@ -165,10 +165,34 @@ for det in DETECTORS:
         errors.append(
             f"FAIL: [{name}] is by_host but does not gate on host_threshold_minutes"
         )
-    if "avg_gap_minutes" not in body:
+    if "perc95(gap_minutes) as p95_gap_minutes by host" not in body:
         errors.append(
             f"FAIL: [{name}] is by_host but computes no per-host cadence baseline"
         )
+    # 3. The baseline is the p95 of gaps between time bins, not an average
+    # over raw events: an average understates a bursty emitter's real gap
+    # and fires on it between bursts.
+    if "avg_gap_minutes" in body or "by host _time span=10m" not in body:
+        errors.append(
+            f"FAIL: [{name}] baseline is not the per-host p95 gap between 10m bins"
+        )
+    # 4. The min-history filter must not drop the empty-index sentinel row.
+    if "where coalesce(active_bins, " not in body:
+        errors.append(
+            f"FAIL: [{name}] min_active_bins filter would drop the empty-index sentinel"
+        )
+    # 6. One digest notification names every silent host, and suppression is
+    # keyed on that set, so it re-fires when the set changes, not when the
+    # first row's host does.
+    if 'eventstats values(host) as silent_hosts' not in body or not re.search(
+        r"^alert\.suppress\.fields = silent_hosts$", body, re.M
+    ):
+        errors.append(f"FAIL: [{name}] does not suppress on the set of silent hosts")
+    # 5. An event-driven host (p95 gap above max_baseline_minutes) is skipped.
+    if "max_baseline_minutes" in det and (
+        f"coalesce(p95_gap_minutes, 0) <= {det['max_baseline_minutes']}" not in body
+    ):
+        errors.append(f"FAIL: [{name}] ignores its max_baseline_minutes filter")
 
 if errors:
     for err in errors:

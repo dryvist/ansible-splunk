@@ -5,7 +5,7 @@
 # rotates while senders migrate to their per-index tokens (then it is retired).
 splunk_docker_hec_token_values: {}
 
-# HEC namespace UUID for per-index token derivation (from Doppler HEC_NAMESPACE).
+# HEC namespace UUID for per-index token derivation (from HEC_NAMESPACE).
 # Token = 'splunk-hec-<index>' | to_uuid(namespace)  (Ansible core to_uuid =
 # uuid5). Any sender with the same namespace derives the identical token, so no
 # per-index secret is ever stored or shared — only this namespace UUID is.

@@ -74,8 +74,7 @@ untouched.
 
 Cluster-wide vars live in `inventory/group_vars/splunk_cluster.yml`; per-role
 license settings in `splunk_idx.yml` / `splunk_sh.yml` / `splunk_mgmt.yml`. All
-secrets are read with `lookup('env', ...)` — injection-agnostic (no
-Doppler/SOPS/OpenBao baked into the role).
+secrets are read with `lookup('env', ...)`.
 
 ## Converge
 
@@ -90,7 +89,7 @@ Doppler/SOPS/OpenBao baked into the role).
 6. `configure_dmc.yml` on `dmc` — monitoring console.
 
 ```bash
-doppler run -- ansible-playbook -i inventory/hosts.yml playbooks/deploy-cluster.yml
+ansible-playbook -i inventory/hosts.yml playbooks/deploy-cluster.yml
 ```
 
 Required env: `SPLUNK_PASSWORD`, `SPLUNK_PACKAGE_URL_FULL`,

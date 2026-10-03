@@ -10,14 +10,20 @@
    a dead one, and a host that has never emitted has no baseline and is not
    detected.
 
-   Threshold is CADENCE-DERIVED, not the flat det.threshold_minutes: a host's
-   own historical average inter-event gap (avg_gap_minutes, from
-   count/earliest/latest over the same tstats) sets its effective threshold
-   at cadence_multiplier x that gap, floored at det.threshold_minutes so a
-   host with too little history to compute a gap still gets the configured
-   default. A per-host `host_overrides` map (name -> minutes) pins an exact
-   value when the computed baseline is wrong (e.g. a host too new to have a
-   representative average yet). This exists because a single flat threshold
+   Threshold is CADENCE-DERIVED, not the flat det.threshold_minutes: tstats
+   buckets each host's events into 10-minute bins,
+   and the 95th percentile of the gaps between that host's non-empty bins
+   (p95_gap_minutes) times cadence_multiplier is its effective threshold,
+   floored at det.threshold_minutes. A percentile of real gaps follows a
+   bursty emitter (an hourly cron burst) that an average inter-event gap
+   understates. A host with fewer than min_active_bins (default 3)
+   non-empty bins in the lookback has no baseline and is not evaluated, and
+   neither is a host whose p95 gap exceeds max_baseline_minutes (when set):
+   it writes on events, not on a schedule, so its silence means nothing. The
+   empty-index sentinel row below is exempt from both filters. A per-host
+   `host_overrides` map (name -> minutes) pins an exact value when the
+   computed baseline is wrong (e.g. a host too new to have a representative
+   gap history yet). This exists because a single flat threshold
    across hosts of wildly different natural logging cadence fires
    continuously for the quiet-but-healthy ones — see docs/ or the PR that
    added this for the dry-run evidence.
@@ -31,6 +37,7 @@
 --------------------------------------------------------------------------- #}
 {% for det in splunk_docker_silence_detectors | default([]) if det.by_host | default(false) %}
 [{{ det.name }}_silence_detector]
+{{ alert_delivery -}}
 description = Alerts when the {{ det.index }} index has received no events for more than {{ det.threshold_minutes }} minutes{% if det.sourcetype is defined %} (sourcetype={{ det.sourcetype }}){% endif %}{% if det.by_host | default(false) %}, detected per-host against each host's own cadence so a healthy emitter cannot mask a dead one{% endif %}. Catches the emitter, its Cribl pipeline, and Splunk HEC ingestion failing with a single signal.
 {# The appendpipe guard covers the fully-empty-index blind spot: tstats over
    an index/window with zero matching events returns ZERO rows — with by_host
@@ -39,7 +46,7 @@ description = Alerts when the {{ det.index }} index has received no events for m
    without the guard the alert goes quiet exactly when everything is dead.
    stats count on the empty set still yields one count=0 row (an ungrouped
    aggregate always emits a row), which synthesizes the sentinel result. #}
-search = | tstats count as event_count latest(_time) as last_seen{% if det.by_host | default(false) %} earliest(_time) as first_seen{% endif %} WHERE index={{ det.index }}{% if det.sourcetype is defined %} sourcetype={{ det.sourcetype }}{% endif %}{% if det.by_host | default(false) %} by host | appendpipe [ stats count as _rows | where _rows == 0 | eval host = "(no hosts reporting)", last_seen = 0, first_seen = 0, event_count = 0 | fields - _rows ] | eval avg_gap_minutes = if(event_count > 1, (last_seen - first_seen) / 60 / (event_count - 1), null()) | eval host_threshold_minutes = case({% for host, mins in (det.host_overrides | default({})) | dictsort %}host="{{ host }}", {{ mins }}, {% endfor %}true(), max(coalesce(avg_gap_minutes, 0) * {{ det.cadence_multiplier | default(4) }}, {{ det.threshold_minutes }})){% else %} | appendpipe [ stats count as _rows | where _rows == 0 | eval last_seen = 0, event_count = 0 | fields - _rows ]{% endif %} | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > {% if det.by_host | default(false) %}host_threshold_minutes{% else %}{{ det.threshold_minutes }}{% endif +%}
+search = | tstats count as {% if det.by_host | default(false) %}bin_events latest(_time) as bin_last{% else %}event_count latest(_time) as last_seen{% endif %} WHERE index={{ det.index }}{% if det.sourcetype is defined %} sourcetype={{ det.sourcetype }}{% endif %}{% if det.by_host | default(false) %} by host _time span=10m | streamstats current=f window=1 last(_time) as prev_bin by host | eval gap_minutes = (_time - prev_bin) / 60 | stats sum(bin_events) as event_count max(bin_last) as last_seen count as active_bins perc95(gap_minutes) as p95_gap_minutes by host | appendpipe [ stats count as _rows | where _rows == 0 | eval host = "(no hosts reporting)", last_seen = 0, event_count = 0 | fields - _rows ] | where coalesce(active_bins, {{ det.min_active_bins | default(3) }}) >= {{ det.min_active_bins | default(3) }}{% if det.max_baseline_minutes is defined %} AND coalesce(p95_gap_minutes, 0) <= {{ det.max_baseline_minutes }}{% endif %} | eval host_threshold_minutes = case({% for host, mins in (det.host_overrides | default({})) | dictsort %}host="{{ host }}", {{ mins }}, {% endfor %}true(), max(coalesce(p95_gap_minutes, 0) * {{ det.cadence_multiplier | default(3) }}, {{ det.threshold_minutes }})){% else %} | appendpipe [ stats count as _rows | where _rows == 0 | eval last_seen = 0, event_count = 0 | fields - _rows ]{% endif %} | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > {% if det.by_host | default(false) %}host_threshold_minutes | eventstats values(host) as silent_hosts | eval silent_hosts = mvjoin(mvsort(silent_hosts), ","){% else %}{{ det.threshold_minutes }}{% endif +%}
 {# The `+` above is load-bearing. Ansible renders templates with
    trim_blocks=True, which eats the newline that follows a `{% ... %}` block
    tag. This `search =` line ends in one, so without the `+` the comment block
@@ -59,7 +66,9 @@ search = | tstats count as event_count latest(_time) as last_seen{% if det.by_ho
 # the whole index" case above closes only for the fully-empty-index case).
 # Closing that class fully needs comparing against the full host roster
 # (an inventory-diff detector), not a wider tstats lookback; out of scope here.
-dispatch.earliest_time = -{{ (det.threshold_minutes * splunk_docker_silence_lookback_multiplier) | int }}m
+# A detector's lookback_minutes, when set, replaces the derived window: the
+# window is also how long a retired or renamed host keeps firing.
+dispatch.earliest_time = -{{ det.lookback_minutes | default(det.threshold_minutes * splunk_docker_silence_lookback_multiplier) | int }}m
 dispatch.latest_time = now
 cron_schedule = {{ det.cron }}
 enableSched = 1
@@ -69,9 +78,12 @@ alert.severity = 3
 alert.suppress = 1
 alert.suppress.period = {{ det.suppress_minutes }}m
 {% if det.by_host | default(false) %}
-# Scope suppression per host: without this, the first silent host suppresses
-# the alert globally and a second host failing inside the window goes unseen.
-alert.suppress.fields = host
+# Suppress on the whole set of silent hosts (silent_hosts, on every row and so
+# in the one digest notification): the alert fires again as soon as a host
+# joins or leaves the set, and otherwise once per suppress period. Keying on
+# host instead let a digest notification name only its first row's host and
+# re-fire whenever that first row changed.
+alert.suppress.fields = silent_hosts
 {% endif %}
 alert.track = 1
 counttype = number of events
@@ -153,6 +165,7 @@ quantity = 0
 {% set _ = exempt_detectors.append(det) %}
 {% endfor %}
 [index_gap_detector]
+{{ alert_delivery -}}
 description = Alerts when any index has gone silent longer than its configured threshold (default 1440 minutes), using the index's own last-write time rather than event time so a clock-skewed or unparsed sourcetype cannot hide behind a false "recently updated" reading. Replaces the flat per-index silence detectors with one report over every index this role creates. An index flagged exempt (see 11b-silence-exemptions.yml) never fires here regardless of age -- see [index_gap_exempt_report] below for the non-paging visibility into that exempt set.
 search = | tstats max(_indextime) as last_indexed where index=* _index_earliest=-{{ gap_lookback_minutes }}m _index_latest=now by index | append [ | makeresults | eval index="{{ gap_expected_indexes | join(',') }}" | eval index=split(index, ",") | mvexpand index | eval last_indexed=0 ] | stats max(last_indexed) as last_indexed by index | eval age_min = round((now() - last_indexed) / 60) | eval threshold_minutes = case({% for det in flat_detectors %}index="{{ det.index }}", {{ det.threshold_minutes }}, {% endfor %}true(), 1440){% if exempt_detectors %} | eval exempt = if(in(index{% for det in exempt_detectors %}, "{{ det.index }}"{% endfor %}), 1, 0) | where exempt=0 AND age_min > threshold_minutes{% else %} | where age_min > threshold_minutes{% endif %}
 dispatch.earliest_time = -{{ gap_lookback_minutes }}m
@@ -166,7 +179,7 @@ alert.suppress = 1
 alert.suppress.period = 60m
 # Scope suppression per index: without this, the first silent index
 # suppresses the alert globally and a second index going silent inside the
-# window goes unseen -- same reasoning as alert.suppress.fields = host above.
+# window goes unseen.
 alert.suppress.fields = index
 alert.track = 1
 counttype = number of events
@@ -175,6 +188,7 @@ quantity = 0
 
 {% if exempt_detectors %}
 [index_gap_exempt_report]
+{{ alert_delivery -}}
 description = Daily, non-paging visibility into the index_gap_detector exemption list (11b-silence-exemptions.yml): every currently-exempt index with its reason, so an exemption never silently stands unnoticed. Not an alert on a fault -- a healthy run always returns one row per exempt index.
 search = | makeresults | eval data="{% for det in exempt_detectors %}{{ det.index }}|{{ det.exempt_reason | replace('"', "'") }}|{{ det.review_by | default('') }};{% endfor %}" | eval row=split(data, ";") | mvexpand row | search row!="" | eval fields=split(row, "|") | eval index=mvindex(fields, 0), reason=mvindex(fields, 1), review_by=mvindex(fields, 2) | table index reason review_by
 dispatch.earliest_time = -15m

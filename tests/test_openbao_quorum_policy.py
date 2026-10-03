@@ -77,6 +77,7 @@ class QuorumPolicyTests(unittest.TestCase):
             'latest_voters < quorum, "quorum_loss_suspected", '
             'max_voters < expected, "redundancy_degraded", true(), "healthy")',
             'where alert_reason != "healthy"',
+            'eval quorum_state = alert_reason . ":" . coalesce(latest_voters, 0) . "/" . coalesce(expected, 0)',
         ])
         for field in ("voters", "expected"):
             extraction = re.search(r'rex "(' + field + r'=[^"]+)"', SEARCH)
@@ -85,6 +86,8 @@ class QuorumPolicyTests(unittest.TestCase):
             match = re.search(pattern, "voters=4 expected=5")
             assert match is not None
             self.assertEqual(match[field], "4" if field == "voters" else "5")
+        self.assertEqual(RULE["alert.suppress.fields"], "quorum_state")
+        self.assertEqual(RULE["alert.suppress.period"], "4h")
         self.assertEqual(RULE["alert.severity"], "3")
         self.assertEqual(RULE["dispatch.earliest_time"], "-15m")
         self.assertEqual(RULE["cron_schedule"], "*/5 * * * *")

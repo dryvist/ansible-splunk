@@ -15,7 +15,6 @@ Deploy and configure Splunk (Docker) on a Proxmox VM.
 | **Target** | Splunk VM (VMID 200) — addressed from the tofu inventory, or by an explicit `SPLUNK_VM_HOST` |
 | **Role** | `roles/splunk_docker` |
 | **Entry point** | `playbooks/site.yml` |
-| **Secrets** | Doppler |
 | **Version** | See `VERSION` |
 
 ## Pipeline Architecture
@@ -38,22 +37,17 @@ with `direnv allow` — the committed `.envrc` wires up the shell automatically.
 
 ## Usage
 
-Converges run through Semaphore, the execution plane. Its template wrapper
-loads the run environment from OpenBao before the playbook starts. Playbooks
-read plain environment variables and are independent of the secrets manager:
-`.env`, Doppler, OpenBao or any other injector behaves identically.
-`scripts/run-ansible.sh` remains the runner the wrapper calls and the
-break-glass path from a workstation.
+Converges run through Semaphore, the execution plane, using
+`scripts/run-ansible.sh`. Playbooks read plain environment variables.
 
-The commands below are that break-glass path, plus local development and
-testing.
+The commands below are for local development and testing.
 
 ```bash
 # 1. Deploy Splunk
-doppler run -- ansible-playbook playbooks/site.yml
+ansible-playbook playbooks/site.yml
 
 # 2. Validate deployment
-doppler run -- ansible-playbook playbooks/validate.yml
+ansible-playbook playbooks/validate.yml
 ```
 
 ## Custom Indexes
@@ -155,8 +149,7 @@ Key defaults in `roles/splunk_docker/defaults/main/`:
 
 ## Secrets
 
-The playbooks read these as plain environment variables. Semaphore loads them
-from OpenBao; from a workstation any injector supplies them.
+The playbooks read these as plain environment variables.
 
 | Environment variable | Ansible Variable | Purpose |
 | --- | --- | --- |
@@ -165,11 +158,6 @@ from OpenBao; from a workstation any injector supplies them.
 | `SPLUNK_HEC_TOKEN` | `splunk_docker_hec_token_values.legacy` | Shared legacy HEC token (always required) |
 | `SPLUNK_MCP_TOKEN` | — | MCP Server Bearer token (client-side). Minted per managed user by the role — see [Managed service users](#managed-service-users) |
 | `PROXMOX_SSH_KEY_PATH` | — | SSH key for VM access |
-
-```bash
-# Run any playbook with secrets injected
-doppler run -- ansible-playbook playbooks/site.yml
-```
 
 > **Rotating `SPLUNK_PASSWORD`:** the splunk/splunk image seeds the admin password
 > from `SPLUNK_PASSWORD` only on the container's first boot, when
@@ -205,10 +193,10 @@ The minted JWT is the client-side `SPLUNK_MCP_TOKEN` the Splunk MCP Server
 (Splunkbase 7931) accepts as a Bearer token — a Splunk token inherits its
 owner's roles, so searches run with the user's capabilities. Because Splunk
 returns a token's value **only once at creation**, minting is gated on a
-delivery path: set `splunk_docker_token_publish_openbao: true` and provide a
-write-capable OpenBao AppRole (`BAO_ADDR` / `BAO_TOKEN`) so the role merges the
+delivery path: set `splunk_docker_token_publish_openbao: true`; the role reads a
+write-capable token from `BAO_ADDR` / `BAO_TOKEN` and merges the
 canonical `SPLUNK_MCP_URL` and `SPLUNK_MCP_TOKEN` fields into
-`secret/ai/mcp/splunk` without clobbering sibling keys. The AppRole needs KV-v2
+`secret/ai/mcp/splunk` without clobbering sibling keys. The token needs KV-v2
 data read/write, metadata read, and undelete access for that exact path so a
 soft-deleted current version can be recovered before a compare-and-set write.
 The role validates the published JWT's subject, audience, validity window, and
@@ -235,13 +223,13 @@ inventory-derived Splunk FQDN when available and can be overridden with
 ansible-lint
 
 # Syntax check
-doppler run -- ansible-playbook playbooks/site.yml --syntax-check
+ansible-playbook playbooks/site.yml --syntax-check
 
 # Molecule (syntax-only CI test)
 molecule test
 
 # Post-deploy validation
-doppler run -- ansible-playbook playbooks/validate.yml
+ansible-playbook playbooks/validate.yml
 ```
 
 ## Dependencies
@@ -262,7 +250,6 @@ ansible-galaxy install -r requirements.yml
 ### External Services
 
 - **Splunk VM (VMID 200)** — provisioned externally; this repo configures it
-- **Doppler** — secrets management
 - **Proxmox firewall** — network access control (no guest iptables)
 
 ## Links

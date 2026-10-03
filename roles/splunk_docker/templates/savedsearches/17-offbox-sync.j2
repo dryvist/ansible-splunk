@@ -9,11 +9,13 @@
    Job health fires only while the agent is actively reporting (a fact in
    the last 30 minutes), so a closed laptop overnight is silence, not an
    alert. Total silence (no fact at all in the 24h window) fires via the
-   appendpipe sentinel row, job="(none)".
+   appendpipe sentinel row, job="(none)". An age with no underlying fact is
+   null, never measured from the epoch.
 --------------------------------------------------------------------------- #}
 [offbox_sync_job_unhealthy]
+{{ alert_delivery -}}
 description = Fires when a workstation off-box copy job has been reporting for the last 30 minutes without a successful run in 2 hours, or when the agent reports itself misconfigured (it then runs no job at all), or when no fact has arrived for 24 hours. Jobs report every ~6 minutes, so 2 hours is about 20 missed successes. VERIFIED BOTH DIRECTIONS 2026-09-26 against live data: returns 0 rows on the healthy jobs, one row per job when the ok threshold is forced below zero, one row each for a synthetic misconfigured fact and a synthetic failing job with no ok, and one job=(none) row over an empty source.
-search = index=workstation sourcetype=macos:offbox_sync | stats max(eval(if(status="ok",_time,null()))) as last_ok max(_time) as last_fact latest(status) as last_status latest(detail) as detail by host job | appendpipe [ stats count as _rows | where _rows == 0 | eval job = "(none)", last_fact = 0 | fields - _rows ] | eval ok_age_m=round((now()-coalesce(last_ok,0))/60), fact_age_m=round((now()-last_fact)/60) | where job="(none)" OR (fact_age_m < 30 AND ((job="-" AND last_status="misconfigured") OR (job!="-" AND ok_age_m > 120)))
+search = index=workstation sourcetype=macos:offbox_sync | stats max(eval(if(status="ok",_time,null()))) as last_ok max(_time) as last_fact latest(status) as last_status latest(detail) as detail by host job | appendpipe [ stats count as _rows | where _rows == 0 | eval job = "(none)", last_fact = 0 | fields - _rows ] | eval ok_age_m=if(last_ok > 0, round((now()-last_ok)/60), null()) | eval fact_age_m=if(last_fact > 0, round((now()-last_fact)/60), null()) | eval detail=if(job="(none)", "no fact in the 24h window", detail) | where job="(none)" OR (fact_age_m < 30 AND ((job="-" AND last_status="misconfigured") OR (job!="-" AND (isnull(ok_age_m) OR ok_age_m > 120))))
 dispatch.earliest_time = -24h
 dispatch.latest_time = now
 cron_schedule = */15 * * * *

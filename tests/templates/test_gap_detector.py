@@ -77,7 +77,6 @@ rendered = env.get_template("savedsearches.conf.j2").render(
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
     splunk_docker_alert_ntfy_url=None,
-    splunk_docker_alert_slack_webhook=None,
 )
 
 errors = []
