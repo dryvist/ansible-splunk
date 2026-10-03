@@ -78,11 +78,13 @@ quantity = 0
    "nothing good happened" must not go quiet itself when NOTHING happened at
    all (host down, unit dead, export/Cribl route broken). This is also what
    catches the host itself going dark, which a systemd OnFailure= hook on the
-   unit could never see -- a dead host never runs OnFailure= either. #}
+   unit could never see -- a dead host never runs OnFailure= either.
+   With no pass in the window the age is null and last_pass reads "none in
+   the window", never an age measured from the epoch. #}
 [hindsight_bank_export_no_pass]
 {{ alert_delivery -}}
 description = Alerts when no hindsight_bank_export result=pass event has landed in index=hindsight within the last 26 hours. The export unit is nightly; 26h covers one run's full schedule plus slack without paging on ordinary jitter. Also fires if the run failed (already paged by hindsight_bank_export_failed) or if the host/unit/log route is dark entirely.
-search = index=hindsight sourcetype=hindsight:app _index_earliest=-26h _index_latest=now | rex field=_raw "(?<j>\{.*\})" | spath input=j | where event="hindsight_bank_export" AND result="pass" | stats max(_time) as last_pass | appendpipe [ stats count as _rows | where _rows == 0 | eval last_pass = 0 | fields - _rows ] | eval hours_since_pass = round((now() - last_pass) / 3600, 1) | where hours_since_pass > 26
+search = index=hindsight sourcetype=hindsight:app _index_earliest=-26h _index_latest=now | rex field=_raw "(?<j>\{.*\})" | spath input=j | where event="hindsight_bank_export" AND result="pass" | stats max(_time) as last_pass | appendpipe [ stats count as _rows | where _rows == 0 | eval last_pass = 0 | fields - _rows ] | eval last_pass = coalesce(last_pass, 0) | eval hours_since_pass = if(last_pass > 0, round((now() - last_pass) / 3600, 1), null()) | where isnull(hours_since_pass) OR hours_since_pass > 26 | eval last_pass = if(last_pass > 0, strftime(last_pass, "%F %T %Z"), "none in the 26h window")
 dispatch.earliest_time = -26h
 dispatch.latest_time = now
 cron_schedule = */30 * * * *
@@ -100,7 +102,7 @@ quantity = 0
 [hindsight_dr_drill_no_pass]
 {{ alert_delivery -}}
 description = Alerts when no hindsight_dr_drill result=pass event has landed in index=hindsight within the last 8 days. The drill unit is weekly; 8 days covers one run's full schedule plus slack without paging on ordinary jitter. Also fires if the run failed (already paged by hindsight_dr_drill_failed) or if the host/unit/log route is dark entirely.
-search = index=hindsight sourcetype=hindsight:app _index_earliest=-8d _index_latest=now | rex field=_raw "(?<j>\{.*\})" | spath input=j | where event="hindsight_dr_drill" AND result="pass" | stats max(_time) as last_pass | appendpipe [ stats count as _rows | where _rows == 0 | eval last_pass = 0 | fields - _rows ] | eval days_since_pass = round((now() - last_pass) / 86400, 1) | where days_since_pass > 8
+search = index=hindsight sourcetype=hindsight:app _index_earliest=-8d _index_latest=now | rex field=_raw "(?<j>\{.*\})" | spath input=j | where event="hindsight_dr_drill" AND result="pass" | stats max(_time) as last_pass | appendpipe [ stats count as _rows | where _rows == 0 | eval last_pass = 0 | fields - _rows ] | eval last_pass = coalesce(last_pass, 0) | eval days_since_pass = if(last_pass > 0, round((now() - last_pass) / 86400, 1), null()) | where isnull(days_since_pass) OR days_since_pass > 8 | eval last_pass = if(last_pass > 0, strftime(last_pass, "%F %T %Z"), "none in the 8d window")
 dispatch.earliest_time = -8d
 dispatch.latest_time = now
 cron_schedule = 0 */2 * * *

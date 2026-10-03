@@ -122,7 +122,7 @@ def _parse_case_thresholds(search, field_name):
     """Parse `eval {field_name} = case(index="a", N, index="b", M, ...,
     true(), D)` into ({index: N, ...}, D). Returns None when no such eval is
     present, or when the true() fallback is not a plain number (e.g. the
-    by_host cadence case()'s `max(coalesce(avg_gap_minutes, 0) * k, floor)`)
+    by_host cadence case()'s `max(coalesce(p95_gap_minutes, 0) * k, floor)`)
     -- in which case the caller falls back to the old always-0.0 behaviour,
     unchanged for that shape."""
     m = re.search(rf"eval {re.escape(field_name)} = case\((.*)\)", search)
