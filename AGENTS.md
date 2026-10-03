@@ -43,9 +43,9 @@ for ancillary services — those belong in `ansible-proxmox-apps` as LXC.
   token from `inputs.conf` and cause a live ingest outage on restart.
   `SPLUNK_HEC_TOKEN` is the separate shared legacy token, also required.
 - **HEC transport**: HTTPS (Splunk Docker image default, SSL enabled).
-- **Secrets**: Deployment inputs come from Doppler (`doppler run --`). The role
-  publishes the shared Splunk MCP connection to OpenBao
-  `secret/ai/mcp/splunk` when explicitly enabled.
+- **Secrets**: Deployment inputs are environment variables loaded from a
+  `.env` file. The role publishes the shared Splunk MCP connection to the
+  secret store when explicitly enabled.
 
 ## Dependencies
 
@@ -55,7 +55,7 @@ for ancillary services — those belong in `ansible-proxmox-apps` as LXC.
   publishes the `ansible_inventory` output to homelab RustFS on every apply.
   `inventory/load_tofu.yml` resolves it: `TOFU_INVENTORY_PATH` (explicit
   pin) → RustFS artifact (native `amazon.aws`, credentials read directly from
-  OpenBao `secret/platform/object-storage`; override:
+  the secret store; override:
   `TOFU_INVENTORY_S3_URI`) → static fallback (`SPLUNK_VM_HOST`, named
   explicitly — the VM's hostname is declared once in `deployment.json` and is
   never defaulted here). There is **no local-cache step** — see "Inventory
@@ -93,7 +93,7 @@ documented once at
 
 ### External services
 
-- **Doppler**: Secrets for `SPLUNK_PASSWORD`, `HEC_NAMESPACE`,
+- **Environment (`.env`)**: `SPLUNK_PASSWORD`, `HEC_NAMESPACE`,
   `SPLUNK_HEC_TOKEN`, `PROXMOX_SSH_KEY_PATH`,
   `OBJECT_STORAGE_ROOT_USER`, `OBJECT_STORAGE_ROOT_PASSWORD`.
 
@@ -121,21 +121,13 @@ documented once at
 
 ## Commands
 
-`doppler run` supplies `BAO_ADDR` but **not** `BAO_TOKEN`. Without a token the
+The inventory loader needs a read token for the secret store in `BAO_TOKEN`.
+`scripts/run-ansible.sh` sets one for the run. Running `ansible-playbook`
+directly, set it yourself, and never write it to a file. Without a token the
 loader cannot read the object-storage credential, so it cannot fetch the
 published inventory. It does not stop. It falls back to the static host entry
 in `hosts.yml`, and the run dies later on `'tofu_data' is undefined` — after it
 has already written config. There is no prompt and no warning.
-
-Mint a read token in the same invocation. Reads are pre-authorized, so this
-needs no approval. Never write the token to a file:
-
-```bash
-export BAO_TOKEN=$(doppler run -- bash -c 'curl -sS -X POST \
-  -d "{\"role_id\":\"$OPENBAO_APPROLE_ANSIBLE_ROLE_ID\",\"secret_id\":\"$OPENBAO_APPROLE_ANSIBLE_SECRET_ID\"}" \
-  "$BAO_ADDR/v1/auth/approle/login"' \
-  | python3 -c 'import sys,json;print(json.load(sys.stdin)["auth"]["client_token"])')
-```
 
 To tell which path a run took, read the host name in the play output: the
 dynamic path yields the real inventory name, the static fallback yields the
@@ -145,22 +137,21 @@ This is a *read* credential. It is unrelated to the elevated token that writing
 the desired-state object needs — that path is `flow-lock`, and no converge
 should ever take that lease.
 
-Converges run through Semaphore, the execution plane. Its template wrapper
-loads the run environment from OpenBao before the playbook starts. Playbooks
-read plain environment variables and are independent of the secrets manager:
-`.env`, Doppler, OpenBao or any other injector behaves identically.
-`scripts/run-ansible.sh` remains the runner the wrapper calls and the
-break-glass path from a workstation.
+Playbooks read plain environment variables. Load them from a `.env` file
+before running; any other way of setting the same variables behaves
+identically.
 
 ```bash
+set -a; . ./.env; set +a
+
 # Full deployment (object storage → Splunk VM, direct target-side pull)
-doppler run -- ansible-playbook playbooks/site.yml
+ansible-playbook playbooks/site.yml
 
 # Sync Splunkbase → object storage (run before site.yml when versions bumped)
-doppler run -- ansible-playbook playbooks/sync-splunkbase.yml
+ansible-playbook playbooks/sync-splunkbase.yml
 
 # Validate deployment
-doppler run -- ansible-playbook playbooks/validate.yml
+ansible-playbook playbooks/validate.yml
 
 # Lint
 ansible-lint
@@ -186,7 +177,7 @@ multiple endpoints, keep these speed options in mind:
 
 - **Health check fails**: Check container logs with `docker logs splunk`.
 - **Apps not visible**: Verify ownership is UID 41812.
-- **HEC not working**: Confirm `SPLUNK_HEC_TOKEN` in Doppler; set
+- **HEC not working**: Confirm `SPLUNK_HEC_TOKEN` is set in the environment; set
   `HEC_NAMESPACE` for per-index tokens.
 - **MCP Server not responding**: Verify token minting via the app's
   `/services/mcp_token` endpoint; confirm port 8089 is accessible and
@@ -195,15 +186,15 @@ multiple endpoints, keep these speed options in mind:
 ### Adding Splunkbase apps
 
 1. Add the app entry to `roles/splunk_docker/vars/addons.yml` under `splunk_docker_addons` with its `filename`, `app_dir`, and `splunkbase_id`.
-2. Sync the app to object storage: `doppler run -- ansible-playbook playbooks/sync-splunkbase.yml`.
-3. Re-run `doppler run -- ansible-playbook playbooks/site.yml`.
+2. Sync the app to object storage: `ansible-playbook playbooks/sync-splunkbase.yml`.
+3. Re-run `ansible-playbook playbooks/site.yml`.
 
 ### Adding custom add-ons
 
 1. Package the custom add-on as a version-free `.tar` archive.
 2. Upload the archive to object storage (e.g. using `aws s3 cp`) and tag it with `version=X.Y.Z`.
 3. Add the entry to `roles/splunk_docker/vars/addons.yml` without a `splunkbase_id`.
-4. Re-run `doppler run -- ansible-playbook playbooks/site.yml`.
+4. Re-run `ansible-playbook playbooks/site.yml`.
 
 ## Artifact store (object-storage / RustFS)
 
@@ -212,7 +203,7 @@ pulls over the LAN are served from a self-hosted S3-compatible object-storage
 instance (RustFS LXC). Endpoint and port come from the
 OpenTofu inventory (`tofu_data.constants.service_ports.object_storage_s3`);
 bucket-write auth is `OBJECT_STORAGE_ROOT_USER` / `OBJECT_STORAGE_ROOT_PASSWORD`
-from Doppler.
+from the environment.
 
 - Bucket: `splunk-addons` (anonymous read on internal network).
 - Add-ons with `artifact_store: true` in `vars/custom_addons.yml`
@@ -223,7 +214,7 @@ from Doppler.
   no application-managed archive path is used.
 - Current Splunkbase objects carry `channel=latest`, `version`, and
   `splunkbase_id` tags.
-- Run `doppler run -- ansible-playbook playbooks/sync-splunkbase.yml -e
+- Run `ansible-playbook playbooks/sync-splunkbase.yml -e
   splunkbase_update_scope=official_ai` to update the priority official AI scope
   without removing unrelated manifest entries.
 - See `roles/splunk_docker/files/README.md` for upload instructions.
@@ -242,16 +233,17 @@ Configure the MCP client in `dryvist/nix-ai` (`modules/mcp/`).
 
 ## Secrets management
 
-Deployment secrets are retrieved from Doppler at runtime. The Splunk MCP
-connection is an output published to OpenBao when explicitly enabled:
+Deployment secrets are read from environment variables at runtime. The Splunk
+MCP connection is an output published to the secret store when explicitly
+enabled:
 
 | Secret | Purpose |
 | --- | --- |
 | `SPLUNK_PASSWORD` | Admin password |
 | `HEC_NAMESPACE` | UUID namespace for per-index HEC token derivation (required) |
 | `SPLUNK_HEC_TOKEN` | Shared legacy HEC token (always required) |
-| `SPLUNK_MCP_TOKEN` | Client-side MCP Bearer token minted per managed user and published with `SPLUNK_MCP_URL` to OpenBao `secret/ai/mcp/splunk` |
-| svc-mcp-rotator creds | Basic-auth credential for the scheduled rotator that mints/revokes MCP tokens; published to `secret/apps/splunk-rotator` |
+| `SPLUNK_MCP_TOKEN` | Client-side MCP Bearer token minted per managed user and published with `SPLUNK_MCP_URL` to the secret store |
+| svc-mcp-rotator creds | Basic-auth credential for the scheduled rotator that mints/revokes MCP tokens; published to the secret store |
 | `PROXMOX_SSH_KEY_PATH` | SSH key for VM access |
 | `SPLUNK_LICENSE` | Raw `.lic` XML for the cluster license master; required — clustering cannot run on a Free license. Re-applied on every converge |
 
