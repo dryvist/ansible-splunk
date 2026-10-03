@@ -15,7 +15,7 @@
        land a 5xx on the llm_wait frontend in this topology, so code="5xx"
        is the finest-grained match for "a 503" the exporter exposes.
 
-   Frontend/backend names are ansible-proxmox-ai's local-queue-cfg.nix:
+   Frontend/backend names are nix-ai's modules/mlx/local-queue-cfg.nix:
    llm_wait queues per backend (one backend per resident/swapped model) and
    answers HAProxy's own 503 after `timeout queue`; llm_direct never queues.
 --------------------------------------------------------------------------- #}
