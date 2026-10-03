@@ -182,6 +182,13 @@ for det in DETECTORS:
         errors.append(
             f"FAIL: [{name}] min_active_bins filter would drop the empty-index sentinel"
         )
+    # 6. One digest notification names every silent host, and suppression is
+    # keyed on that set, so it re-fires when the set changes, not when the
+    # first row's host does.
+    if 'eventstats values(host) as silent_hosts' not in body or not re.search(
+        r"^alert\.suppress\.fields = silent_hosts$", body, re.M
+    ):
+        errors.append(f"FAIL: [{name}] does not suppress on the set of silent hosts")
     # 5. An event-driven host (p95 gap above max_baseline_minutes) is skipped.
     if "max_baseline_minutes" in det and (
         f"coalesce(p95_gap_minutes, 0) <= {det['max_baseline_minutes']}" not in body

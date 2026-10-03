@@ -46,7 +46,7 @@ description = Alerts when the {{ det.index }} index has received no events for m
    without the guard the alert goes quiet exactly when everything is dead.
    stats count on the empty set still yields one count=0 row (an ungrouped
    aggregate always emits a row), which synthesizes the sentinel result. #}
-search = | tstats count as {% if det.by_host | default(false) %}bin_events latest(_time) as bin_last{% else %}event_count latest(_time) as last_seen{% endif %} WHERE index={{ det.index }}{% if det.sourcetype is defined %} sourcetype={{ det.sourcetype }}{% endif %}{% if det.by_host | default(false) %} by host _time span=10m | streamstats current=f window=1 last(_time) as prev_bin by host | eval gap_minutes = (_time - prev_bin) / 60 | stats sum(bin_events) as event_count max(bin_last) as last_seen count as active_bins perc95(gap_minutes) as p95_gap_minutes by host | appendpipe [ stats count as _rows | where _rows == 0 | eval host = "(no hosts reporting)", last_seen = 0, event_count = 0 | fields - _rows ] | where coalesce(active_bins, {{ det.min_active_bins | default(3) }}) >= {{ det.min_active_bins | default(3) }}{% if det.max_baseline_minutes is defined %} AND coalesce(p95_gap_minutes, 0) <= {{ det.max_baseline_minutes }}{% endif %} | eval host_threshold_minutes = case({% for host, mins in (det.host_overrides | default({})) | dictsort %}host="{{ host }}", {{ mins }}, {% endfor %}true(), max(coalesce(p95_gap_minutes, 0) * {{ det.cadence_multiplier | default(2) }}, {{ det.threshold_minutes }})){% else %} | appendpipe [ stats count as _rows | where _rows == 0 | eval last_seen = 0, event_count = 0 | fields - _rows ]{% endif %} | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > {% if det.by_host | default(false) %}host_threshold_minutes{% else %}{{ det.threshold_minutes }}{% endif +%}
+search = | tstats count as {% if det.by_host | default(false) %}bin_events latest(_time) as bin_last{% else %}event_count latest(_time) as last_seen{% endif %} WHERE index={{ det.index }}{% if det.sourcetype is defined %} sourcetype={{ det.sourcetype }}{% endif %}{% if det.by_host | default(false) %} by host _time span=10m | streamstats current=f window=1 last(_time) as prev_bin by host | eval gap_minutes = (_time - prev_bin) / 60 | stats sum(bin_events) as event_count max(bin_last) as last_seen count as active_bins perc95(gap_minutes) as p95_gap_minutes by host | appendpipe [ stats count as _rows | where _rows == 0 | eval host = "(no hosts reporting)", last_seen = 0, event_count = 0 | fields - _rows ] | where coalesce(active_bins, {{ det.min_active_bins | default(3) }}) >= {{ det.min_active_bins | default(3) }}{% if det.max_baseline_minutes is defined %} AND coalesce(p95_gap_minutes, 0) <= {{ det.max_baseline_minutes }}{% endif %} | eval host_threshold_minutes = case({% for host, mins in (det.host_overrides | default({})) | dictsort %}host="{{ host }}", {{ mins }}, {% endfor %}true(), max(coalesce(p95_gap_minutes, 0) * {{ det.cadence_multiplier | default(3) }}, {{ det.threshold_minutes }})){% else %} | appendpipe [ stats count as _rows | where _rows == 0 | eval last_seen = 0, event_count = 0 | fields - _rows ]{% endif %} | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > {% if det.by_host | default(false) %}host_threshold_minutes | eventstats values(host) as silent_hosts | eval silent_hosts = mvjoin(mvsort(silent_hosts), ","){% else %}{{ det.threshold_minutes }}{% endif +%}
 {# The `+` above is load-bearing. Ansible renders templates with
    trim_blocks=True, which eats the newline that follows a `{% ... %}` block
    tag. This `search =` line ends in one, so without the `+` the comment block
@@ -78,9 +78,12 @@ alert.severity = 3
 alert.suppress = 1
 alert.suppress.period = {{ det.suppress_minutes }}m
 {% if det.by_host | default(false) %}
-# Scope suppression per host: without this, the first silent host suppresses
-# the alert globally and a second host failing inside the window goes unseen.
-alert.suppress.fields = host
+# Suppress on the whole set of silent hosts (silent_hosts, on every row and so
+# in the one digest notification): the alert fires again as soon as a host
+# joins or leaves the set, and otherwise once per suppress period. Keying on
+# host instead let a digest notification name only its first row's host and
+# re-fire whenever that first row changed.
+alert.suppress.fields = silent_hosts
 {% endif %}
 alert.track = 1
 counttype = number of events
@@ -176,7 +179,7 @@ alert.suppress = 1
 alert.suppress.period = 60m
 # Scope suppression per index: without this, the first silent index
 # suppresses the alert globally and a second index going silent inside the
-# window goes unseen -- same reasoning as alert.suppress.fields = host above.
+# window goes unseen.
 alert.suppress.fields = index
 alert.track = 1
 counttype = number of events
