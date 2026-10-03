@@ -43,9 +43,9 @@ for ancillary services — those belong in `ansible-proxmox-apps` as LXC.
   token from `inputs.conf` and cause a live ingest outage on restart.
   `SPLUNK_HEC_TOKEN` is the separate shared legacy token, also required.
 - **HEC transport**: HTTPS (Splunk Docker image default, SSL enabled).
-- **Secrets**: Deployment inputs are environment variables loaded from a
-  `.env` file. The role publishes the shared Splunk MCP connection to the
-  secret store when explicitly enabled.
+- **Secrets**: Deployment inputs are environment variables. The role
+  publishes the shared Splunk MCP connection to the secret store when
+  explicitly enabled.
 
 ## Dependencies
 
@@ -93,7 +93,7 @@ documented once at
 
 ### External services
 
-- **Environment (`.env`)**: `SPLUNK_PASSWORD`, `HEC_NAMESPACE`,
+- **Environment**: `SPLUNK_PASSWORD`, `HEC_NAMESPACE`,
   `SPLUNK_HEC_TOKEN`, `PROXMOX_SSH_KEY_PATH`,
   `OBJECT_STORAGE_ROOT_USER`, `OBJECT_STORAGE_ROOT_PASSWORD`.
 
@@ -121,11 +121,11 @@ documented once at
 
 ## Commands
 
-The inventory loader needs a read token for the secret store in `BAO_TOKEN`.
+The inventory loader reads a secret-store read token from `BAO_TOKEN`.
 `scripts/run-ansible.sh` sets one for the run. Running `ansible-playbook`
-directly, set it yourself, and never write it to a file. Without a token the
-loader cannot read the object-storage credential, so it cannot fetch the
-published inventory. It does not stop. It falls back to the static host entry
+directly requires `BAO_TOKEN` in the environment; never write it to a file.
+Without a token the loader cannot read the object-storage credential, so it
+cannot fetch the published inventory. It does not stop. It falls back to the static host entry
 in `hosts.yml`, and the run dies later on `'tofu_data' is undefined` — after it
 has already written config. There is no prompt and no warning.
 
@@ -137,13 +137,9 @@ This is a *read* credential. It is unrelated to the elevated token that writing
 the desired-state object needs — that path is `flow-lock`, and no converge
 should ever take that lease.
 
-Playbooks read plain environment variables. Load them from a `.env` file
-before running; any other way of setting the same variables behaves
-identically.
+Playbooks read plain environment variables.
 
 ```bash
-set -a; . ./.env; set +a
-
 # Full deployment (object storage → Splunk VM, direct target-side pull)
 ansible-playbook playbooks/site.yml
 
