@@ -39,7 +39,7 @@
 #                       can't mask a dead one, using each host's own cadence
 #                       (see threshold_minutes above). Note: a host that has
 #                       never emitted has no baseline and cannot be detected.
-#   cadence_multiplier — by_host only, optional, default 2. Multiplies a
+#   cadence_multiplier — by_host only, optional, default 3. Multiplies a
 #                       host's 95th-percentile gap between non-empty
 #                       10-minute bins to get its effective threshold.
 #   min_active_bins   — by_host only, optional, default 3. A host with fewer
