@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.85.1](https://github.com/dryvist/ansible-splunk/compare/v0.85.0...v0.85.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **alerting:** per-host silence baseline from p95 bin gaps ([#617](https://github.com/dryvist/ansible-splunk/issues/617)) ([082c0d5](https://github.com/dryvist/ansible-splunk/commit/082c0d5189a7807e8e7369e7cbbec25d2e9418b2))
+
 ## [0.85.0](https://github.com/dryvist/ansible-splunk/compare/v0.84.1...v0.85.0) (2026-10-03)
 
 
