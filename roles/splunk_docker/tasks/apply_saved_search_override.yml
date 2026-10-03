@@ -13,7 +13,6 @@
       }}/saved/searches/{{ splunk_override.name | urlencode }}
     splunk_docker_saved_search_wanted: >-
       {{ splunk_override.settings
-         | combine(splunk_docker_saved_search_delivery_slack if splunk_docker_alert_slack_webhook else {})
          | combine(splunk_docker_saved_search_delivery_ntfy if splunk_docker_alert_ntfy_url else {}) }}
 
 - name: "Read saved search {{ splunk_override.name }}"

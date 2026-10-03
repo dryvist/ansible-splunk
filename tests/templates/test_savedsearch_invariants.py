@@ -59,7 +59,6 @@ rendered = template.render(
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
     splunk_docker_alert_ntfy_url=None,
-    splunk_docker_alert_slack_webhook=None,
 )
 
 errors = []
@@ -83,7 +82,6 @@ delivered = template.render(
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
     splunk_docker_alert_ntfy_url="https://ntfy.example.test/keystone",
     splunk_docker_alert_ntfy_query=DEFAULTS["splunk_docker_alert_ntfy_query"],
-    splunk_docker_alert_slack_webhook=None,
 )
 if re.search(r"^\[default\]$", delivered, re.M):
     errors.append("FAIL: a [default] stanza is rendered; it would export actions to every app")
