@@ -47,9 +47,7 @@ stanzas = {
     m.group(1): m.group(2)
     for m in re.finditer(r"^\[(\S+)\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S)
 }
-allowlist = [
-    v for k, v in re.findall(r"^(allowlist\.\S+) = (.*)$", actions, re.M)
-]
+allowlist = re.findall(r"^allowlist\.\S+ = (.*)$", actions, re.M)
 
 
 def value(body, key):
