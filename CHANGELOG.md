@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.88.0](https://github.com/dryvist/ansible-splunk/compare/v0.87.0...v0.88.0) (2026-10-04)
+
+
+### Features
+
+* **indexes:** add the openrouter index ([a9a2cac](https://github.com/dryvist/ansible-splunk/commit/a9a2cac7f6a97ba1e0e10b5a15e80432186d700f))
+* **indexes:** add the openrouter index ([6f8b62a](https://github.com/dryvist/ansible-splunk/commit/6f8b62ad95f85eadd09c8fa9863d2a861b954008))
+
+
+### Bug Fixes
+
+* **savedsearches:** page each silent host once per suppress period ([afdae3b](https://github.com/dryvist/ansible-splunk/commit/afdae3b7e199535294d187b88ca0fe955bf464d5))
+* **savedsearches:** page each silent host once per suppress period ([46fcb68](https://github.com/dryvist/ansible-splunk/commit/46fcb68c424bcc68642aab1c1f59134c52c3a23f))
+
 ## [0.87.0](https://github.com/dryvist/ansible-splunk/compare/v0.86.1...v0.87.0) (2026-10-03)
 
 
