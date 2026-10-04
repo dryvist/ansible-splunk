@@ -78,12 +78,12 @@ alert.severity = 3
 alert.suppress = 1
 alert.suppress.period = {{ det.suppress_minutes }}m
 {% if det.by_host | default(false) %}
-# Suppress on the whole set of silent hosts (silent_hosts, on every row and so
-# in the one digest notification): the alert fires again as soon as a host
-# joins or leaves the set, and otherwise once per suppress period. Keying on
-# host instead let a digest notification name only its first row's host and
-# re-fire whenever that first row changed.
-alert.suppress.fields = silent_hosts
+# One notification per silent host, suppressed per host: each host pages once
+# per suppress period. Keying a digest on the whole silent set re-paged every
+# host whenever any one host joined or left the set. silent_hosts stays on
+# every row so each notification still names the full set.
+alert.digest_mode = 0
+alert.suppress.fields = host
 {% endif %}
 alert.track = 1
 counttype = number of events
