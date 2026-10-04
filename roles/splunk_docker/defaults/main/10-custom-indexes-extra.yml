@@ -59,6 +59,12 @@ splunk_docker_indexes_extra:
   - name: openbao_audit
     max_size_mb: "{{ splunk_docker_index_default_max_size_mb }}"
     frozen_time_secs: "{{ splunk_docker_index_default_frozen_time_secs }}"
+  # openrouter: provider-side usage, credit and key-inventory snapshots polled
+  # from the OpenRouter API by a Cribl Stream REST Collector. Low volume: a
+  # few hundred events per day.
+  - name: openrouter
+    max_size_mb: 2500
+    frozen_time_secs: "{{ splunk_docker_index_default_frozen_time_secs }}"
   # otel_traces: every OTLP trace span, via Cribl Stream in_otel -> otel_stamp.
   # Events, not metrics. This is the SOLE trace index. A second `otel` index
   # once existed to hold LLM-fabric spans apart from agent-tooling spans, but
