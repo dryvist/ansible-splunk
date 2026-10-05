@@ -1,0 +1,16 @@
+{# ---------------------------------------------------------------------------
+   Post-reboot forensic context for PVE node_exporter metrics.
+
+   A changed node_boot_time_seconds value identifies a reboot after it occurs.
+   At one-minute metric resolution, the search returns the 15 full minute
+   buckets immediately before each retained boot minute; it does not predict
+   a reboot or send a notification. The history matches host_metrics'
+   90-day retention.
+--------------------------------------------------------------------------- #}
+[pve_node_reboot_forensics]
+description = Post-reboot forensic context: detects changed node_boot_time_seconds values in the retained host_metrics window and returns the 15 full PVE node load and available-memory metric buckets immediately before each boot minute at one-minute resolution. This is not a reboot prediction or notification.
+search = | mstats latest(node_boot_time_seconds) as boot_time latest(node_load5) as load_5m latest(node_memory_MemAvailable_bytes) as memory_available_bytes WHERE index=host_metrics sourcetype=node_exporter earliest=-90d latest=now span=1m BY host | sort 0 host _time | streamstats current=f last(boot_time) as prior_boot_time BY host | eval reboot_pair=if(isnotnull(prior_boot_time) AND boot_time!=prior_boot_time, tostring(boot_time).":".tostring(prior_boot_time), null()) | eventstats values(reboot_pair) as reboot_pairs BY host | mvexpand reboot_pairs | eval reboot_epoch=tonumber(mvindex(split(reboot_pairs, ":"), 0)), prior_boot_epoch=tonumber(mvindex(split(reboot_pairs, ":"), 1)), window_start=floor((reboot_epoch-900)/60)*60, window_end=floor(reboot_epoch/60)*60 | where _time >= window_start AND _time < window_end | eval reboot_at=strftime(reboot_epoch, "%F %T %Z"), prior_boot_at=strftime(prior_boot_epoch, "%F %T %Z"), memory_available_gib=round(memory_available_bytes/1073741824, 1) | table _time host reboot_at prior_boot_at load_5m memory_available_gib
+dispatch.earliest_time = -90d
+dispatch.latest_time = now
+is_visible = 1
+disabled = 0
