@@ -82,6 +82,7 @@ splunk_docker_addons:
   #     --key slack-add-on-for-splunk.tar --tagging 'TagSet=[{Key=version,Value=3.0.0}]'
   - {filename: slack-add-on-for-splunk.tar, app_dir: TA-slack-add-on-for-splunk}
 
-  # --- GitHub Releases: JacobPEvans/<repo>/releases/latest ---
+  # --- GitHub Releases: releases/latest ---
   - {filename: VisiCore_TA_AI_Observability.spl, app_dir: VisiCore_TA_AI_Observability, github_repo: JacobPEvans/VisiCore_TA_AI_Observability}
   - {filename: VisiCore_App_for_AI_Observability.spl, app_dir: VisiCore_App_for_AI_Observability, github_repo: JacobPEvans/VisiCore_App_for_AI_Observability}
+  - {filename: splunk-homelab-alerts.tar, app_dir: splunk-homelab-alerts, github_repo: dryvist/splunk-homelab-alerts}
