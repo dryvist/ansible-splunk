@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.89.0](https://github.com/dryvist/ansible-splunk/compare/v0.88.0...v0.89.0) (2026-10-05)
+
+
+### Features
+
+* **splunk:** add daily LLM token usage search ([807355a](https://github.com/dryvist/ansible-splunk/commit/807355a02306e182463c787582d57006332481f6))
+* **splunk:** add daily LLM token usage search ([85523ff](https://github.com/dryvist/ansible-splunk/commit/85523ffa867acd60649653a3e9a7313a320afcab))
+* **splunk:** install packaged token usage report ([4878987](https://github.com/dryvist/ansible-splunk/commit/487898727247646bdf0033080ad5c96901d02cbe))
+
+
+### Bug Fixes
+
+* **splunk:** group token usage by daily span ([ad450e3](https://github.com/dryvist/ansible-splunk/commit/ad450e36e84c350e4801ee09e74f6caa99decf15))
+
 ## [0.88.0](https://github.com/dryvist/ansible-splunk/compare/v0.87.0...v0.88.0) (2026-10-04)
 
 
