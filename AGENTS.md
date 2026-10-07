@@ -1,5 +1,5 @@
 ---
-skill-groups: [core, review]
+skill-groups: [core, review, observability]
 ---
 # ansible-splunk - AI Agent Documentation
 
