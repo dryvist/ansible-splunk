@@ -59,7 +59,7 @@ verifier:
   name: ansible
 
 scenario:
-  name: default
+  name: ci
   test_sequence:
     - dependency
     - cleanup

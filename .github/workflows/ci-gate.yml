@@ -39,11 +39,14 @@ jobs:
       # same dirs the retired local lint job used.
       lint_args: "playbooks/ roles/"
       molecule_requirements: requirements-ci.txt
-      # The sole scenario follows changes to its role and scenario directory.
+      # Pull requests use the focused scenario; pushes to main run the full
+      # default scenario through the shared workflow's branch scope.
       molecule_scenario_filters: |
-        default:
+        ci:
           - 'roles/splunk_docker/**'
           - 'molecule/default/**'
+          - 'molecule/ci/**'
+          - '.github/workflows/ci-gate.yml'
 
   data-contract:
     name: Data Contract
