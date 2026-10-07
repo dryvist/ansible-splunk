@@ -269,3 +269,14 @@ rules to work around stale tooling.
 | `dryvist/ansible-proxmox-apps` | Peer: owns Cribl (sends to HEC), deploys the object storage (RustFS) |
 | `dryvist/ansible-proxmox` | Peer: Proxmox host config |
 | `dryvist/nix-ai` | MCP client configuration (`modules/mcp/`) |
+
+## CI
+
+This trunk-flow repository targets `main`: pull requests into `main` and
+non-PR runs use the full matrix. The shared workflow selects changed-role
+scenarios for repositories with a `develop` branch. Shared Ansible inputs and
+unclassified role/scenario paths widen to the full matrix; CI-harness-only
+changes use the repository's smoke scenario. Required validation is aggregated
+by `Merge Gate`. Public pull-request CI stays on GitHub-hosted runners.
+
+See the canonical policy in the `dryvist/.github` README, “Ansible CI policy.”
