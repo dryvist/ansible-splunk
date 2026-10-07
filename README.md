@@ -263,3 +263,13 @@ ansible-galaxy install -r requirements.yml
 ---
 
 > Part of a [larger ecosystem of ~40 repos](https://docs.jacobpevans.com) — see how it all fits together.
+
+## CI
+
+Pull requests into `develop` use changed-role Molecule selection with lint,
+syntax, and contract checks. Pull requests into `main` and non-PR runs use the
+full matrix. Required validation is aggregated by `Merge Gate`; shared or
+unclassified changes widen to the full matrix. Public pull-request CI stays on
+GitHub-hosted runners.
+
+See the canonical policy in the `dryvist/.github` README, “Ansible CI policy.”

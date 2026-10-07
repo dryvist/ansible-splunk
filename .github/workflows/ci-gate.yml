@@ -15,7 +15,10 @@ name: CI Gate
 
 on:
   pull_request:
+    branches: [main]
     types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -36,6 +39,11 @@ jobs:
       # same dirs the retired local lint job used.
       lint_args: "playbooks/ roles/"
       molecule_requirements: requirements-ci.txt
+      # The sole scenario follows changes to its role and scenario directory.
+      molecule_scenario_filters: |
+        default:
+          - 'roles/splunk_docker/**'
+          - 'molecule/default/**'
 
   data-contract:
     name: Data Contract
