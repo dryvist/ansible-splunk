@@ -29,6 +29,15 @@ action.webhook = 1
 action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}{{ splunk_docker_alert_ntfy_query }}
 {% endif %}
 {% endset %}
+{# Informational events (no action needed) go to the hub's status topic, which
+   has its own Slack channel and never opens a Zammad ticket. Same hub URL
+   with the topic swapped and default priority. #}
+{% set status_delivery %}
+{% if splunk_docker_alert_ntfy_url %}
+action.webhook = 1
+action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/status{{ splunk_docker_alert_ntfy_query | replace('priority=high', 'priority=default') }}
+{% endif %}
+{% endset %}
 
 {% include 'savedsearches/01-macos-edge.j2' %}
 

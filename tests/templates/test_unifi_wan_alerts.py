@@ -2,12 +2,14 @@
 """
 Guard the gateway WAN alerts (savedsearches/19-unifi-wan.j2):
 
-1. unifi_wan_transition publishes to the hub's network topic, per result,
-   for the Down / Restored / failover CEF signatures, and the webhook
-   allowlist in alert_actions.conf admits that URL (Splunk drops a webhook to
-   an unlisted URL without an error).
+1. unifi_wan_transition publishes to the hub's status topic (informational,
+   not the alert channel), per result, for the Down / Restored / failover CEF
+   signatures, and the webhook allowlist in alert_actions.conf admits that URL
+   (Splunk drops a webhook to an unlisted URL without an error).
 2. unifi_wan_down escalates through the shared keystone delivery and fires
    only on a WAN whose latest Down/Restored event is Down.
+3. index_gap_exempt_report (informational daily report) also goes to the
+   status topic, not keystone.
 
 Run from repo root:
   python3 tests/templates/test_unifi_wan_alerts.py
@@ -62,10 +64,10 @@ if t is None:
     errors.append("FAIL: [unifi_wan_transition] not rendered")
 else:
     url = value(t, "action.webhook.param.url") or ""
-    if not url.startswith("https://ntfy.example.test/network?priority=default&tpl=yes&t="):
-        errors.append(f"FAIL: transition delivery is not the network topic: {url[:80]}")
+    if not url.startswith("https://ntfy.example.test/status?priority=default&tpl=yes&t="):
+        errors.append(f"FAIL: transition delivery is not the status topic: {url[:80]}")
     if not any(re.match(p, url) for p in allowlist):
-        errors.append("FAIL: the network topic URL is not admitted by the webhook allowlist")
+        errors.append("FAIL: the status topic URL is not admitted by the webhook allowlist")
     if value(t, "alert.digest_mode") != "0":
         errors.append("FAIL: transitions must notify per event (alert.digest_mode = 0)")
     search = value(t, "search") or ""
@@ -88,6 +90,14 @@ else:
     if 'latest(cef_id) as state_id' not in search or 'where state_id="100"' not in search:
         errors.append("FAIL: WAN-down state is not the latest Down/Restored event per WAN")
 
+x = stanzas.get("index_gap_exempt_report")
+if x is None:
+    errors.append("FAIL: [index_gap_exempt_report] not rendered")
+else:
+    url = value(x, "action.webhook.param.url") or ""
+    if not url.startswith("https://ntfy.example.test/status?"):
+        errors.append(f"FAIL: exempt report is not on the status topic: {url[:80]}")
+
 # The keystone URL itself must still be admitted, and nothing else.
 if not any(re.match(p, NTFY + "?priority=high") for p in allowlist):
     errors.append("FAIL: the keystone URL is no longer admitted by the allowlist")
@@ -100,7 +110,7 @@ if errors:
     sys.exit(1)
 
 print(
-    "PASS: unifi_wan_transition publishes each WAN transition to the network "
-    "topic (allowlisted), and unifi_wan_down escalates the down state to keystone"
+    "PASS: unifi_wan_transition and index_gap_exempt_report publish to the "
+    "status topic (allowlisted), and unifi_wan_down escalates the down state to keystone"
 )
 print("\nAll tests passed.")
