@@ -9,10 +9,11 @@
      101 Multiple Internet Disconnections
      105 Temporary Internet Failover    106 Temporary LTE Failover
 
-   unifi_wan_transition publishes every one of those to the hub's network
-   topic, one notification per event (alert.digest_mode = 0), so a down and
-   its recovery each arrive. It reads a contiguous index-time slice per run
-   (two minutes, one minute behind now), so each event is sent exactly once.
+   unifi_wan_transition publishes every one of those to the hub's status
+   topic (informational, not the alert channel), one notification per event
+   (alert.digest_mode = 0), so a down and its recovery each arrive. It reads a
+   contiguous index-time slice per run (two minutes, one minute behind now),
+   so each event is sent exactly once.
 
    unifi_wan_down is the state: a WAN whose latest Down/Restored event is
    Down. It escalates to the keystone topic through alert_delivery and
@@ -20,15 +21,9 @@
 --------------------------------------------------------------------------- #}
 {% set unifi_wan_base %}index=unifi sourcetype=ubiquiti:unifi "UNIFIcategory=Internet and WAN"{% endset %}
 {% set unifi_wan_fields %}rex "CEF:0\|Ubiquiti\|UniFi Network\|[^|]*\|(?<cef_id>\d+)\|(?<event>[^|]*)\|" | rex "UNIFIwanName=(?<wan>.+?) UNIFIwanId=(?<wan_id>\S+)" | rex " msg=(?<detail>.+)$"{% endset %}
-{% set network_delivery %}
-{% if splunk_docker_alert_ntfy_url %}
-action.webhook = 1
-action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/network{{ splunk_docker_alert_ntfy_query | replace('priority=high', 'priority=default') }}
-{% endif %}
-{% endset %}
 [unifi_wan_transition]
-{{ network_delivery -}}
-description = Publishes every gateway WAN transition (Internet Down, Internet Restored, Multiple Internet Disconnections, Temporary Internet/LTE Failover) from the UniFi controller's CEF events to the hub's network topic, one notification per event.
+{{ status_delivery -}}
+description = Publishes every gateway WAN transition (Internet Down, Internet Restored, Multiple Internet Disconnections, Temporary Internet/LTE Failover) from the UniFi controller's CEF events to the hub's status topic, one notification per event.
 search = {{ unifi_wan_base }} _index_earliest=-3m@m _index_latest=-1m@m | {{ unifi_wan_fields }} | search cef_id IN (100, 101, 105, 106, 107) | table _time wan wan_id event detail
 dispatch.earliest_time = -60m
 dispatch.latest_time = now

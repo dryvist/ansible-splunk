@@ -188,7 +188,7 @@ quantity = 0
 
 {% if exempt_detectors %}
 [index_gap_exempt_report]
-{{ alert_delivery -}}
+{{ status_delivery -}}
 description = Daily, non-paging visibility into the index_gap_detector exemption list (11b-silence-exemptions.yml): every currently-exempt index with its reason, so an exemption never silently stands unnoticed. Not an alert on a fault -- a healthy run always returns one row per exempt index.
 search = | makeresults | eval data="{% for det in exempt_detectors %}{{ det.index }}|{{ det.exempt_reason | replace('"', "'") }}|{{ det.review_by | default('') }};{% endfor %}" | eval row=split(data, ";") | mvexpand row | search row!="" | eval fields=split(row, "|") | eval index=mvindex(fields, 0), reason=mvindex(fields, 1), review_by=mvindex(fields, 2) | table index reason review_by
 dispatch.earliest_time = -15m

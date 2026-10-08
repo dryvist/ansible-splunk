@@ -136,6 +136,14 @@ splunk_docker_silence_detectors:
     cron: "*/5 * * * *"
     suppress_minutes: 360
     by_host: true
+    # iac-platform: the computed baseline (p95 gap between active 10-minute
+    # bins of 10 min x cadence_multiplier 3 = 30 min) is shorter than this
+    # guest's pauses between bursts. Evidence: 8 firings in the 2026-10-06 to
+    # 10-08 window, all at the 30-minute value. 60 minutes is the override; a
+    # sustained outage still exceeds it. Other hosts keep the computed
+    # baseline, and the floor is not raised.
+    host_overrides:
+      iac-platform: 60
     disabled: 0
   # hardware: alert if the hardware index stops receiving telemetry (packs /
   # Cribl / HEC dead). Nothing else watches whether the reclassify is
