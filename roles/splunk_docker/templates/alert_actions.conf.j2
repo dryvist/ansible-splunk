@@ -8,6 +8,6 @@
 # ?title/&priority query suffix.
 enable_allowlist = true
 allowlist.ntfy = ^{{ splunk_docker_alert_ntfy_url | regex_escape }}(\?.*)?$
-# The network topic on the same hub (savedsearches/19-unifi-wan.j2).
-allowlist.ntfy_network = ^{{ (splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] ~ '/network') | regex_escape }}(\?.*)?$
+# The status topic on the same hub (status_delivery in savedsearches.conf.j2).
+allowlist.ntfy_status = ^{{ (splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] ~ '/status') | regex_escape }}(\?.*)?$
 {% endif %}
