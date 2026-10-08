@@ -46,6 +46,7 @@ jobs:
           - 'roles/splunk_docker/**'
           - 'molecule/default/**'
           - 'molecule/ci/**'
+          - 'tests/templates/**'
           - '.github/workflows/ci-gate.yml'
 
   data-contract:
