@@ -33,6 +33,7 @@
 #   there is least room to spare. Copying the directory streams straight from
 #   disk and needs no scratch space.
 
+import fcntl
 import os
 import subprocess
 import sys
@@ -55,6 +56,15 @@ UPLOAD_CUTOFF = "64M"
 # tuned to how long a bucket "should" take is what previously failed every
 # large bucket and left it on disk forever.
 TIMEOUT = "{{ splunk_docker_frozen_upload_timeout_seconds | int }}s"
+
+# Aggregate bandwidth cap as one rclone --bwlimit timetable, in UTC. rclone
+# limits each process, so this is the archive's total only because UPLOAD_LOCK
+# keeps one rclone running at a time.
+BWLIMIT_TIMETABLE = "{{ splunk_docker_frozen_bwlimit_timetable }}"
+
+# Held around every rclone run. Blocking on purpose: a second bucket waits here
+# rather than starting a second transfer that would double the rate.
+UPLOAD_LOCK_PATH = "{{ splunk_docker_frozen_upload_lock_path }}"
 
 ARCHIVE_MARKER_NAME = "_ARCHIVE_COMPLETE"
 
@@ -126,6 +136,9 @@ def rclone_env():
     the credential file the role already manages.
     """
     env = dict(os.environ)
+    # The bandwidth timetable is written in UTC. Pin the clock rclone reads so
+    # the container's own zone cannot move the windows.
+    env["TZ"] = "UTC"
     prefix = "RCLONE_CONFIG_%s_" % REMOTE.upper()
     env.update(
         {
@@ -171,17 +184,29 @@ def run_rclone(args, stdin_data=None):
         "5",
         "--stats",
         "0",
+        "--bwlimit",
+        BWLIMIT_TIMETABLE,
     ] + args
     try:
-        result = subprocess.run(
-            cmd,
-            env=rclone_env(),
-            input=stdin_data,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        lock = open(UPLOAD_LOCK_PATH, "a")
     except OSError as exc:
-        return "cannot run rclone at %s: %s" % (RCLONE, exc)
+        return "cannot open upload lock %s: %s" % (UPLOAD_LOCK_PATH, exc)
+    # The lock is released when the file closes at the end of this block.
+    with lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        except OSError as exc:
+            return "cannot take upload lock %s: %s" % (UPLOAD_LOCK_PATH, exc)
+        try:
+            result = subprocess.run(
+                cmd,
+                env=rclone_env(),
+                input=stdin_data,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        except OSError as exc:
+            return "cannot run rclone at %s: %s" % (RCLONE, exc)
     if result.returncode != 0:
         # rclone names the failing object and reason. Only the last line is
         # kept: the full trace is long and adds nothing splunkd.log needs.

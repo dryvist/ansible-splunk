@@ -99,10 +99,56 @@ splunk_docker_frozen_region: ""
 # target that is reliably fast, where a multi-minute stall is a real fault.
 splunk_docker_frozen_upload_timeout_seconds: 900
 
-# Concurrent transfers, and concurrent parts within a single large file. The
-# offsite endpoint throttles per connection, so this - not the timeout - is what
-# governs archive throughput: measured there at 318 KB/s on one connection
-# versus 1.64 MB/s across eight, with per-connection speed barely moving.
-# Lower it for an on-network target, where one connection is already fast and
-# extra connections only add contention.
-splunk_docker_frozen_upload_concurrency: 8
+# Concurrent transfers, and concurrent parts within a single large file. Uploads
+# run one rclone process at a time (see the upload lock below), so this is the
+# archive's connection count. The offsite endpoint throttles per connection;
+# raise this if throughput falls short of the bandwidth tiers below.
+splunk_docker_frozen_upload_concurrency: 4
+
+# Aggregate cap on archive upload bandwidth, in three time tiers, expressed as
+# one rclone --bwlimit timetable. rclone limits each process, not the total, so
+# the cap is aggregate only because the freeze script runs one rclone at a time
+# under the lock at splunk_docker_frozen_upload_lock_path.
+#
+# Windows are written in America/New_York and converted to UTC at converge time.
+# The Eastern offset changes twice a year, so a fixed UTC window would drift an
+# hour at each change; reading the offset here re-pins the windows on every
+# converge. The freeze script pins rclone's clock to UTC, so the timetable's
+# hours hold regardless of the container's own zone.
+#
+# Limits: whole-hour offsets only, and no window may cross UTC midnight after
+# conversion. The values below satisfy both.
+splunk_docker_frozen_bwlimit_default: 2M
+splunk_docker_frozen_bwlimit_night: 512k
+splunk_docker_frozen_bwlimit_night_et_from: "22:30"
+splunk_docker_frozen_bwlimit_night_et_to: "05:30"
+splunk_docker_frozen_bwlimit_work: 1M
+# The working-hours tier applies Monday to Friday only.
+splunk_docker_frozen_bwlimit_work_et_from: "08:00"
+splunk_docker_frozen_bwlimit_work_et_to: "16:00"
+# Eastern offset from UTC in whole hours: -4 under EDT, -5 under EST. Read on the
+# control node at converge time, so each converge re-pins the windows.
+splunk_docker_frozen_bwlimit_eastern_utc_offset_hours: >-
+  {{ (lookup('pipe', 'TZ=America/New_York date +%z') | int / 100) | int }}
+# The weekly timetable rclone receives: a daily entry expands to all seven days,
+# a day-prefixed entry to one. Each entry holds its rate until the next one.
+splunk_docker_frozen_bwlimit_timetable: >-
+  {%- set off = splunk_docker_frozen_bwlimit_eastern_utc_offset_hours | int -%}
+  {%- macro utc(et, off) -%}
+  {{- '%02d:%02d' | format((et.split(':')[0] | int - off) % 24, et.split(':')[1] | int) -}}
+  {%- endmacro -%}
+  {%- set ns = namespace(entries=[
+    '00:00,' ~ splunk_docker_frozen_bwlimit_default,
+    utc(splunk_docker_frozen_bwlimit_night_et_from, off) ~ ',' ~ splunk_docker_frozen_bwlimit_night,
+    utc(splunk_docker_frozen_bwlimit_night_et_to, off) ~ ',' ~ splunk_docker_frozen_bwlimit_default
+  ]) -%}
+  {%- for day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] -%}
+  {%- set ns.entries = ns.entries + [
+    day ~ '-' ~ utc(splunk_docker_frozen_bwlimit_work_et_from, off) ~ ',' ~ splunk_docker_frozen_bwlimit_work,
+    day ~ '-' ~ utc(splunk_docker_frozen_bwlimit_work_et_to, off) ~ ',' ~ splunk_docker_frozen_bwlimit_default
+  ] -%}
+  {%- endfor -%}
+  {{ ns.entries | join(' ') }}
+# Taken around every rclone run in the freeze script. It sits in the Splunk var
+# directory, which the container mounts at the same path.
+splunk_docker_frozen_upload_lock_path: "{{ splunk_docker_var_dir }}/frozen_archive_upload.lock"
