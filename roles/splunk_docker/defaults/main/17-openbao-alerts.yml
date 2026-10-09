@@ -1,0 +1,6 @@
+---
+# Raft voter count the OpenBao cluster is declared with. [openbao_raft_quorum]
+# in templates/savedsearches/14-openbao.j2 pages when fewer voters report, and
+# derives the quorum line from this value, so the two cannot drift. Keep it
+# equal to the voter set the infrastructure code declares.
+splunk_docker_openbao_raft_expected_voters: 7

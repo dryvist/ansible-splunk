@@ -53,6 +53,7 @@ rendered = env.get_template("savedsearches.conf.j2").render(
     ],
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
+    splunk_docker_openbao_raft_expected_voters=DEFAULTS["splunk_docker_openbao_raft_expected_voters"],
     splunk_docker_alert_ntfy_url=None,
 )
 

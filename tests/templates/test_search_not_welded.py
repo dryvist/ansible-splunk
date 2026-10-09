@@ -95,6 +95,7 @@ rendered = ansible_env(TEMPLATES).get_template("savedsearches.conf.j2").render(
     splunk_docker_silence_lookback_multiplier=DEFAULTS[
         "splunk_docker_silence_lookback_multiplier"
     ],
+    splunk_docker_openbao_raft_expected_voters=DEFAULTS["splunk_docker_openbao_raft_expected_voters"],
     splunk_docker_alert_ntfy_url=None,
 )
 
