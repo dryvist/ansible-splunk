@@ -60,12 +60,16 @@ jobs:
           path: |
             ~/.ansible/collections
             ~/.ansible/roles
-          key: ansible-galaxy-${{ runner.os }}-${{ hashFiles('requirements.yml') }}
+          key: ansible-galaxy-v2-${{ runner.os }}-${{ hashFiles('requirements.yml') }}
+          # A partial restore keeps unchanged dependencies warm; the forced
+          # install below reconciles restored content against the current pins.
+          restore-keys: |
+            ansible-galaxy-v2-${{ runner.os }}-
 
       - name: Install Ansible dependencies
         if: steps.galaxy-cache.outputs.cache-hit != 'true'
         run: |
-          ansible-galaxy install -r requirements.yml
+          ansible-galaxy install -r requirements.yml --force
 
       - name: Syntax check deploy.yml
         run: |
@@ -134,7 +138,11 @@ jobs:
           path: |
             ~/.ansible/collections
             ~/.ansible/roles
-          key: ansible-galaxy-${{ runner.os }}-${{ hashFiles('requirements.yml') }}
+          key: ansible-galaxy-v2-${{ runner.os }}-${{ hashFiles('requirements.yml') }}
+          # A partial restore keeps unchanged dependencies warm; the forced
+          # install below reconciles restored content against the current pins.
+          restore-keys: |
+            ansible-galaxy-v2-${{ runner.os }}-
 
       - name: Install Ansible and dependencies
         run: |
@@ -144,7 +152,7 @@ jobs:
         if: steps.galaxy-cache.outputs.cache-hit != 'true'
         run: |
           ansible-galaxy collection install ansible.utils
-          ansible-galaxy install -r requirements.yml
+          ansible-galaxy install -r requirements.yml --force
 
       - name: Verify tofu inventory loads correctly
         env:
