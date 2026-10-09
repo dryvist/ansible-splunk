@@ -31,6 +31,7 @@ rendered = ansible_env(ROOT / "roles/splunk_docker/templates").get_template(
     splunk_docker_llm_freshness_indexes=DEFAULTS["splunk_docker_llm_freshness_indexes"],
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
+    splunk_docker_openbao_raft_expected_voters=DEFAULTS["splunk_docker_openbao_raft_expected_voters"],
     splunk_docker_alert_ntfy_url=None,
 )
 

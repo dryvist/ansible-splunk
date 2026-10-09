@@ -59,16 +59,20 @@ counttype = number of events
 relation = greater than
 quantity = 0
 
+{% set openbao_raft_quorum = (splunk_docker_openbao_raft_expected_voters // 2) + 1 %}
 [openbao_raft_quorum]
 {{ alert_delivery -}}
-description = Alerts when fewer than 9 raft voters have reported healthy for 15 minutes, OR the voter-health sampler has stopped shipping entirely (this is the repo's only voter-health implementation -- see the removed generic silence-detector entry in defaults/main/11-silence-detectors.yml). DEPENDS on the openbao-voter-health emit carrying a `voters=<n>` key=value token (roles/openbao/templates/openbao-voter-health.sh.j2 in ansible-proxmox-apps) -- adjust the rex below if that format lands differently.
+description = Alerts when fewer than {{ splunk_docker_openbao_raft_expected_voters }} raft voters have reported healthy for 15 minutes (below quorum under {{ openbao_raft_quorum }}), OR the voter-health sampler has stopped shipping entirely (this is the repo's only voter-health implementation -- see the removed generic silence-detector entry in defaults/main/11-silence-detectors.yml). DEPENDS on the openbao-voter-health emit carrying a `voters=<n>` key=value token (roles/openbao/templates/openbao-voter-health.sh.j2 in ansible-proxmox-apps) -- adjust the rex below if that format lands differently.
 # min(voters) over the whole window, not latest(voters) alone, so a single
 # low-voter blip that recovered inside the 15m window does not fire -- the
 # alert is meant for a SUSTAINED deficit, not one bad sample. `stats` on zero
 # matching events still yields one row (count=0, min_voters=null), so
-# `samples == 0` catches total silence and `min_voters < 9` catches a
-# degraded-but-shipping quorum -- one search, both failure modes.
-search = index=os sourcetype=syslog "openbao-voter-health" | rex "voters=(?<voters>\d+)" | where isnotnull(voters) | stats min(voters) as min_voters count as samples | where samples == 0 OR min_voters < 9 | eval quorum_state = if(samples == 0, "no samples", "voters=" . min_voters)
+# `samples == 0` catches total silence and `min_voters` below the expected
+# count catches a degraded-but-shipping cluster -- one search, both failure
+# modes. quorum_state separates a cluster still above quorum ("degraded") from
+# one that has lost it ("below quorum"), so crossing the quorum line re-pages
+# at once under the suppression below.
+search = index=os sourcetype=syslog "openbao-voter-health" | rex "voters=(?<voters>\d+)" | where isnotnull(voters) | stats min(voters) as min_voters count as samples | where samples == 0 OR min_voters < {{ splunk_docker_openbao_raft_expected_voters }} | eval quorum_state = case(samples == 0, "no samples", min_voters < {{ openbao_raft_quorum }}, "below quorum voters=" . min_voters, true(), "degraded voters=" . min_voters)
 dispatch.earliest_time = -15m
 dispatch.latest_time = now
 cron_schedule = */5 * * * *
