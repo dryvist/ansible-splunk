@@ -123,8 +123,6 @@ directory to an S3-compatible bucket, under the prefix `<index>/<bucket>/`.
 
 All variables: `defaults/main/07-frozen-archive.yml`.
 
-Spend caps and usage reports: see the private documentation site.
-
 ## MCP Server Verification
 
 The Splunk MCP Server (app 7931) enables AI agents to query Splunk directly
