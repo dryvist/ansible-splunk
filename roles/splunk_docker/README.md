@@ -108,7 +108,6 @@ directory to an S3-compatible bucket, under the prefix `<index>/<bucket>/`.
   with no files. Splunk then keeps the bucket on disk and retries it on a later pass.
 - **Timeouts:** rclone retries each transfer 5 times. `splunk_docker_frozen_upload_timeout_seconds` is an idle timeout
   per transfer, not a limit on the whole bucket.
-- **Bandwidth:** `splunk_docker_frozen_bwlimit_*` caps upload speed by time window. A lock serializes uploads, so the cap applies to all of them together.
 - **Pausing:** send `SIGSTOP` to the rclone processes to pause uploads, and `SIGCONT` to resume. Never kill them.
 - **rclone:** pinned by `splunk_docker_rclone_version` and `splunk_docker_rclone_zip_sha256`. The two change together.
   The binary is installed into the config volume.
@@ -118,15 +117,9 @@ directory to an S3-compatible bucket, under the prefix `<index>/<bucket>/`.
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
 | `splunk_docker_frozen_archive_enabled` | `false` | Archive aged-out buckets instead of deleting them |
-| `splunk_docker_frozen_upload_concurrency` | `4` | Concurrent transfers, including parts of one large file |
+| `splunk_docker_frozen_upload_concurrency` | `8` | Concurrent transfers, including parts of one large file |
+| `splunk_docker_frozen_bwlimit` | timetable | rclone `--bwlimit` timetable (UTC) per upload process; `off` disables it |
 | `splunk_docker_frozen_upload_timeout_seconds` | `900` | Idle timeout per transfer |
-| `splunk_docker_frozen_bwlimit_default` | `2M` | Upload speed cap outside the night and working-hours windows |
-| `splunk_docker_frozen_bwlimit_night` | `512k` | Upload speed cap in the night window |
-| `splunk_docker_frozen_bwlimit_night_et_from` | `"22:30"` | Night window start, Eastern time |
-| `splunk_docker_frozen_bwlimit_night_et_to` | `"05:30"` | Night window end, Eastern time |
-| `splunk_docker_frozen_bwlimit_work` | `1M` | Upload speed cap in the working-hours window, Monday to Friday |
-| `splunk_docker_frozen_bwlimit_work_et_from` | `"08:00"` | Working-hours window start, Eastern time |
-| `splunk_docker_frozen_bwlimit_work_et_to` | `"16:00"` | Working-hours window end, Eastern time |
 | `splunk_docker_rclone_version` | `1.74.4` | Pinned rclone version |
 
 All variables: `defaults/main/07-frozen-archive.yml`.

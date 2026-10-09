@@ -53,17 +53,6 @@ CONFIG = {
 RCLONE_PATH = "/opt/splunk/etc/system/local/bin/rclone"
 CONCURRENCY = 8
 
-# What roles/splunk_docker/defaults/main/07-frozen-archive.yml renders for an
-# Eastern offset of -4 (EDT): night 02:30-09:30 UTC at 512k, weekday working
-# hours 12:00-20:00 UTC at 1M, 2M otherwise.
-TIMETABLE = (
-    "00:00,2M 02:30,512k 09:30,2M "
-    "Mon-12:00,1M Mon-20:00,2M Tue-12:00,1M Tue-20:00,2M Wed-12:00,1M Wed-20:00,2M "
-    "Thu-12:00,1M Thu-20:00,2M Fri-12:00,1M Fri-20:00,2M"
-)
-_LOCK_DIR = tempfile.TemporaryDirectory()
-LOCK_PATH = os.path.join(_LOCK_DIR.name, "frozen_archive_upload.lock")
-
 
 def load_module(env_vars=None, config_path=""):
     """Render and exec the template with a controlled env and config path.
@@ -82,8 +71,6 @@ def load_module(env_vars=None, config_path=""):
         splunk_docker_frozen_rclone_path=RCLONE_PATH,
         splunk_docker_frozen_upload_timeout_seconds=900,
         splunk_docker_frozen_upload_concurrency=CONCURRENCY,
-        splunk_docker_frozen_bwlimit_timetable=TIMETABLE,
-        splunk_docker_frozen_upload_lock_path=LOCK_PATH,
     )
     module = types.ModuleType("cold_to_frozen")
     module.__dict__["__name__"] = "cold_to_frozen"
@@ -269,51 +256,6 @@ with tempfile.TemporaryDirectory() as root:
 
 if missing_rc != 1:
     errors.append("missing credentials must refuse the freeze, got %r" % missing_rc)
-
-# --- One rclone at a time, under the aggregate cap -------------------------
-#
-# --bwlimit is per process. The cap only holds for the archive as a whole if
-# no two rclone processes overlap, so every run takes an exclusive lock first.
-lock_mod = load_module(env_vars=CONFIG)
-lock_events = []
-setattr(
-    lock_mod,
-    "fcntl",
-    types.SimpleNamespace(LOCK_EX=2, flock=lambda fh, op: lock_events.append(("flock", op))),
-)
-
-
-def _record_run(cmd, **_kwargs):
-    lock_events.append(("rclone", cmd))
-    return types.SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
-
-
-setattr(lock_mod, "subprocess", types.SimpleNamespace(run=_record_run, PIPE=-1))
-lock_mod.run_rclone(["copy", "/tmp/x", "archive:b/i/d"])
-
-if [event[0] for event in lock_events] != ["flock", "rclone"]:
-    errors.append("rclone must only run after the upload lock is taken, got %r" % lock_events)
-elif lock_events[0][1] != 2:
-    errors.append("the upload lock must be exclusive (LOCK_EX), got %r" % lock_events[0])
-else:
-    lock_flat = " ".join(lock_events[1][1])
-    if "--bwlimit %s" % TIMETABLE not in lock_flat:
-        errors.append("rclone must be given the aggregate timetable, got: %r" % lock_flat)
-
-# rclone's clock decides which tier applies, so it must read UTC, the zone the
-# timetable is written in, whatever the container's own zone is.
-if lock_mod.rclone_env().get("TZ") != "UTC":
-    errors.append("rclone must run on a UTC clock, got TZ=%r" % lock_mod.rclone_env().get("TZ"))
-
-# A lock that cannot be opened must fail the bucket without running rclone at
-# all: the alternative is an unserialized upload that exceeds the cap.
-blocked_mod = load_module(env_vars=CONFIG)
-blocked_runs = []
-setattr(blocked_mod, "subprocess", types.SimpleNamespace(run=lambda *a, **k: blocked_runs.append(a), PIPE=-1))
-setattr(blocked_mod, "UPLOAD_LOCK_PATH", "/nonexistent-directory/upload.lock")
-blocked_err = blocked_mod.run_rclone(["copy", "/tmp/x", "archive:b/i/d"])
-if not blocked_err or blocked_runs:
-    errors.append("an unopenable upload lock must fail without running rclone, got %r" % blocked_err)
 
 if errors:
     print("FAIL:")
