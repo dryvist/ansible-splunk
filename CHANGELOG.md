@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.90.0](https://github.com/dryvist/ansible-splunk/compare/v0.89.3...v0.90.0) (2026-10-09)
+
+
+### Features
+
+* **splunk_docker:** cap archive uploads with an rclone bandwidth timetable ([93ac919](https://github.com/dryvist/ansible-splunk/commit/93ac9199bba48128bc358e28b5b2856229008c8f))
+* **splunk_docker:** scheduled aggregate bandwidth cap for archive uploads ([64525c0](https://github.com/dryvist/ansible-splunk/commit/64525c035d33b94af4aadf655a864ea28dc80b7e))
+
 ## [0.89.3](https://github.com/dryvist/ansible-splunk/compare/v0.89.2...v0.89.3) (2026-10-09)
 
 
