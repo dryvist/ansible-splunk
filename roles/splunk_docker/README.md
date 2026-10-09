@@ -96,6 +96,33 @@ fallback that grants access to all indexes.
 python3 -c "import uuid; print(uuid.uuid5(uuid.UUID('$HEC_NAMESPACE'), 'splunk-hec-<index_name>'))"
 ```
 
+## Frozen Archive
+
+When `splunk_docker_frozen_archive_enabled` is `true`, Splunk archives each bucket it ages out instead of deleting it.
+Splunk calls `coldToFrozenScript` (`splunk_docker_frozen_script_path`). The script runs `rclone copy` of the bucket
+directory to an S3-compatible bucket, under the prefix `<index>/<bucket>/`.
+
+- **Completion marker:** after every file is copied, the script writes `_ARCHIVE_COMPLETE` to the bucket prefix.
+  The marker lists the file count and each file's relative path and size. A prefix without the marker is incomplete.
+- **Retry:** the script exits `0` only after the marker is written. Any failure exits non-zero, including a bucket
+  with no files. Splunk then keeps the bucket on disk and retries it on a later pass.
+- **Timeouts:** rclone retries each transfer 5 times. `splunk_docker_frozen_upload_timeout_seconds` is an idle timeout
+  per transfer, not a limit on the whole bucket.
+- **Pausing:** send `SIGSTOP` to the rclone processes to pause uploads, and `SIGCONT` to resume. Never kill them.
+- **rclone:** pinned by `splunk_docker_rclone_version` and `splunk_docker_rclone_zip_sha256`. The two change together.
+  The binary is installed into the config volume.
+- **Credentials:** the script reads them from the environment first, then from the file at `splunk_docker_frozen_config_path`.
+- **Restore:** `restore_from_frozen.py` (`splunk_docker_frozen_restore_script_path`) is run by an operator. Splunk never calls it.
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `splunk_docker_frozen_archive_enabled` | `false` | Archive aged-out buckets instead of deleting them |
+| `splunk_docker_frozen_upload_concurrency` | `8` | Concurrent transfers, including parts of one large file |
+| `splunk_docker_frozen_upload_timeout_seconds` | `900` | Idle timeout per transfer |
+| `splunk_docker_rclone_version` | `1.74.4` | Pinned rclone version |
+
+All variables: `defaults/main/07-frozen-archive.yml`.
+
 ## MCP Server Verification
 
 The Splunk MCP Server (app 7931) enables AI agents to query Splunk directly
