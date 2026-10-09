@@ -118,6 +118,7 @@ directory to an S3-compatible bucket, under the prefix `<index>/<bucket>/`.
 | -------- | ------- | ----------- |
 | `splunk_docker_frozen_archive_enabled` | `false` | Archive aged-out buckets instead of deleting them |
 | `splunk_docker_frozen_upload_concurrency` | `8` | Concurrent transfers, including parts of one large file |
+| `splunk_docker_frozen_bwlimit` | timetable | rclone `--bwlimit` timetable (UTC) per upload process; `off` disables it |
 | `splunk_docker_frozen_upload_timeout_seconds` | `900` | Idle timeout per transfer |
 | `splunk_docker_rclone_version` | `1.74.4` | Pinned rclone version |
 

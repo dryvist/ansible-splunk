@@ -167,6 +167,8 @@ def run_rclone(args, stdin_data=None):
         # byte moved. The bucket is created out of band; this only ever writes
         # into it.
         "--s3-no-check-bucket",
+        "--bwlimit",
+        "{{ splunk_docker_frozen_bwlimit }}",
         "--retries",
         "5",
         "--stats",
