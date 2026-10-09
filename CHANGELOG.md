@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.89.3](https://github.com/dryvist/ansible-splunk/compare/v0.89.2...v0.89.3) (2026-10-09)
+
+
+### Bug Fixes
+
+* **openbao:** suppress privileged-use alerts per request id ([396ab24](https://github.com/dryvist/ansible-splunk/commit/396ab24bdad498aafd8148e61b8890cd747fc8df))
+* **openbao:** window privileged-use alert on index time ([febef8f](https://github.com/dryvist/ansible-splunk/commit/febef8fc8c88d10295d37e8ffff8e9d2c234f0da))
+* **openbao:** window privileged-use alert on index time ([714ce72](https://github.com/dryvist/ansible-splunk/commit/714ce72cd78139defbb1d01ccc9187754878a7b7))
+
 ## [0.89.2](https://github.com/dryvist/ansible-splunk/compare/v0.89.1...v0.89.2) (2026-10-08)
 
 
