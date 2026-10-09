@@ -15,11 +15,13 @@
    hours in the past when a forwarder replays a backlog. openbao_privileged_use
    therefore windows on index time: every privileged event alerts once, when
    it arrives, however late. earliest_time only bounds the buckets searched.
+   A replayed duplicate is indexed again, so the alert suppresses on the
+   record's request id for 48h: one alert per request, however many copies.
 --------------------------------------------------------------------------- #}
 [openbao_privileged_use]
 {{ alert_delivery -}}
 description = Alerts on OpenBao requests using a privileged policy/token (ai-admin, root) or hitting a sensitive management path (policy, audit, mount, auth-method, or AppRole secret-id changes; generate-root; rekey). Also every login of the github-admin-claude AppRole (unattended repository creation). Every hit is worth a human look even when expected, since these are the paths that can grant or exfiltrate broader access.
-search = index=openbao_audit sourcetype=openbao:audit _index_earliest=-6m _index_latest=now | rex "openbao-audit: (?<j>\{.*)" | spath input=j | eval token_type='auth.token_type', policies=mvjoin('auth.policies{}', ",") | where 'auth.metadata.role_name'="github-admin-claude" OR token_type="root" OR like(policies, "%root%") OR like(policies, "%ai-admin%") OR like('request.path', "sys/generate-root%") OR like('request.path', "sys/rekey%") OR (('request.operation'="create" OR 'request.operation'="update" OR 'request.operation'="delete") AND (like('request.path', "sys/policies/%") OR like('request.path', "sys/audit%") OR like('request.path', "sys/mounts%") OR like('request.path', "sys/auth%") OR like('request.path', "auth/approle/role/%"))) | eval caller=coalesce('auth.metadata.role_name', replace('auth.display_name', "^approle-", "")) | where NOT (like('request.path', "auth/approle/role/%") AND in(caller, "approle-issuer", "approle-secret-id-rotate", "approle-secret-id-rotate-scheduled", "secret-age-audit", "splunk-mcp-rotate", "ai-rotate", "apps-rotate", "rustfs-rotate")) | eval reason=case('auth.metadata.role_name'="github-admin-claude", "github-admin-claude login (repo-create)", token_type="root", "root token used", like(policies, "%root%"), "root policy attached", like(policies, "%ai-admin%"), "ai-admin policy used", like('request.path', "auth/approle/role/%"), "approle secret-id mint/config", like('request.path', "sys/generate-root%"), "generate-root operation", like('request.path', "sys/rekey%"), "rekey operation", true(), "privileged path access") | table _time host token_type reason policies request.path request.operation
+search = index=openbao_audit sourcetype=openbao:audit _index_earliest=-6m _index_latest=now | rex "openbao-audit: (?<j>\{.*)" | spath input=j | eval token_type='auth.token_type', policies=mvjoin('auth.policies{}', ",") | where 'auth.metadata.role_name'="github-admin-claude" OR token_type="root" OR like(policies, "%root%") OR like(policies, "%ai-admin%") OR like('request.path', "sys/generate-root%") OR like('request.path', "sys/rekey%") OR (('request.operation'="create" OR 'request.operation'="update" OR 'request.operation'="delete") AND (like('request.path', "sys/policies/%") OR like('request.path', "sys/audit%") OR like('request.path', "sys/mounts%") OR like('request.path', "sys/auth%") OR like('request.path', "auth/approle/role/%"))) | eval caller=coalesce('auth.metadata.role_name', replace('auth.display_name', "^approle-", "")) | where NOT (like('request.path', "auth/approle/role/%") AND in(caller, "approle-issuer", "approle-secret-id-rotate", "approle-secret-id-rotate-scheduled", "secret-age-audit", "splunk-mcp-rotate", "ai-rotate", "apps-rotate", "rustfs-rotate")) | eval reason=case('auth.metadata.role_name'="github-admin-claude", "github-admin-claude login (repo-create)", token_type="root", "root token used", like(policies, "%root%"), "root policy attached", like(policies, "%ai-admin%"), "ai-admin policy used", like('request.path', "auth/approle/role/%"), "approle secret-id mint/config", like('request.path', "sys/generate-root%"), "generate-root operation", like('request.path', "sys/rekey%"), "rekey operation", true(), "privileged path access") | eval request_id='request.id' | table _time host request_id token_type reason policies request.path request.operation
 dispatch.earliest_time = -48h
 dispatch.latest_time = now
 cron_schedule = */5 * * * *
@@ -28,7 +30,8 @@ is_visible = 1
 disabled = 0
 alert.severity = 4
 alert.suppress = 1
-alert.suppress.period = 15m
+alert.suppress.period = 48h
+alert.suppress.fields = request_id
 alert.track = 1
 counttype = number of events
 relation = greater than
