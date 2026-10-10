@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.91.0](https://github.com/dryvist/ansible-splunk/compare/v0.90.1...v0.91.0) (2026-10-10)
+
+
+### Features
+
+* **splunk_docker:** longest-prefix volume resolution and 30-day firewall/os retention ([#653](https://github.com/dryvist/ansible-splunk/issues/653)) ([6d8c89c](https://github.com/dryvist/ansible-splunk/commit/6d8c89c7146f678c30d4c8a195465f316055d0a9))
+
 ## [0.90.1](https://github.com/dryvist/ansible-splunk/compare/v0.90.0...v0.90.1) (2026-10-09)
 
 
