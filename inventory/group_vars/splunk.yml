@@ -157,5 +157,5 @@ splunk_docker_frozen_archive_enabled: true
 # off regardless of any one index's own configuration.
 #
 # Retune these when the underlying storage changes, not when an index grows.
-splunk_docker_volume_hot_warm_max_mb: 150000
-splunk_docker_volume_cold_max_mb: 300000
+splunk_docker_volume_hot_warm_max_mb: 215000
+splunk_docker_volume_cold_max_mb: 312000
