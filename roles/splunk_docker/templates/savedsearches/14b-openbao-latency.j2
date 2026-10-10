@@ -1,0 +1,119 @@
+{# ---------------------------------------------------------------------------
+   OpenBao latency, raft-commit, follower-heartbeat and guest IO-wait detectors
+   (index=netmon_metrics for Vault telemetry, index=host_metrics for guest
+   pressure counters, index=os for the voter-health sweep line). Every
+   threshold is a splunk_docker_openbao_* default in
+   defaults/main/17-openbao-alerts.yml.
+
+   The ntfy message template prints each first-result field as k=v, so every
+   search ends by evaluating alert_text: the field that carries the sentence
+   reaching Slack and Zammad.
+
+   Negative metric values mean "no valid sample" and are dropped before any
+   comparison.
+--------------------------------------------------------------------------- #}
+[openbao_request_latency_tail]
+{{ alert_delivery -}}
+description = Alerts when a node's OpenBao handle_request or login latency (1-minute max) is above max(multiplier x its own 24h median, floor) in at least min_minutes of the last 5 minutes. Each kind is judged against its own 24h median, so a node that is slow all day is not compared with the fleet.
+# Baseline is each node's own 24h median, computed before the 5-minute window
+# is cut, so the window only decides which minutes count as breaches. The
+# window ends at the search's own latest bound (addinfo info_max_time = @m).
+search = | mstats max(vault_core_handle_request) as request max(vault_core_handle_login_request) as login count(vault_raft_storage_follower_last_heartbeat_ms) as fhb WHERE index=netmon_metrics AND job=openbao span=1m BY host | eval kind=split("request,login", ",") | mvexpand kind | eval v=if(kind="request", request, login) | eval v=if(v>=0, v, null()) | eventstats median(v) as baseline_ms BY host kind | addinfo | where _time >= info_max_time - 300 | eventstats max(fhb) as fhb_recent BY host | eval threshold_ms=max({{ splunk_docker_openbao_latency_tail_multiplier }} * coalesce(baseline_ms, 0), {{ splunk_docker_openbao_latency_tail_floor_ms }}), hit=if(v > threshold_ms, 1, 0) | stats sum(hit) as hits max(v) as observed_ms first(threshold_ms) as threshold_ms first(baseline_ms) as baseline_ms max(fhb_recent) as fhb_recent BY host kind | where hits >= {{ splunk_docker_openbao_latency_tail_min_minutes }} | eval role=if(fhb_recent > 0, "leader", "follower"), ratio=round(observed_ms / baseline_ms, 1) | eval alert_text="OpenBao " . kind . " latency on " . host . " (" . role . "): " . round(observed_ms, 0) . " ms vs threshold " . round(threshold_ms, 0) . " ms (" . ratio . "x its 24h median " . round(baseline_ms, 0) . " ms) in " . hits . " of the last 5 minutes"
+dispatch.earliest_time = -24h@m
+dispatch.latest_time = @m
+cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 4
+alert.suppress = 1
+alert.suppress.period = 1h
+alert.suppress.fields = host,kind
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
+
+[openbao_raft_commit_latency]
+{{ alert_delivery -}}
+description = Alerts on the OpenBao raft leader when vault_raft_commitTime (1-minute max) stays above the sustained threshold for 3 consecutive minutes, or exceeds the spike threshold in any minute. The metric is emitted by the leader alone.
+# streamstats counts consecutive over-threshold minutes per host; the leader
+# is the only host that emits commitTime, so no role filter is needed here.
+search = | mstats max(vault_raft_commitTime) as commit_ms WHERE index=netmon_metrics AND job=openbao span=1m BY host | where commit_ms >= 0 | sort 0 _time | eval over=if(commit_ms > {{ splunk_docker_openbao_raft_commit_sustained_ms }}, 1, 0), spike=if(commit_ms > {{ splunk_docker_openbao_raft_commit_spike_ms }}, 1, 0) | streamstats window=3 sum(over) as run3 BY host | stats max(run3) as run max(spike) as spike max(commit_ms) as observed_ms BY host | where run >= 3 OR spike = 1 | eval role="leader" | eval alert_text="OpenBao raft commit latency on " . host . " (" . role . "): " . round(observed_ms, 0) . " ms vs " . {{ splunk_docker_openbao_raft_commit_sustained_ms }} . " ms sustained / " . {{ splunk_docker_openbao_raft_commit_spike_ms }} . " ms spike"
+dispatch.earliest_time = -5m@m
+dispatch.latest_time = @m
+cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 4
+alert.suppress = 1
+alert.suppress.period = 1h
+alert.suppress.fields = host
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
+
+[openbao_follower_heartbeat_lag]
+{{ alert_delivery -}}
+description = Alerts when the leader's view of a follower's last heartbeat (vault_raft_storage_follower_last_heartbeat_ms) is above the threshold for 2 consecutive minutes. Suppresses per peer_id.
+# The leader reports every follower; a follower's own host never appears here,
+# so the peer_id is the node the alert names.
+search = | mstats max(vault_raft_storage_follower_last_heartbeat_ms) as hb_ms WHERE index=netmon_metrics AND job=openbao span=1m BY host peer_id | where hb_ms >= 0 | sort 0 _time | eval over=if(hb_ms > {{ splunk_docker_openbao_follower_heartbeat_ms }}, 1, 0) | streamstats window=2 sum(over) as run2 BY host peer_id | stats max(run2) as run max(hb_ms) as observed_ms latest(host) as leader BY peer_id | where run >= 2 | eval role="follower" | eval alert_text="OpenBao follower " . peer_id . " (" . role . ") last heard from " . round(observed_ms / 1000, 1) . " s ago, as seen by leader " . leader . " (threshold " . round({{ splunk_docker_openbao_follower_heartbeat_ms }} / 1000, 1) . " s)"
+dispatch.earliest_time = -5m@m
+dispatch.latest_time = @m
+cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 4
+alert.suppress = 1
+alert.suppress.period = 1h
+alert.suppress.fields = peer_id
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
+
+[openbao_leader_io_wait]
+{{ alert_delivery -}}
+description = Alerts when the current raft leader's guest spends more than the leader IO-wait threshold per 5-minute bucket waiting on IO, for 2 consecutive buckets. The leader is the host of the latest voter-health sweep line, which is leader-gated.
+# The counter is cumulative, so each bucket is the delta from the previous one.
+# A negative delta is a counter reset or a missing sample and is dropped.
+search = | mstats max(node_pressure_io_waiting_seconds_total) as w WHERE index=host_metrics AND host=openbao* span=5m BY host | sort 0 host _time | streamstats current=f last(w) as pw BY host | eval waited_s=w - pw | where waited_s >= 0 | streamstats window=2 min(waited_s) as run_min count as run_n BY host | stats latest(run_min) as run_min latest(run_n) as run_n latest(waited_s) as observed_s BY host | join type=inner host [search index=os sourcetype=syslog "openbao-voter-health" "sweep complete" earliest=-15m | stats latest(host) as host] | where run_n >= 2 AND run_min > {{ splunk_docker_openbao_leader_io_wait_s }} | eval role="leader", pct=round(observed_s * 100 / 300, 1) | eval alert_text="OpenBao " . role . " " . host . " guest IO wait " . round(observed_s, 1) . " s per 5 min (" . pct . "%) vs threshold " . {{ splunk_docker_openbao_leader_io_wait_s }} . " s, 2 buckets running"
+dispatch.earliest_time = -20m@m
+dispatch.latest_time = now
+cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 4
+alert.suppress = 1
+alert.suppress.period = 1h
+alert.suppress.fields = host
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
+
+[openbao_voter_io_wait]
+{{ alert_delivery -}}
+description = Alerts when any OpenBao voter's guest spends more than the voter IO-wait threshold per 5-minute bucket waiting on IO, for 3 consecutive buckets. The sweep host is labelled leader; every other voter is a follower.
+# Same delta logic as openbao_leader_io_wait. The left join keeps every voter;
+# only the sweep host's row picks up a leader value, so the others read follower.
+search = | mstats max(node_pressure_io_waiting_seconds_total) as w WHERE index=host_metrics AND host=openbao* span=5m BY host | sort 0 host _time | streamstats current=f last(w) as pw BY host | eval waited_s=w - pw | where waited_s >= 0 | streamstats window=3 min(waited_s) as run_min count as run_n BY host | stats latest(run_min) as run_min latest(run_n) as run_n latest(waited_s) as observed_s BY host | join type=left host [search index=os sourcetype=syslog "openbao-voter-health" "sweep complete" earliest=-15m | stats latest(host) as host | eval leader=host] | where run_n >= 3 AND run_min > {{ splunk_docker_openbao_voter_io_wait_s }} | eval role=if(host=leader, "leader", "follower") | eval alert_text="OpenBao voter " . host . " (" . role . ") guest IO wait " . round(observed_s, 1) . " s per 5 min vs threshold " . {{ splunk_docker_openbao_voter_io_wait_s }} . " s, 3 buckets running"
+dispatch.earliest_time = -25m@m
+dispatch.latest_time = now
+cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 4
+alert.suppress = 1
+alert.suppress.period = 1h
+alert.suppress.fields = host
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
