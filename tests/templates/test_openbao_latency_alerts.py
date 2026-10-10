@@ -78,16 +78,16 @@ EXPECTED = {
         "alert_defaults": ("splunk_docker_openbao_follower_heartbeat_ms",),
     },
     "openbao_leader_io_wait": {
-        "earliest": "-20m@m",
-        "latest": "now",
+        "earliest": "-20m@5m",
+        "latest": "@5m",
         "suppress_fields": "host",
         "search_defaults": ("splunk_docker_openbao_leader_io_wait_s",),
         "alert_fields": ("host", "role", "observed_s", "pct"),
         "alert_defaults": ("splunk_docker_openbao_leader_io_wait_s",),
     },
     "openbao_voter_io_wait": {
-        "earliest": "-25m@m",
-        "latest": "now",
+        "earliest": "-25m@5m",
+        "latest": "@5m",
         "suppress_fields": "host",
         "search_defaults": ("splunk_docker_openbao_voter_io_wait_s",),
         "alert_fields": ("host", "role", "observed_s"),
@@ -159,6 +159,7 @@ def check_stanza(name, body, spec, errors):
     )
     need(value(body, "dispatch.earliest_time") == spec["earliest"], f"dispatch.earliest_time is not {spec['earliest']}")
     need(value(body, "dispatch.latest_time") == spec["latest"], f"dispatch.latest_time is not {spec['latest']}")
+    need(value(body, "dispatch.latest_time") != "now", "dispatch.latest_time is now, which counts a partial newest bucket")
     for key, expected in COMMON_KEYS:
         need(value(body, key) == expected, f"{key} is not {expected!r}")
     need(bool(value(body, "description")), "has no description")
@@ -170,6 +171,16 @@ def check_stanza(name, body, spec, errors):
     need("#" not in search, "search carries a # comment")
     for key in spec["search_defaults"]:
         need(has_token(search, DEFAULTS[key]), f"search does not carry {key} = {DEFAULTS[key]}")
+
+    # streamstats keeps one window per BY group only when rows arrive grouped,
+    # and its window counts rows, so each windowed streamstats must follow a
+    # sort on its own keys and check the window's time span for gaps.
+    sorts = re.findall(r"\| sort 0 ([^|]+?) \|", search)
+    for match in re.finditer(r"\| streamstats ([^|]*?) BY ([^|]+?) \|", search):
+        args, keys = match.group(1), match.group(2).strip()
+        need(f"{keys} _time" in sorts, f"streamstats BY {keys} does not follow sort 0 {keys} _time")
+        if "window=" in args:
+            need("earliest(_time)" in args, f"windowed streamstats BY {keys} has no time-span check")
 
     marker = "| eval alert_text="
     need(marker in search, "search does not end by evaluating alert_text")
