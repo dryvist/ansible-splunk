@@ -33,7 +33,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    uses: dryvist/.github/.github/workflows/_ansible-ci.yml@main
+    uses: dryvist/.github/.github/workflows/_ansible-ci.yml@v1
     with:
       # ansible-lint runs yamllint internally on ansible content; scope it to the
       # same dirs the retired local lint job used.
