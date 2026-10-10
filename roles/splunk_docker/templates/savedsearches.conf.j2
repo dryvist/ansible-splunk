@@ -67,6 +67,8 @@ action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/
 
 {% include 'savedsearches/14-openbao.j2' %}
 
+{% include 'savedsearches/14b-openbao-latency.j2' %}
+
 {% include 'savedsearches/15-hermes-failure-classes.j2' %}
 
 {% include 'savedsearches/16-pve-zfs-hang.j2' %}

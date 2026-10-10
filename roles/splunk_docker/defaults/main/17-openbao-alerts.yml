@@ -4,3 +4,19 @@
 # derives the quorum line from this value, so the two cannot drift. Keep it
 # equal to the voter set the infrastructure code declares.
 splunk_docker_openbao_raft_expected_voters: 7
+# Request-latency multiplier: a node's 1-minute max must exceed this times its own 24h median.
+splunk_docker_openbao_latency_tail_multiplier: 5
+# Floor in ms under the request-latency threshold, so a quiet node does not page on noise.
+splunk_docker_openbao_latency_tail_floor_ms: 500
+# Minutes of the last 5 that must breach the request-latency threshold before alerting.
+splunk_docker_openbao_latency_tail_min_minutes: 2
+# Raft commit time in ms that must hold above this for 3 consecutive minutes on the leader.
+splunk_docker_openbao_raft_commit_sustained_ms: 300
+# Raft commit time in ms that alerts on any single minute above it.
+splunk_docker_openbao_raft_commit_spike_ms: 1000
+# Follower last-heartbeat age in ms, as the leader sees it, that must hold for 2 consecutive minutes.
+splunk_docker_openbao_follower_heartbeat_ms: 15000
+# Leader guest IO-wait seconds per 5-minute bucket that must hold for 2 consecutive buckets.
+splunk_docker_openbao_leader_io_wait_s: 150
+# Voter guest IO-wait seconds per 5-minute bucket that must hold for 3 consecutive buckets.
+splunk_docker_openbao_voter_io_wait_s: 240
