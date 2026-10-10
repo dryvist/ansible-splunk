@@ -19,24 +19,54 @@
 # against size_available - see data_disk_reserve.yml for why that distinction
 # caused a four-hour outage.
 
-- name: Resolve the filesystem backing each Splunk volume
+- name: Resolve the host data path of each Splunk volume
+  ansible.builtin.set_fact:
+    # hot_warm is volume:hot_warm at $SPLUNK_DB (indexes.conf.j2). The container
+    # sees it at /opt/splunk/var/lib/splunk, so on the host it is var_dir/lib/splunk.
+    splunk_docker_volume_data_paths:
+      hot_warm: "{{ splunk_docker_var_dir }}/lib/splunk"
+      cold: "{{ splunk_docker_cold_dir }}"
+
+# Longest-prefix match on the mount table: a mount covers a path only when its
+# mount point is the path itself or one of its ancestors, and the deepest
+# covering mount wins. A nested disk therefore beats the parent it sits under.
+- name: Resolve the mount backing the hot_warm data path
+  ansible.builtin.set_fact:
+    splunk_docker_hot_warm_mount_point: >-
+      {%- set ns = namespace(best='', best_len=-1) -%}
+      {%- for m in ansible_facts.mounts -%}
+        {%- if ((splunk_docker_volume_data_paths.hot_warm ~ '/').startswith(m.mount.rstrip('/') ~ '/'))
+              and ((m.mount | length) > ns.best_len) -%}
+          {%- set ns.best = m.mount -%}
+          {%- set ns.best_len = m.mount | length -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns.best }}
+
+- name: Resolve the mount backing the cold data path
+  ansible.builtin.set_fact:
+    splunk_docker_cold_mount_point: >-
+      {%- set ns = namespace(best='', best_len=-1) -%}
+      {%- for m in ansible_facts.mounts -%}
+        {%- if ((splunk_docker_volume_data_paths.cold ~ '/').startswith(m.mount.rstrip('/') ~ '/'))
+              and ((m.mount | length) > ns.best_len) -%}
+          {%- set ns.best = m.mount -%}
+          {%- set ns.best_len = m.mount | length -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns.best }}
+
+- name: Select the mount facts backing each Splunk volume
   ansible.builtin.set_fact:
     splunk_docker_volume_mounts: >-
-      {{
-        splunk_docker_volume_mounts | default({}) | combine({
-          item.key: (
-            ansible_facts.mounts
-            | selectattr('mount', 'in', item.value ~ '/')
-            | sort(attribute='mount')
-            | list | last | default({})
-          )
-        })
-      }}
-  loop:
-    - { key: 'hot_warm', value: '{{ splunk_docker_var_dir }}' }
-    - { key: 'cold', value: '{{ splunk_docker_cold_dir }}' }
-  loop_control:
-    label: "{{ item.key }} -> {{ item.value }}"
+      {{ {
+           'hot_warm': ansible_facts.mounts
+             | selectattr('mount', 'equalto', splunk_docker_hot_warm_mount_point)
+             | first | default({}),
+           'cold': ansible_facts.mounts
+             | selectattr('mount', 'equalto', splunk_docker_cold_mount_point)
+             | first | default({})
+         } }}
 
 # A path that resolves to no mount at all is UNKNOWN capacity, not zero. Any
 # environment without real mount facts (a test container, a host where the
