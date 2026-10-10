@@ -95,6 +95,12 @@ jobs:
           uv pip install --system -r tests/templates/requirements.txt
           bash scripts/run-template-tests.sh
 
+      - name: Run volume capacity unit tests
+        run: |
+          uv pip install --system -r tests/templates/requirements.txt
+          python3 tests/verify_volume_capacity/test_overcommit.py
+          python3 tests/verify_volume_capacity/test_mount_resolution.py
+
       - name: Run run-ansible.sh identity tests
         run: |
           python3 -m unittest discover -s tests/run_ansible -v

@@ -140,8 +140,8 @@ splunk_docker_token_publish_openbao: true
 splunk_docker_frozen_archive_enabled: true
 
 # Volume ceilings, sized against the real filesystems on this host:
-#   hot_warm -> 196G device, 188G available
-#   cold     -> 442G device, 339G available
+#   hot_warm -> 442G device at /opt/splunk/var/lib/splunk (nested in the 196G /opt/splunk/var mount)
+#   cold     -> 442G device at /opt/splunk/cold
 # Both sit well under available, because the preflight compares a cap to what
 # is available now and a cap it cannot bind is refused.
 #
@@ -157,5 +157,5 @@ splunk_docker_frozen_archive_enabled: true
 # off regardless of any one index's own configuration.
 #
 # Retune these when the underlying storage changes, not when an index grows.
-splunk_docker_volume_hot_warm_max_mb: 150000
-splunk_docker_volume_cold_max_mb: 300000
+splunk_docker_volume_hot_warm_max_mb: 215000
+splunk_docker_volume_cold_max_mb: 312000

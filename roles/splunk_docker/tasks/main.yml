@@ -97,6 +97,11 @@
     - "{{ splunk_docker_config_dir }}"
     - "{{ splunk_docker_cold_dir }}"
 
+# Resolves each Splunk volume to its filesystem once, for both the reserved-block
+# tuning below and the capacity preflight further down.
+- name: Resolve the filesystem behind each Splunk volume
+  ansible.builtin.include_tasks: resolve_volume_mounts.yml
+
 # Runs after the directories exist so the mount appears in facts, and before the
 # container starts so splunkd sees the full usable capacity on its first health
 # check rather than a figure the superuser reserve has silently reduced.

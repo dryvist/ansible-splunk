@@ -19,25 +19,6 @@
 # against size_available - see data_disk_reserve.yml for why that distinction
 # caused a four-hour outage.
 
-- name: Resolve the filesystem backing each Splunk volume
-  ansible.builtin.set_fact:
-    splunk_docker_volume_mounts: >-
-      {{
-        splunk_docker_volume_mounts | default({}) | combine({
-          item.key: (
-            ansible_facts.mounts
-            | selectattr('mount', 'in', item.value ~ '/')
-            | sort(attribute='mount')
-            | list | last | default({})
-          )
-        })
-      }}
-  loop:
-    - { key: 'hot_warm', value: '{{ splunk_docker_var_dir }}' }
-    - { key: 'cold', value: '{{ splunk_docker_cold_dir }}' }
-  loop_control:
-    label: "{{ item.key }} -> {{ item.value }}"
-
 # A path that resolves to no mount at all is UNKNOWN capacity, not zero. Any
 # environment without real mount facts (a test container, a host where the
 # volume is not yet attached) must skip the capacity assertions rather than

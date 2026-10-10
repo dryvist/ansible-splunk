@@ -15,21 +15,12 @@
 # Splunk enforces retention itself (volume caps + frozenTimePeriodInSecs), so
 # the reserve buys no protection here that Splunk is not already providing.
 
-# The index volume is not necessarily mounted exactly at splunk_docker_var_dir
-# (it is mounted a level up, at splunk_docker_data_dir, on the current VM), so
-# match the deepest mount that CONTAINS the var directory rather than requiring
-# an exact match. Sorting mount paths lexicographically puts a directory after
-# every one of its prefixes, so the last match is the deepest one. Worst case
-# this resolves to '/', which is still the filesystem actually holding the data.
-- name: Resolve the device backing the Splunk var directory
+# The reserve applies to the filesystem holding the index data, which is the
+# hot_warm volume. Its mount is resolved once, by longest prefix, in
+# resolve_volume_mounts.yml.
+- name: Use the filesystem holding the Splunk index data
   ansible.builtin.set_fact:
-    splunk_docker_var_mount: >-
-      {{
-        ansible_facts.mounts
-        | selectattr('mount', 'in', splunk_docker_var_dir ~ '/')
-        | sort(attribute='mount')
-        | list | last | default({})
-      }}
+    splunk_docker_var_mount: "{{ splunk_docker_volume_mounts.hot_warm }}"
 
 # Only ext2/3/4 expose reserved blocks via tune2fs. Anything else (xfs, zfs)
 # has no equivalent knob and must be skipped rather than guessed at.

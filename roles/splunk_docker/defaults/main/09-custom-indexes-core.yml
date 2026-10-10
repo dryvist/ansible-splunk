@@ -74,13 +74,12 @@ splunk_docker_indexes_core:
     # 70,000 was an emergency value chosen when hot/warm and cold shared one
     # 200 GB filesystem that had reached 97% full. That constraint is gone: the
     # two tiers now sit on separate dedicated 450 GB volumes, so the cap no
-    # longer has to be whatever the filesystem could survive. 102,400 MB
-    # (100 GB) leaves real headroom over the ~88 GB currently held, and at the
-    # measured ~1.4 GB/day for this index is roughly 72 days of retention.
+    # longer has to be whatever the filesystem could survive. 295,000 MB holds
+    # 30 days of retention at the measured on-disk rate, with headroom.
     #
     # Eviction is archival, not deletion: coldToFrozenScript uploads each bucket
     # before it is removed.
-    max_size_mb: 102400
+    max_size_mb: 295000
     frozen_time_secs: "{{ splunk_docker_index_default_frozen_time_secs }}"
   - name: gemini
     max_size_mb: "{{ splunk_docker_index_default_max_size_mb }}"
