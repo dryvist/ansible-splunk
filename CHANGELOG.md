@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.92.1](https://github.com/dryvist/ansible-splunk/compare/v0.92.0...v0.92.1) (2026-10-10)
+
+
+### Performance
+
+* **pre-commit:** lint only staged files with ansible-lint ([#654](https://github.com/dryvist/ansible-splunk/issues/654)) ([99df257](https://github.com/dryvist/ansible-splunk/commit/99df2576a962fbac1b2f54fd1b6b157662a2166b))
+
 ## [0.92.0](https://github.com/dryvist/ansible-splunk/compare/v0.91.0...v0.92.0) (2026-10-10)
 
 
