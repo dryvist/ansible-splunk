@@ -15,7 +15,7 @@ permissions:
 jobs:
   handle-failure:
     if: github.event.workflow_run.conclusion == 'failure'
-    uses: dryvist/ai-workflows/.github/workflows/ci-fail-issue.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/ci-fail-issue.yml@11a1a55bff10a4c4111e1002658021c2df126ce8 # main
     with:
       workflow_name: "CI Gate"
     secrets: inherit
