@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.92.2](https://github.com/dryvist/ansible-splunk/compare/v0.92.1...v0.92.2) (2026-10-10)
+
+
+### Bug Fixes
+
+* **pre-commit:** report when the ansible-lint lock tools are missing ([#660](https://github.com/dryvist/ansible-splunk/issues/660)) ([5e094f8](https://github.com/dryvist/ansible-splunk/commit/5e094f81d7ad199b2c1c5c5fc53136b2a779707c))
+
 ## [0.92.1](https://github.com/dryvist/ansible-splunk/compare/v0.92.0...v0.92.1) (2026-10-10)
 
 
