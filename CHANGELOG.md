@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.93.0](https://github.com/dryvist/ansible-splunk/compare/v0.92.2...v0.93.0) (2026-10-11)
+
+
+### Features
+
+* **openbao:** alert on admin-window use no Claude Code session accounts for ([27449da](https://github.com/dryvist/ansible-splunk/commit/27449da5ba5f8b4ad7077aaaab4e505c8ef60111))
+* **openbao:** alert on admin-window use no Claude Code session accounts for ([#679](https://github.com/dryvist/ansible-splunk/issues/679)) ([f7a95ac](https://github.com/dryvist/ansible-splunk/commit/f7a95ac5e753410dde1aac984a5bcf0c3fb11053))
+* **splunk_docker:** add Proxmox HA fence and recovery-error alerts ([#683](https://github.com/dryvist/ansible-splunk/issues/683)) ([26baf7c](https://github.com/dryvist/ansible-splunk/commit/26baf7c54b39ecdd3f374464ce0d4fdce160c9ba))
+
 ## [0.92.2](https://github.com/dryvist/ansible-splunk/compare/v0.92.1...v0.92.2) (2026-10-10)
 
 
