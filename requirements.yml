@@ -27,7 +27,7 @@ collections:
   # renovate: datasource=git-refs depName=https://github.com/dryvist/homelab-contracts.git currentValue=v5
   - name: https://github.com/dryvist/homelab-contracts.git#/ansible/
     type: git
-    version: 5830aa4121857d748b3903e628e26b91d2d90a81
+    version: 6bfe5b765e8b3acfbd6fe42d00e20a08133f3d39
 
 # splunk.splunk stays a `roles:` entry: its repository root IS the role, which
 # is the one shape `role install` addresses correctly. Install both sections
