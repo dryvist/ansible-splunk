@@ -24,10 +24,10 @@ collections:
   #
   # An immutable SHA, not a branch — a moving ref would let an unreviewed
   # contracts change reach a converge here without a PR in this repo.
-  # renovate: datasource=git-refs depName=https://github.com/dryvist/homelab-contracts.git currentValue=v5.3.1
+  # renovate: datasource=git-refs depName=https://github.com/dryvist/homelab-contracts.git currentValue=v5.4.0
   - name: https://github.com/dryvist/homelab-contracts.git#/ansible/
     type: git
-    version: 3f899233888f83026e97dc31939de2926d336d3d
+    version: 20fcb2f7063fe839c09fe02cc5da8a280e4d21ee
 
 # splunk.splunk stays a `roles:` entry: its repository root IS the role, which
 # is the one shape `role install` addresses correctly. Install both sections
