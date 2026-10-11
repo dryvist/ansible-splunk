@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.93.1](https://github.com/dryvist/ansible-splunk/compare/v0.93.0...v0.93.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **openbao:** skip held summary values in the request latency alert ([#685](https://github.com/dryvist/ansible-splunk/issues/685)) ([0ee6d77](https://github.com/dryvist/ansible-splunk/commit/0ee6d776065cd644191f530ed1cd019eb664e113))
+
 ## [0.93.0](https://github.com/dryvist/ansible-splunk/compare/v0.92.2...v0.93.0) (2026-10-11)
 
 
