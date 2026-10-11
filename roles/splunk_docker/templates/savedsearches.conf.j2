@@ -73,6 +73,8 @@ action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/
 
 {% include 'savedsearches/16-pve-zfs-hang.j2' %}
 
+{% include 'savedsearches/21-capacity-alerts.j2' %}
+
 {% include 'savedsearches/20-pve-ha-alerts.j2' %}
 
 {% include 'savedsearches/16-terrakube-job-alerts.j2' %}
