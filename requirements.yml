@@ -24,6 +24,7 @@ collections:
   #
   # An immutable SHA, not a branch — a moving ref would let an unreviewed
   # contracts change reach a converge here without a PR in this repo.
+  # renovate: datasource=git-refs depName=https://github.com/dryvist/homelab-contracts.git currentValue=v5
   - name: https://github.com/dryvist/homelab-contracts.git#/ansible/
     type: git
     version: 5830aa4121857d748b3903e628e26b91d2d90a81
