@@ -70,6 +70,48 @@ if "eval request_id='request.id'" not in full_search:
     errors.append("FAIL: search does not derive request_id from request.id")
 if "request_id" not in full_search.rsplit("| table ", 1)[-1].split():
     errors.append("FAIL: request_id is not kept in the alert's result table")
+for predicate in (
+    "'auth.metadata.role_name'=\"github-admin-claude\"",
+    'token_type="root"',
+    'like(policies, "%root%")',
+    'like(policies, "%ai-admin%")',
+    'like(\'request.path\', "sys/generate-root%")',
+    'like(\'request.path\', "sys/rekey%")',
+    'like(\'request.path\', "sys/policies/%")',
+    'like(\'request.path\', "sys/audit%")',
+    'like(\'request.path\', "sys/mounts%")',
+    'like(\'request.path\', "sys/auth%")',
+    'like(\'request.path\', "auth/approle/role/%")',
+    "'request.operation'=\"create\"",
+    "'request.operation'=\"update\"",
+    "'request.operation'=\"delete\"",
+    'in(caller, "approle-issuer", "approle-secret-id-rotate", "approle-secret-id-rotate-scheduled", "secret-age-audit", "splunk-mcp-rotate", "ai-rotate", "apps-rotate", "rustfs-rotate")',
+):
+    if predicate not in full_search:
+        errors.append(f"FAIL: privileged-use selection lost predicate {predicate}")
+
+reason_case = re.search(r"eval reason=case\((.*?)\) \| eval request_id", full_search)
+if not reason_case:
+    errors.append("FAIL: reason classification is missing")
+else:
+    reason = reason_case.group(1)
+    ordered_reasons = (
+        'token_type="root"',
+        'like(policies, "%root%")',
+        'like(policies, "%ai-admin%")',
+        'like(\'request.path\', "sys/generate-root%")',
+        'like(\'request.path\', "sys/rekey%")',
+        'like(\'request.path\', "auth/approle/role/%")',
+        '"sensitive management operation"',
+        'role_name\'="github-admin-claude"',
+    )
+    positions = [reason.find(marker) for marker in ordered_reasons]
+    if any(position < 0 for position in positions):
+        errors.append("FAIL: root, sensitive-operation, or role reason is missing")
+    elif positions != sorted(positions):
+        errors.append("FAIL: generic github-admin-claude reason masks a specific privileged reason")
+if setting("alert.digest_mode") is not None:
+    errors.append("FAIL: privileged-use digest mode changed without verified delivery semantics")
 period = re.fullmatch(r"(\d+)h", setting("alert.suppress.period") or "")
 if setting("alert.suppress") != "1" or not period or int(period.group(1)) < 48:
     errors.append("FAIL: suppression must be on for at least 48h")
