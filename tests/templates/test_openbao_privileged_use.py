@@ -66,6 +66,9 @@ def setting(key):
 
 
 full_search = search.group(1) if search else ""
+where_search = " ".join(
+    re.findall(r"\|\s*where\b(.*?)(?=\||$)", full_search, re.S)
+)
 if "eval request_id='request.id'" not in full_search:
     errors.append("FAIL: search does not derive request_id from request.id")
 if "request_id" not in full_search.rsplit("| table ", 1)[-1].split():
@@ -87,7 +90,7 @@ for predicate in (
     "'request.operation'=\"delete\"",
     'in(caller, "approle-issuer", "approle-secret-id-rotate", "approle-secret-id-rotate-scheduled", "secret-age-audit", "splunk-mcp-rotate", "ai-rotate", "apps-rotate", "rustfs-rotate")',
 ):
-    if predicate not in full_search:
+    if predicate not in where_search:
         errors.append(f"FAIL: privileged-use selection lost predicate {predicate}")
 
 reason_case = re.search(r"eval reason=case\((.*?)\) \| eval request_id", full_search)
