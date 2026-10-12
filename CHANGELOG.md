@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.94.0](https://github.com/dryvist/ansible-splunk/compare/v0.93.1...v0.94.0) (2026-10-12)
+
+
+### Features
+
+* **splunk_docker:** add pool-fill, swap and ClickHouse disk alerts ([#687](https://github.com/dryvist/ansible-splunk/issues/687)) ([4813f71](https://github.com/dryvist/ansible-splunk/commit/4813f71ffe9af56cc497386beb289943789c381e))
+
+
+### Bug Fixes
+
+* **splunk_docker:** fetch the VisiCore add-ons from their current owner ([b8d1aec](https://github.com/dryvist/ansible-splunk/commit/b8d1aec9ca34f477455edbc46370f7f6d058aaad))
+* **splunk_docker:** update add-on download owners ([#689](https://github.com/dryvist/ansible-splunk/issues/689)) ([b8d1aec](https://github.com/dryvist/ansible-splunk/commit/b8d1aec9ca34f477455edbc46370f7f6d058aaad))
+
 ## [0.93.1](https://github.com/dryvist/ansible-splunk/compare/v0.93.0...v0.93.1) (2026-10-11)
 
 
