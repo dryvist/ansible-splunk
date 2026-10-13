@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.97.0](https://github.com/dryvist/ansible-splunk/compare/v0.96.0...v0.97.0) (2026-10-13)
+
+
+### Features
+
+* **splunk:** add bounded open-llm search identity ([261d2c2](https://github.com/dryvist/ansible-splunk/commit/261d2c262f0a301a25217f8592eb988ff5fb1bf0))
+* **splunk:** add open-llm search role and sandbox-agent user ([#698](https://github.com/dryvist/ansible-splunk/issues/698)) ([c9c6ff8](https://github.com/dryvist/ansible-splunk/commit/c9c6ff8912cf8c371c466facae0adf76d7889e51))
+
+
+### Bug Fixes
+
+* **splunk:** default token field outside user loop ([32e9f58](https://github.com/dryvist/ansible-splunk/commit/32e9f5876dc29c8084c81403309b088a5619b85f))
+
 ## [0.96.0](https://github.com/dryvist/ansible-splunk/compare/v0.95.1...v0.96.0) (2026-10-13)
 
 
