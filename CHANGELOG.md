@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.96.0](https://github.com/dryvist/ansible-splunk/compare/v0.95.1...v0.96.0) (2026-10-13)
+
+
+### Features
+
+* **splunk_docker:** declare the llm_pricefeed index ([0843500](https://github.com/dryvist/ansible-splunk/commit/08435009898ae74fbc80a7c913686ca09edf6cea))
+* **splunk_docker:** declare the llm_pricefeed index ([#696](https://github.com/dryvist/ansible-splunk/issues/696)) ([dfe86ab](https://github.com/dryvist/ansible-splunk/commit/dfe86ab0e8a84559da8b86f8c45d0f6fb89fa441))
+* **splunk_docker:** give the price feed a daily silence threshold ([c9ece6a](https://github.com/dryvist/ansible-splunk/commit/c9ece6a7257a2f4a3a2f5b8fac8734c785966a8c))
+
 ## [0.95.1](https://github.com/dryvist/ansible-splunk/compare/v0.95.0...v0.95.1) (2026-10-12)
 
 
