@@ -28,6 +28,7 @@
       openai: "molecule-test-token-openai"
       otel_traces: "molecule-test-token-otel-traces"
       ai_usage: "molecule-test-token-ai-usage"
+      llm_pricefeed: "{{ 'splunk-hec-llm_pricefeed' | to_uuid(splunk_docker_hec_namespace) }}"
       os: "molecule-test-token-os"
       unifi: "molecule-test-token-unifi"
       vscode: "molecule-test-token-vscode"

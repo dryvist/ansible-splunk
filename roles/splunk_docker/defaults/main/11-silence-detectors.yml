@@ -107,6 +107,7 @@ splunk_docker_silence_lookback_multiplier: 2000
 splunk_docker_llm_freshness_indexes:
   - otel_traces
   - ai_usage
+  - llm_pricefeed
   - claude
   - codex
   - gemini

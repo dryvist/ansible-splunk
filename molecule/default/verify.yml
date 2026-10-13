@@ -116,6 +116,7 @@
           - "'[os]' in (indexes_content.content | b64decode)"
           - "'[otel_traces]' in (indexes_content.content | b64decode)"
           - "'[ai_usage]' in (indexes_content.content | b64decode)"
+          - "'[llm_pricefeed]' in (indexes_content.content | b64decode)"
           - "'[ai]' in (indexes_content.content | b64decode)"
           - "'[claude]' in (indexes_content.content | b64decode)"
           - "'[llm]' in (indexes_content.content | b64decode)"
@@ -138,6 +139,18 @@
         that:
           - inputs_conf.stat.exists
         fail_msg: "inputs.conf not found - HEC not configured"
+
+    - name: Read inputs.conf content
+      ansible.builtin.slurp:
+        src: "{{ splunk_docker_etc_dir }}/system/local/inputs.conf"
+      register: inputs_conf_content
+
+    - name: Verify llm_pricefeed HEC token is scoped to its index
+      ansible.builtin.assert:
+        that:
+          - "'[http://llm_pricefeed]' in (inputs_conf_content.content | b64decode)"
+          - "'index = llm_pricefeed' in (inputs_conf_content.content | b64decode)"
+          - "'indexes = llm_pricefeed' in (inputs_conf_content.content | b64decode)"
 
     - name: Read docker-compose.yml content
       ansible.builtin.slurp:

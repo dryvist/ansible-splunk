@@ -83,6 +83,7 @@ INDEXES = [
      "frozen_time_secs": 31536000},
     {"name": "firewall", "tier": "large", "home_max_size_mb": 20480, "max_size_mb": 92160,
      "frozen_time_secs": 31536000},
+    {"name": "llm_pricefeed", "max_size_mb": 512, "frozen_time_secs": 2592000},
     {"name": "netflow", "max_size_mb": 51200, "frozen_time_secs": 7776000},
     {"name": "dns", "max_size_mb": 10240, "frozen_time_secs": 31536000},
 ]
@@ -167,7 +168,13 @@ if value_errors:
 else:
     print("PASS: maxTotalDataSizeMB and frozenTimePeriodInSecs rendered with correct values")
 
-# Test 7: stanzas are independent — each index path uses only that index's name
+# Test 7: llm_pricefeed remains an event index (the default datatype).
+if "datatype = metric" in stanza_body(result, "llm_pricefeed", all_names):
+    errors.append("FAIL: llm_pricefeed should be an event index")
+else:
+    print("PASS: llm_pricefeed renders as an event index")
+
+# Test 8: stanzas are independent — each index path uses only that index's name
 for idx in all_names:
     other_names = [n for n in all_names if n != idx]
     body = stanza_body(result, idx, all_names)
@@ -181,7 +188,7 @@ for idx in all_names:
 else:
     print("PASS: each index stanza references only its own paths")
 
-# Test 8: empty index list produces no index stanzas (volume stanzas still render).
+# Test 9: empty index list produces no index stanzas (volume stanzas still render).
 # Both lists are emptied: this asserts the managed-index loop emits nothing, and
 # the system-index loop is asserted separately above.
 result_empty = render([], system_indexes=[])

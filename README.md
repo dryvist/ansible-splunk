@@ -24,7 +24,7 @@ Cribl Edge (181/182) ──HEC :8088──> Splunk (200)
                                       │
                                   Splunk indexes:
                                     ai, claude, firewall, gemini,
-                                    mac_perf, netflow, netmon_metrics, network,
+                                    llm_pricefeed, mac_perf, netflow, netmon_metrics, network,
                                     openai, os, os_metrics, otel_traces, unifi,
                                     unifi_metrics, vscode
 ```
@@ -57,9 +57,9 @@ Per-index size caps and retention are set in
 `10-custom-indexes-extra.yml` (`splunk_docker_indexes`); most
 indexes use the 365-day/10 GiB defaults, but `netflow`, `host_metrics`,
 `llm_metrics`, `netmon_metrics`, `os_metrics`, and `unifi_metrics` use
-90-day retention, and `netflow` caps at 50 GiB rather than the default. Two
-indexes — `firewall` and `unifi` — are tiered: their hot data stays on fast
-storage (`$SPLUNK_DB`) and their cold data rolls out to a separate
+90-day retention. `llm_pricefeed` uses 30-day retention and a 512 MB cap;
+`netflow` caps at 50 GiB. Two indexes — `firewall` and `unifi` — are tiered:
+their hot data stays on fast storage (`$SPLUNK_DB`) and their cold data rolls out to a separate
 `splunk_docker_cold_dir` volume; every other index keeps both hot and cold
 data on fast storage.
 
@@ -69,6 +69,7 @@ data on fast storage.
 | `claude` | Claude-specific events |
 | `firewall` | Palo Alto / Cisco firewall logs |
 | `gemini` | Gemini-specific events |
+| `llm_pricefeed` | Daily LiteLLM price snapshots (`litellm:price`, 30-day retention) |
 | `mac_perf` | macOS performance metrics |
 | `netflow` | NetFlow / IPFIX flow data |
 | `netmon_metrics` | Per-WAN network-diagnosis probe telemetry, metric index (90-day retention) |
