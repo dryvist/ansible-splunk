@@ -97,6 +97,18 @@ splunk_docker_roles:
       - license_read
       - license_view_warnings
       - list_health
+  - name: open-llm
+    imported_roles: []
+    srch_indexes_allowed:
+      # TODO: Restrict indexes when the sandbox index scope is defined.
+      - "*"
+    srch_indexes_default: []
+    srch_jobs_quota: 3
+    srch_disk_quota: 100
+    # MCP tool access plus the Splunk search capability only.
+    capabilities:
+      - mcp_tool_execute
+      - search
   # Grants ONLY the capability to mint/manage tokens for other users — no
   # imported_roles, no index access. Held by svc-mcp-rotator (below), never by
   # hermes: minting is a separate identity from searching.
@@ -109,6 +121,12 @@ splunk_docker_users:
   - name: hermes
     roles:
       - hermes_search
+  - name: sandbox-agent
+    roles:
+      - open-llm
+    token_openbao_path: "{{ splunk_docker_open_llm_token_openbao_path }}"
+    token_openbao_key: "{{ splunk_docker_open_llm_token_openbao_key }}"
+    url_openbao_key: ""
 
 # svc-mcp-rotator is NOT in splunk_docker_users above — see
 # defaults/main/03-users-tokens-mcp.yml for why. This turns on its separate
@@ -117,10 +135,14 @@ splunk_docker_users:
 # (ansible-proxmox-apps) reads to mint/revoke hermes's MCP token.
 splunk_docker_manage_mcp_rotator: true
 
-# Publish the shared Splunk MCP connection (SPLUNK_MCP_URL + minted
-# SPLUNK_MCP_TOKEN) to OpenBao secret/ai/mcp/splunk. Reads a write-capable
-# token from BAO_ADDR/BAO_TOKEN.
+# Publish managed-user tokens and configured MCP URLs to OpenBao. The hermes
+# connection uses secret/ai/mcp/splunk; the sandbox-agent token uses its
+# separate path/key variables below. Reads a write-capable token from
+# BAO_ADDR/BAO_TOKEN.
 splunk_docker_token_publish_openbao: true
+# Publication destination for the sandbox-agent Splunk search token.
+splunk_docker_open_llm_token_openbao_path: "apps/sandbox-agent"
+splunk_docker_open_llm_token_openbao_key: "splunk_search_token"
 
 # Archive frozen buckets rather than deleting them.
 #

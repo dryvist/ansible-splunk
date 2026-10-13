@@ -6,7 +6,8 @@
 # splunk inventory group enables it and supplies the user list.
 splunk_docker_manage_users: false
 
-# List of managed users. Each: { name, roles: [..] }.
+# List of managed users. Each: { name, roles: [..] }, with optional per-user
+# token_openbao_path, token_openbao_key, and url_openbao_key overrides.
 #   name  - Splunk username (also the token owner / audience owner).
 #   roles - Splunk roles granted (e.g. [admin], [user], [power]).
 # The user's password is randomly generated once at creation and never rotated
@@ -29,6 +30,8 @@ splunk_docker_users: []
 #   srch_indexes_allowed - searchable indexes; "_*" is required for internal
 #   srch_indexes_default - searched when a query names no index
 #   capabilities         - capabilities granted on top of the imported roles
+#   srch_jobs_quota      - concurrent search jobs allowed (default: 3)
+#   srch_disk_quota      - search-job disk usage in MB (default: 100)
 splunk_docker_manage_roles: true
 splunk_docker_roles: []
 

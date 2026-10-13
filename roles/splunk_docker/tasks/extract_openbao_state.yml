@@ -21,7 +21,7 @@
 
 - name: Extract canonical token from OpenBao source data
   vars:
-    candidate: "{{ splunk_docker_bao_source_data.get(splunk_docker_token_openbao_key, '') | default('', true) }}"
+    candidate: "{{ splunk_docker_bao_source_data.get(splunk_docker_user_token_openbao_key, '') | default('', true) }}"
   ansible.builtin.set_fact:
     splunk_docker_bao_published_token: "{{ candidate if candidate is string else '' }}"
   no_log: true
