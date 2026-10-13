@@ -12,6 +12,7 @@ Run from repo root:
 """
 
 import sys
+import uuid
 from pathlib import Path
 
 from _render_env import ansible_env
@@ -33,12 +34,14 @@ INDEXES = [
     {"name": "ai"},
     {"name": "claude"},
     {"name": "firewall"},
+    {"name": "llm_pricefeed"},
     {"name": "netflow"},
 ]
 TOKENS = {
     "ai":       "aaaaaaaa-0000-5000-8000-000000000001",
     "claude":   "bbbbbbbb-0000-5000-8000-000000000002",
     "firewall": "cccccccc-0000-5000-8000-000000000003",
+    "llm_pricefeed": str(uuid.uuid5(uuid.NAMESPACE_DNS, "test-splunk-hec-llm_pricefeed")),
     "netflow":  "dddddddd-0000-5000-8000-000000000004",
 }
 
@@ -62,6 +65,11 @@ if stanza_errors:
     errors.append("FAIL: per-index stanza rendering errors:\n" + "\n".join(stanza_errors))
 else:
     print(f"PASS: all {len(TOKENS)} per-index stanzas rendered with correct tokens")
+
+if "indexes = llm_pricefeed" not in result:
+    errors.append("FAIL: llm_pricefeed HEC token is not allowed to write to its index")
+else:
+    print("PASS: llm_pricefeed HEC token is allowed to write to its index")
 
 # Test 3: Empty string token → stanza is skipped entirely
 partial_tokens = dict(TOKENS)

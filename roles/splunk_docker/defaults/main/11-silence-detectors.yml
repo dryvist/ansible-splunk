@@ -107,6 +107,7 @@ splunk_docker_silence_lookback_multiplier: 2000
 splunk_docker_llm_freshness_indexes:
   - otel_traces
   - ai_usage
+  - llm_pricefeed
   - claude
   - codex
   - gemini
@@ -270,6 +271,13 @@ splunk_docker_silence_detectors:
   - name: ai_usage
     index: ai_usage
     threshold_minutes: 1440
+    cron: "17 * * * *"
+    suppress_minutes: 720
+    disabled: 0
+  # llm_pricefeed: daily price feed; allow 36 h for a delayed batch.
+  - name: llm_pricefeed
+    index: llm_pricefeed
+    threshold_minutes: 2160
     cron: "17 * * * *"
     suppress_minutes: 720
     disabled: 0
