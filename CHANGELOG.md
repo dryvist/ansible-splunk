@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.97.1](https://github.com/dryvist/ansible-splunk/compare/v0.97.0...v0.97.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **splunk_docker:** lower the cold volume cap below available space ([#702](https://github.com/dryvist/ansible-splunk/issues/702)) ([d3c6ee6](https://github.com/dryvist/ansible-splunk/commit/d3c6ee6835bf9470fc6a9e76883e4b1dfb2a5135))
+* **splunk:** run read-only probes in check mode ([#703](https://github.com/dryvist/ansible-splunk/issues/703)) ([ff136db](https://github.com/dryvist/ansible-splunk/commit/ff136db34bea08ace3c4b8b538f30c63f6df76cb))
+
 ## [0.97.0](https://github.com/dryvist/ansible-splunk/compare/v0.96.0...v0.97.0) (2026-10-13)
 
 
