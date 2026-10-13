@@ -39,6 +39,7 @@
       ansible.builtin.command: timedatectl show --property=NTPSynchronized --value
       register: ntp_synced
       changed_when: false
+      check_mode: false
       until: ntp_synced.stdout | trim == 'yes'
       retries: 12
       delay: 5
