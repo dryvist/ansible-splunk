@@ -19,7 +19,7 @@
    Four stanzas, not two: "page on fail" and "page on no pass in window" are
    different alert shapes (presence-of-bad-row vs absence-of-good-row) with
    different SPL, and the two events don't share a field schema, so folding
-   them into fewer stanzas (like hermes_failure_classes' one-search/many-class
+   them into fewer stanzas (one-search/many-class
    shape) would need per-event branching for every field in the table below
    with no reduction in actual logic.
 

@@ -14,8 +14,7 @@ logs today (verified against the template source, cited in this stanza's own
 comment): "brain unreachable" and "brain UNSTABLE ... still flapping",
 routed at index=os_ai host=hermes-agent per this repo's own
 05-hermes-delivery-slo.j2. This test proves both trip the search and an
-unrelated line does not, the same technique test_gap_detector.py and
-test_hermes_failure_classes.py use.
+unrelated line does not, the same technique test_gap_detector.py uses.
 
 Run from repo root:
   python3 tests/templates/test_llm_serving_searches.py
