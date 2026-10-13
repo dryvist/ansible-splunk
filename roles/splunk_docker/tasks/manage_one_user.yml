@@ -80,9 +80,9 @@
     - name: "Plan token state for {{ splunk_user.name }}"
       ansible.builtin.include_tasks: plan_token_reconciliation.yml
 
-    - name: "Read current OpenBao secret at {{ splunk_docker_token_openbao_path }}"
+    - name: "Read current OpenBao secret at {{ splunk_docker_user_token_openbao_path }}"
       ansible.builtin.uri:
-        url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/data/{{ splunk_docker_token_openbao_path }}"
+        url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/data/{{ splunk_docker_user_token_openbao_path }}"
         method: GET
         headers:
           X-Vault-Token: "{{ splunk_docker_token_openbao_token }}"
@@ -95,9 +95,9 @@
       check_mode: false
       no_log: true
 
-    - name: "Read current OpenBao metadata at {{ splunk_docker_token_openbao_path }}"
+    - name: "Read current OpenBao metadata at {{ splunk_docker_user_token_openbao_path }}"
       ansible.builtin.uri:
-        url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/metadata/{{ splunk_docker_token_openbao_path }}"
+        url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/metadata/{{ splunk_docker_user_token_openbao_path }}"
         method: GET
         headers:
           X-Vault-Token: "{{ splunk_docker_token_openbao_token }}"
@@ -119,9 +119,9 @@
           json: {}
       no_log: true
 
-    - name: "Undelete current OpenBao version at {{ splunk_docker_token_openbao_path }}"
+    - name: "Undelete current OpenBao version at {{ splunk_docker_user_token_openbao_path }}"
       ansible.builtin.uri:
-        url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/undelete/{{ splunk_docker_token_openbao_path }}"
+        url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/undelete/{{ splunk_docker_user_token_openbao_path }}"
         method: POST
         headers:
           X-Vault-Token: "{{ splunk_docker_token_openbao_token }}"
@@ -136,11 +136,11 @@
         - splunk_docker_bao_current_version | int > 0
       no_log: true
 
-    - name: "Re-read recovered OpenBao version at {{ splunk_docker_token_openbao_path }}"
+    - name: "Re-read recovered OpenBao version at {{ splunk_docker_user_token_openbao_path }}"
       ansible.builtin.uri:
         url: >-
           {{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/data/{{
-          splunk_docker_token_openbao_path }}?version={{ splunk_docker_bao_current_version | int }}
+          splunk_docker_user_token_openbao_path }}?version={{ splunk_docker_bao_current_version | int }}
         method: GET
         headers:
           X-Vault-Token: "{{ splunk_docker_token_openbao_token }}"
@@ -220,9 +220,9 @@
         # KV v2 writes replace the whole secret. Merge sibling data and use the
         # metadata endpoint's current_version so a soft-deleted latest version
         # is recovered with the correct compare-and-set value.
-        - name: "Publish {{ splunk_user.name }} MCP connection to OpenBao"
+        - name: "Publish {{ splunk_user.name }} token to OpenBao"
           ansible.builtin.uri:
-            url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/data/{{ splunk_docker_token_openbao_path }}"
+            url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/data/{{ splunk_docker_user_token_openbao_path }}"
             method: POST
             headers:
               X-Vault-Token: "{{ splunk_docker_token_openbao_token }}"
@@ -230,9 +230,11 @@
             body:
               data: >-
                 {{ splunk_docker_bao_source_data | combine({
-                       splunk_docker_url_openbao_key: splunk_docker_mcp_url,
-                       splunk_docker_token_openbao_key: splunk_docker_token_mint.json.token
-                     }) }}
+                       splunk_docker_user_token_openbao_key: splunk_docker_token_mint.json.token
+                     }) | combine(
+                       ({splunk_docker_user_url_openbao_key: splunk_docker_mcp_url}
+                        if splunk_docker_user_url_openbao_key | length > 0 else {})
+                     ) }}
               options:
                 cas: "{{ splunk_docker_bao_cas_version | int }}"
             validate_certs: true
@@ -344,7 +346,6 @@
     msg: >-
       User '{{ splunk_user.name }}' ensured (roles {{ splunk_user.roles | join(',') }}).
       Token minting is deferred because splunk_docker_token_publish_openbao is off.
-      Set it true, with BAO_ADDR/BAO_TOKEN in the environment, to mint + publish
-      {{ splunk_docker_url_openbao_key }} and {{ splunk_docker_token_openbao_key }} to
-      {{ splunk_docker_token_openbao_mount }}/{{ splunk_docker_token_openbao_path }}.
+      Set it true, with BAO_ADDR/BAO_TOKEN in the environment, to mint and publish
+      to {{ splunk_docker_token_openbao_mount }}/{{ splunk_docker_user_token_openbao_path }}.
   when: not (splunk_docker_token_publish_openbao | bool)

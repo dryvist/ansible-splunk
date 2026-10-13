@@ -46,6 +46,10 @@
     - name: Reconcile each managed user and its token
       ansible.builtin.include_tasks: manage_one_user.yml
       loop: "{{ splunk_docker_users }}"
+      vars:
+        splunk_docker_user_token_openbao_path: "{{ splunk_user.token_openbao_path | default(splunk_docker_token_openbao_path) }}"
+        splunk_docker_user_token_openbao_key: "{{ splunk_user.token_openbao_key | default(splunk_docker_token_openbao_key) }}"
+        splunk_docker_user_url_openbao_key: "{{ splunk_user.url_openbao_key | default(splunk_docker_url_openbao_key) }}"
       loop_control:
         loop_var: splunk_user
         label: "{{ splunk_user.name }}"
