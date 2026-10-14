@@ -1,0 +1,122 @@
+---
+# Reconcile the Zammad alert-action URL and credential from OpenBao.
+
+- name: Assert OpenBao inputs are available for the Zammad alert action
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_token_openbao_addr | default('', true) | length > 0
+      - splunk_docker_token_openbao_token | default('', true) | length > 0
+    fail_msg: >-
+      Cannot read OpenBao mount {{ splunk_docker_token_openbao_mount }} path
+      {{ splunk_docker_token_openbao_path }} for keys
+      {{ splunk_docker_zammad_url_openbao_key }} and
+      {{ splunk_docker_zammad_token_openbao_key }} without BAO_ADDR and BAO_TOKEN.
+    quiet: true
+
+- name: Read Zammad alert-action fields from OpenBao
+  ansible.builtin.uri:
+    url: "{{ splunk_docker_token_openbao_addr }}/v1/{{ splunk_docker_token_openbao_mount }}/data/{{ splunk_docker_token_openbao_path }}"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ splunk_docker_token_openbao_token }}"
+    validate_certs: true
+    status_code: [200, 404]
+  delegate_to: localhost
+  register: splunk_docker_zammad_bao_secret
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert the Zammad alert-action fields are present
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_zammad_bao_secret.status | default(0) | int == 200
+    fail_msg: >-
+      OpenBao mount {{ splunk_docker_token_openbao_mount }} path
+      {{ splunk_docker_token_openbao_path }} must return HTTP 200 and contain
+      keys {{ splunk_docker_zammad_url_openbao_key }} and
+      {{ splunk_docker_zammad_token_openbao_key }}.
+    quiet: true
+
+- name: Assert each Zammad alert-action field is non-empty
+  ansible.builtin.assert:
+    that:
+      - (splunk_docker_zammad_bao_secret.json | default({}, true)).get('data', {}).get('data', {}).get(item, '') is string
+      - (splunk_docker_zammad_bao_secret.json | default({}, true)).get('data', {}).get('data', {}).get(item, '') | default('', true) | length > 0
+    fail_msg: >-
+      OpenBao mount {{ splunk_docker_token_openbao_mount }} path
+      {{ splunk_docker_token_openbao_path }} must contain non-empty key '{{ item }}'.
+    quiet: true
+  loop:
+    - "{{ splunk_docker_zammad_url_openbao_key }}"
+    - "{{ splunk_docker_zammad_token_openbao_key }}"
+
+- name: Create Zammad alert-action local configuration directory
+  ansible.builtin.file:
+    path: "{{ splunk_docker_etc_dir }}/apps/splunk-homelab-alerts/local"
+    state: directory
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0755'
+
+- name: Configure Zammad alert-action URL
+  ansible.builtin.template:
+    src: zammad_alert_actions.conf.j2
+    dest: "{{ splunk_docker_etc_dir }}/apps/splunk-homelab-alerts/local/alert_actions.conf"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  notify: Restart Splunk container
+  no_log: true
+
+- name: Read the Zammad credential from Splunk storage/passwords
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ splunk_docker_mgmt_port }}/servicesNS/nobody/splunk-homelab-alerts/storage/passwords/zammad%3Asvc-splunk%3A?output_mode=json"
+    method: GET
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+  register: splunk_docker_zammad_password_current
+  check_mode: false
+  no_log: true
+
+- name: Create the Zammad credential in Splunk storage/passwords
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ splunk_docker_mgmt_port }}/servicesNS/nobody/splunk-homelab-alerts/storage/passwords"
+    method: POST
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: form-urlencoded
+    body:
+      name: svc-splunk
+      realm: zammad
+      password: "{{ splunk_docker_zammad_bao_secret.json.data.data[splunk_docker_zammad_token_openbao_key] }}"
+    status_code: [200, 201]
+  when: splunk_docker_zammad_password_current.status == 404
+  changed_when: true
+  no_log: true
+
+- name: Update the Zammad credential in Splunk storage/passwords
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ splunk_docker_mgmt_port }}/servicesNS/nobody/splunk-homelab-alerts/storage/passwords/zammad%3Asvc-splunk%3A"
+    method: POST
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: form-urlencoded
+    body:
+      password: "{{ splunk_docker_zammad_bao_secret.json.data.data[splunk_docker_zammad_token_openbao_key] }}"
+    status_code: [200]
+  when:
+    - splunk_docker_zammad_password_current.status == 200
+    - >-
+      ((splunk_docker_zammad_password_current.json | default({}, true)).get('entry', [])
+      | first | default({})).get('content', {}).get('clear_password', '')
+      != splunk_docker_zammad_bao_secret.json.data.data[splunk_docker_zammad_token_openbao_key]
+  changed_when: true
+  no_log: true

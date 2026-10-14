@@ -39,6 +39,8 @@ See `defaults/main/` for all variables (one topic per file). Key variables:
 | `splunk_docker_hec_port` | `8088` | HEC port |
 | `splunk_docker_user` | `41812` | Splunk container user UID |
 | `splunk_docker_firewall_enabled` | `false` | Enable firewall rules |
+| `splunk_docker_zammad_url_openbao_key` | `SPLUNK_ZAMMAD_URL` | OpenBao field used for the Zammad alert-action URL |
+| `splunk_docker_zammad_token_openbao_key` | `SPLUNK_ZAMMAD_TOKEN` | OpenBao field used for the Zammad alert-action credential |
 
 ## File Ownership
 

@@ -381,6 +381,13 @@
     label: "{{ splunk_override.app }}/{{ splunk_override.name }}"
   tags: [alerting]
 
+- name: Configure Zammad alert action
+  ansible.builtin.include_tasks:
+    file: zammad_alert_action.yml
+    apply:
+      tags: [alerting]
+  tags: [alerting]
+
 # Create dedicated service users (e.g. the Hermes AI agent) + mint their auth
 # tokens. Runs after the REST API is live (wait_for_splunk, above).
 - name: Manage Splunk service users and tokens

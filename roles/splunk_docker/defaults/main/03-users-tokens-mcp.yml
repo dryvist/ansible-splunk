@@ -70,6 +70,9 @@ splunk_docker_token_openbao_mount: "secret"
 splunk_docker_token_openbao_path: "ai/mcp/splunk"
 splunk_docker_url_openbao_key: "SPLUNK_MCP_URL"
 splunk_docker_token_openbao_key: "SPLUNK_MCP_TOKEN"
+# OpenBao fields consumed by the Zammad alert action.
+splunk_docker_zammad_url_openbao_key: "SPLUNK_ZAMMAD_URL"
+splunk_docker_zammad_token_openbao_key: "SPLUNK_ZAMMAD_TOKEN"
 splunk_docker_mcp_host: >-
   {{ (hostname ~ '.' ~ tofu_data.domain)
      if (hostname is defined and tofu_data is defined and tofu_data.domain is defined)
