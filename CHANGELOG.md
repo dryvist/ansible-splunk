@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.98.0](https://github.com/dryvist/ansible-splunk/compare/v0.97.2...v0.98.0) (2026-10-14)
+
+
+### Features
+
+* **alerts:** add Proxmox node boot alert ([#708](https://github.com/dryvist/ansible-splunk/issues/708)) ([900fd83](https://github.com/dryvist/ansible-splunk/commit/900fd833034af30ecd8b44afb3566aef5de583f0))
+
+
+### Bug Fixes
+
+* **splunk_docker:** pin splunk-homelab-alerts v0.11.0 ([#707](https://github.com/dryvist/ansible-splunk/issues/707)) ([8ec461c](https://github.com/dryvist/ansible-splunk/commit/8ec461c38e7bad2a6205e8796b25594ab241d3db))
+
 ## [0.97.2](https://github.com/dryvist/ansible-splunk/compare/v0.97.1...v0.97.2) (2026-10-14)
 
 
