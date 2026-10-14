@@ -13,7 +13,9 @@
 #                    sync and must be populated manually.
 #   pin_version    — optional. Hard-pin to an exact version string to hold back a bad
 #                    release. When absent (the default), the entry tracks latest.
-#   github_repo    — optional. If set, download from github.com/<repo> releases/latest.
+#   github_repo    — optional. If set, download from github.com/<repo> releases/latest,
+#                    or from the tag in pin_version when the entry carries one (the
+#                    install then repeats whenever the pinned tag changes).
 #                    Mutually exclusive with splunkbase_id.
 #   role           — optional. Stable identifier for entries that other playbooks
 #                    look up by purpose rather than filename (e.g. role: mcp_server
@@ -97,4 +99,8 @@ splunk_docker_addons:
   - filename: VisiCore_App_for_AI_Observability.spl
     app_dir: VisiCore_App_for_AI_Observability
     github_repo: JacobPEvans-personal/VisiCore_App_for_AI_Observability
-  - {filename: splunk-homelab-alerts.tar, app_dir: splunk-homelab-alerts, github_repo: dryvist/splunk-homelab-alerts}
+  - filename: splunk-homelab-alerts.tar
+    app_dir: splunk-homelab-alerts
+    github_repo: dryvist/splunk-homelab-alerts
+    # renovate: datasource=github-releases depName=dryvist/splunk-homelab-alerts
+    pin_version: "v0.10.0"

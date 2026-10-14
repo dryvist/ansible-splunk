@@ -221,12 +221,53 @@
     {{ ((splunk_docker_addons | selectattr('install', 'undefined') | list)
         + (splunk_docker_addons | selectattr('install', 'defined')
            | selectattr('install', 'equalto', true) | list))
-       | selectattr('github_repo', 'defined') | list }}
+       | selectattr('github_repo', 'defined') | rejectattr('pin_version', 'defined') | list }}
   loop_control:
     label: "{{ item.app_dir }}"
   register: splunk_docker_github_install
   ignore_errors: true  # noqa: ignore-errors  # fail-soft: config handlers must still flush
   notify: Restart Splunk container
+
+# Pinned GitHub-release apps: the marker file names the installed tag, so a changed
+# pin installs again. The tree is extracted over the existing one, which keeps the
+# app's local/ overrides.
+- name: Check the release marker of pinned GitHub-release add-ons
+  ansible.builtin.stat:
+    path: "{{ splunk_docker_etc_dir }}/apps/{{ item.app_dir }}/.release-{{ item.pin_version }}"
+  loop: >-
+    {{ ((splunk_docker_addons | selectattr('install', 'undefined') | list)
+        + (splunk_docker_addons | selectattr('install', 'defined')
+           | selectattr('install', 'equalto', true) | list))
+       | selectattr('github_repo', 'defined') | selectattr('pin_version', 'defined') | list }}
+  loop_control:
+    label: "{{ item.app_dir }} {{ item.pin_version }}"
+  register: splunk_docker_github_pinned_marker
+
+- name: Install pinned GitHub-release add-ons
+  ansible.builtin.unarchive:
+    src: "https://github.com/{{ item.github_repo }}/releases/download/{{ item.pin_version }}/{{ item.filename }}"
+    dest: "{{ splunk_docker_etc_dir }}/apps/"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    remote_src: true
+  loop: "{{ splunk_docker_github_pinned_marker.results | rejectattr('stat.exists') | map(attribute='item') | list }}"
+  loop_control:
+    label: "{{ item.app_dir }} {{ item.pin_version }}"
+  register: splunk_docker_github_pinned_install
+  ignore_errors: true  # noqa: ignore-errors  # fail-soft: config handlers must still flush
+  notify: Restart Splunk container
+
+# A failed download must not record a marker, or the next run would never retry.
+- name: Record the release marker of pinned GitHub-release add-ons
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ splunk_docker_etc_dir }}/apps/{{ item.item.app_dir }}/.release-{{ item.item.pin_version }}"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  loop: "{{ splunk_docker_github_pinned_install.results | default([]) | rejectattr('failed') | list }}"
+  loop_control:
+    label: "{{ item.item.app_dir }} {{ item.item.pin_version }}"
 
 # Surface exactly which add-ons failed (from the registered loop results) and why the
 # converge is proceeding anyway, so a broken download is loud but non-fatal.
@@ -245,12 +286,18 @@
           | map(attribute='item.app_dir') | list)
          + (splunk_docker_github_install.results | default([])
           | selectattr('failed', 'defined') | selectattr('failed')
+          | map(attribute='item.app_dir') | list)
+         + (splunk_docker_github_pinned_install.results | default([])
+          | selectattr('failed', 'defined') | selectattr('failed')
           | map(attribute='item.app_dir') | list) }}
     _splunk_docker_failed_details: >-
       {{ (splunk_docker_object_storage_install.results | default([])
           | selectattr('failed', 'defined') | selectattr('failed')
           | map(attribute='msg') | list)
          + (splunk_docker_github_install.results | default([])
+          | selectattr('failed', 'defined') | selectattr('failed')
+          | map(attribute='msg') | list)
+         + (splunk_docker_github_pinned_install.results | default([])
           | selectattr('failed', 'defined') | selectattr('failed')
           | map(attribute='msg') | list) }}
   when: _splunk_docker_failed_addons | length > 0

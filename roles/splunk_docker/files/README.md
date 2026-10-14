@@ -28,6 +28,7 @@ Every installed add-on is listed in `../vars/addons.yml`. Each entry has:
 - `filename` — archive name in the object-storage `splunk-addons` bucket or GitHub release asset
 - `app_dir` — extracted directory name under `/opt/splunk/etc/apps/` (used by `creates:` for idempotency and by `validate.yml` to assert installation)
 - `github_repo` — optional. If set, download from `github.com/<repo>/releases/latest`; otherwise download from object storage.
+- `pin_version` — optional with `github_repo`. Download that release tag instead of `latest`; the app is installed again whenever the tag changes.
 
 ### Adding / rotating an add-on
 
