@@ -1,4 +1,4 @@
-# Molecule CI dependencies for the shared dryvist/.github _ansible-ci.yml gate.
+# Molecule CI dependencies for the shared JacobPEvans/.github _ansible-ci.yml gate.
 #
 # The shared molecule job installs these via `uv pip install --system -r`. This
 # file lives in the repo (not the shared workflow) so this repo owns its driver
