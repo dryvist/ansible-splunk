@@ -26,6 +26,12 @@ splunk_docker_indexes_extra:
   - name: cribl_internal
     max_size_mb: 2500
     frozen_time_secs: "{{ splunk_docker_index_default_frozen_time_secs }}"
+  # github_actions: GitHub Actions runs, jobs, pull requests, and self-hosted
+  # runner telemetry. 90-day retention matches the operational telemetry in
+  # netmon_metrics while keeping this event index on the standard hot/warm volume.
+  - name: github_actions
+    max_size_mb: "{{ splunk_docker_index_default_max_size_mb }}"
+    frozen_time_secs: 7776000
   # netmon_metrics: high-volume per-WAN probe telemetry (Telegraf via Cribl) — 90-day
   # retention per terraform-proxmox docs/NETWORK_DIAGNOSIS.md, not the 365-day default.
   # Telegraf ships splunkmetric -> metric index (queryable via mstats), NOT events.
