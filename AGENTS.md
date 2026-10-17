@@ -62,9 +62,9 @@ for ancillary services — those belong in `ansible-proxmox-apps` as LXC.
   freshness guarantee" below.
 
 - **`dryvist/homelab-contracts`**: supplies the shared `inventory_resolve`
-  role, pinned by commit in `requirements.yml`. Run
-  `ansible-galaxy install -r requirements.yml` before the first converge in a
-  fresh checkout. Use `install`, not `role install`: `requirements.yml` has both
+  role; `requirements.yml` follows its v5 major tag. Run
+  `ansible-galaxy install -r requirements.yml --force` before the first converge
+  in a fresh checkout. Use `install`, not `role install`: `requirements.yml` has both
   a `roles:` and a `collections:` section, and `role install -p roles` prints
   *"contains collections which will be ignored"* and installs none of them.
   Add `--force` if `roles/inventory_resolve`
