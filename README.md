@@ -245,7 +245,7 @@ ansible-playbook playbooks/validate.yml
 | `amazon.aws` | `>=9.0.0` |
 
 ```bash
-ansible-galaxy install -r requirements.yml
+ansible-galaxy install -r requirements.yml --force
 ```
 
 ### External Services

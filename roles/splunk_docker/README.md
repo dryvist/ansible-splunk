@@ -15,7 +15,7 @@ This role:
 ## Installation
 
 ```bash
-ansible-galaxy install -r requirements.yml
+ansible-galaxy install -r requirements.yml --force
 ```
 
 `install` covers both sections of `requirements.yml`. The `collection`
