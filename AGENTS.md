@@ -242,11 +242,11 @@ enabled:
 | `PROXMOX_SSH_KEY_PATH` | SSH key for VM access |
 | `SPLUNK_LICENSE` | Raw `.lic` XML for the cluster license master; required — clustering cannot run on a Free license. Re-applied on every converge |
 
-## Tooling baseline (inherited from dryvist/.github)
+## Tooling baseline (inherited from JacobPEvans/.github)
 
 - **Markdown lint:** `markdownlint-cli2` with the canonical
   `.markdownlint-cli2.yaml` synced from
-  [`dryvist/.github`](https://github.com/dryvist/.github).
+  [`JacobPEvans/.github`](https://github.com/JacobPEvans/.github).
   `MD013 line_length: 160`; no 80-char heading/code restrictions.
   `CHANGELOG.md`, `.github/workflows/*.md`, `.github/aw/**`, and
   `.claude/**` are ignored. `MD024` strict-by-default everywhere
@@ -279,4 +279,4 @@ unclassified role/scenario paths widen to the full matrix; CI-harness-only
 changes use the repository's smoke scenario. Required validation is aggregated
 by `Merge Gate`. Public pull-request CI stays on GitHub-hosted runners.
 
-See the canonical policy in the `dryvist/.github` README, “Ansible CI policy.”
+See the canonical policy in the `JacobPEvans/.github` README, “Ansible CI policy.”
