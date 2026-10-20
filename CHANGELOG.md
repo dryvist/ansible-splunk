@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.2](https://github.com/dryvist/ansible-splunk/compare/v0.99.1...v0.99.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* apply HEC input changes before live verification ([#724](https://github.com/dryvist/ansible-splunk/issues/724)) ([33acbc6](https://github.com/dryvist/ansible-splunk/commit/33acbc608a7ec815124e77e518f9e8bcd2d67038))
+* compare volume caps against usable filesystem capacity ([#722](https://github.com/dryvist/ansible-splunk/issues/722)) ([de45912](https://github.com/dryvist/ansible-splunk/commit/de45912c6dbcd9f3a9fbc91d278a878c6a6f46fd))
+* run object-storage tag probes in check mode ([#723](https://github.com/dryvist/ansible-splunk/issues/723)) ([098df1e](https://github.com/dryvist/ansible-splunk/commit/098df1e28b085c8fed9d6a8c2040705ada27185e))
+
 ## [0.99.1](https://github.com/dryvist/ansible-splunk/compare/v0.99.0...v0.99.1) (2026-10-20)
 
 
