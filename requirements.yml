@@ -8,7 +8,7 @@ collections:
     version: ">=5.0.6,<6.0.0"
   # RustFS inventory resolver: s3_object
   - name: amazon.aws
-    version: ">=9.0.0"
+    version: ">=11.3.0"
   - name: community.hashi_vault
     version: ">=6.0.0"
 
