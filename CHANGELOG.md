@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.10](https://github.com/dryvist/ansible-splunk/compare/v0.99.9...v0.99.10) (2026-10-20)
+
+
+### Performance
+
+* **molecule:** use overlay2 and a registry mirror for nested Docker ([#740](https://github.com/dryvist/ansible-splunk/issues/740)) ([7573505](https://github.com/dryvist/ansible-splunk/commit/75735052d1a705bfb33b48eda9a7f3d1946877fa))
+
 ## [0.99.9](https://github.com/dryvist/ansible-splunk/compare/v0.99.8...v0.99.9) (2026-10-20)
 
 
