@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test the inputs.conf.j2 Jinja2 template rendering.
+Test inputs.conf.j2 rendering and the live HEC readback gates.
 
 The template generates:
   - A global [http] stanza enabling HEC
@@ -15,7 +15,10 @@ import sys
 import uuid
 from pathlib import Path
 
+import yaml
+
 from _render_env import ansible_env
+from _defaults_loader import load_defaults
 
 try:
     from jinja2 import Environment, FileSystemLoader
@@ -171,6 +174,137 @@ if degenerate_errors:
     errors.append("FAIL: degenerate extra_hec_indexes handling:\n" + "\n".join(degenerate_errors))
 else:
     print("PASS: null and empty extra_hec_indexes both degrade to the single-index allowlist")
+
+# A check-mode template update is not live yet. Keep the live HEC assertion
+# active for unchanged previews and every normal converge.
+ROOT = Path(__file__).resolve().parents[2]
+role_tasks = {
+    task["name"]: task
+    for task in yaml.safe_load((ROOT / "roles/splunk_docker/tasks/main.yml").read_text())
+}
+if role_tasks["Deploy inputs.conf for HEC configuration"].get("register") != "splunk_docker_inputs_conf_update":
+    errors.append("FAIL: inputs.conf template result is not registered for check-mode validation")
+
+verify_tasks = {
+    task["name"]: task
+    for task in yaml.safe_load((ROOT / "roles/splunk_docker/tasks/verify_hec_completeness.yml").read_text())
+}
+conditions = verify_tasks["Fail if any configured index lacks a live, enabled HEC stanza"]["when"]
+
+def conditions_pass(conditions, **variables):
+    template = "{{ " + " and ".join(f"({item})" for item in conditions) + " }}"
+    rendered = Environment().from_string(template).render(**variables)
+    return rendered.strip().lower() == "true"
+
+
+live_hec_variables = {
+    "splunk_docker_verify_hec_missing": ["github_actions"],
+    "splunk_docker_inputs_conf_update": {"changed": True},
+}
+if conditions_pass(conditions, ansible_check_mode=True, **live_hec_variables):
+    errors.append("FAIL: pending check-mode inputs.conf update still enforces live HEC state")
+elif not conditions_pass(
+    conditions,
+    ansible_check_mode=True,
+    **{**live_hec_variables, "splunk_docker_inputs_conf_update": {"changed": False}},
+):
+    errors.append("FAIL: unchanged check-mode inputs.conf stopped enforcing live HEC state")
+elif not conditions_pass(conditions, ansible_check_mode=False, **live_hec_variables):
+    errors.append("FAIL: normal converge stopped enforcing live HEC state")
+else:
+    print("PASS: live HEC state is enforced unless check mode has a pending inputs.conf update")
+
+site_plays = yaml.safe_load((ROOT / "playbooks/site.yml").read_text())
+deploy_play = next(play for play in site_plays if play.get("name") == "Deploy Splunk")
+deploy_block = next(
+    task
+    for task in deploy_play["tasks"]
+    if task.get("name") == "Deploy Splunk, then verify every configured index actually has a live HEC listener"
+)
+block_tasks = deploy_block["block"]
+completion_task = next(
+    task for task in block_tasks if task.get("name") == "Record successful Splunk deployment tasks"
+)
+include_task = next(task for task in block_tasks if task.get("name") == "Deploy Splunk Docker")
+if block_tasks.index(completion_task) <= block_tasks.index(include_task):
+    errors.append("FAIL: deployment completion marker runs before the role include")
+elif "always" not in completion_task.get("tags", []):
+    errors.append("FAIL: deployment completion marker is not available to tagged runs")
+
+always_tasks = deploy_block["always"]
+flush_task = next(
+    task for task in always_tasks if task.get("name") == "Apply pending Splunk configuration before verifying HEC inputs"
+)
+verify_task = next(
+    task for task in always_tasks if task.get("name") == "Verify every configured index has a live, enabled HEC input stanza"
+)
+if always_tasks.index(flush_task) >= always_tasks.index(verify_task):
+    errors.append("FAIL: HEC readback runs before pending handlers are flushed")
+
+flush_conditions = flush_task["when"]
+
+
+if not conditions_pass(
+    flush_conditions,
+    ansible_check_mode=False,
+    splunk_docker_deploy_completed=True,
+    splunk_docker_inputs_conf_update={"changed": True},
+):
+    errors.append("FAIL: normal completed deployment does not flush its pending HEC restart")
+elif conditions_pass(
+    flush_conditions,
+    ansible_check_mode=True,
+    splunk_docker_deploy_completed=True,
+    splunk_docker_inputs_conf_update={"changed": True},
+):
+    errors.append("FAIL: check mode can flush the HEC restart handler")
+elif conditions_pass(
+    flush_conditions,
+    ansible_check_mode=False,
+    splunk_docker_deploy_completed=False,
+    splunk_docker_inputs_conf_update={"changed": True},
+):
+    errors.append("FAIL: failed deployment can flush a partial HEC update")
+elif conditions_pass(
+    flush_conditions,
+    ansible_check_mode=False,
+    splunk_docker_deploy_completed=True,
+    splunk_docker_inputs_conf_update={"changed": False},
+):
+    errors.append("FAIL: unchanged inputs.conf triggers an unnecessary HEC restart")
+else:
+    print("PASS: successful normal deployments restart before HEC readback; check mode stays read-only")
+
+flush_steps = flush_task.get("block", [])
+if [step.get("ansible.builtin.meta") for step in flush_steps[:1]] != ["flush_handlers"]:
+    errors.append("FAIL: pending HEC configuration does not use Ansible's handler flush")
+elif (flush_steps[1:2] or [{}])[0].get("ansible.builtin.include_role", {}).get("tasks_from") != "wait_for_splunk":
+    errors.append("FAIL: HEC readback does not wait for Splunk after the flushed restart")
+else:
+    print("PASS: the flushed restart waits for Splunk before the HEC readback")
+
+canonical_defaults = load_defaults(ROOT)
+canonical_indexes = (
+    canonical_defaults["splunk_docker_indexes_core"]
+    + canonical_defaults["splunk_docker_indexes_extra"]
+)
+canonical_names = [index["name"] for index in canonical_indexes]
+test_namespace = uuid.UUID("12345678-1234-1234-1234-123456789abc")
+canonical_tokens = {
+    name: str(uuid.uuid5(test_namespace, f"splunk-hec-{name}"))
+    for name in canonical_names
+}
+canonical_result = template.render(
+    splunk_docker_indexes=canonical_indexes,
+    splunk_docker_hec_token_values=canonical_tokens,
+)
+missing_stanzas = [name for name in canonical_names if f"[http://{name}]" not in canonical_result]
+if "github_actions" not in canonical_names:
+    errors.append("FAIL: github_actions is missing from the canonical index list")
+elif missing_stanzas:
+    errors.append(f"FAIL: canonical indexes missing HEC stanzas: {missing_stanzas}")
+else:
+    print(f"PASS: all {len(canonical_names)} canonical indexes render HEC stanzas, including github_actions")
 
 if errors:
     print()
