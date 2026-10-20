@@ -47,7 +47,10 @@ if "release API status" not in closed["ansible.builtin.assert"]["fail_msg"] or "
 
 for name in ("Write manifest to controller tmpdir", "Publish manifest.json to object storage"):
     publish = by_name[name]
-    if publish.get("when") != "splunkbase_plan | length > 0":
+    conditions = publish.get("when", [])
+    if isinstance(conditions, str):
+        conditions = [conditions]
+    if not any("splunkbase_plan | length > 0" in condition for condition in conditions):
         errors.append(f"FAIL: an empty plan must not write or publish the manifest ({name})")
 
 empty = by_name["Report empty Splunkbase plan"]
