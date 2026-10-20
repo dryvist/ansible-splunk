@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.12](https://github.com/dryvist/ansible-splunk/compare/v0.99.11...v0.99.12) (2026-10-20)
+
+
+### Bug Fixes
+
+* **splunk_docker:** read leader-only OpenBao metrics from the active node ([#745](https://github.com/dryvist/ansible-splunk/issues/745)) ([7af649e](https://github.com/dryvist/ansible-splunk/commit/7af649ec5516bcbaf430238de54675118fd358a1))
+
 ## [0.99.11](https://github.com/dryvist/ansible-splunk/compare/v0.99.10...v0.99.11) (2026-10-20)
 
 
