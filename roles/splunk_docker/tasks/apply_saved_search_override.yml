@@ -34,7 +34,7 @@
       {%- set live = splunk_docker_saved_search_current.json.entry[0].content -%}
       {%- for key, want in splunk_docker_saved_search_wanted.items() -%}
         {%- set have = live[key] | default('') | string -%}
-        {%- set have = {'True': '1', 'False': '0'}.get(have, have) -%}
+        {%- set have = {'true': '1', 'false': '0'}.get(have | lower, have) -%}
         {%- if have != (want | string) -%}
           {%- set _ = delta.update({key: want}) -%}
         {%- endif -%}
