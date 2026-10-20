@@ -14,3 +14,4 @@ permissions:
 jobs:
   sweep:
     uses: JacobPEvans/.github-ai/.github/workflows/issue-sweeper.yml@v1
+    secrets: inherit
