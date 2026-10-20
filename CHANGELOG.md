@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.13](https://github.com/dryvist/ansible-splunk/compare/v0.99.12...v0.99.13) (2026-10-20)
+
+
+### Bug Fixes
+
+* **splunk_docker:** adapt LLM pipeline silence threshold ([#747](https://github.com/dryvist/ansible-splunk/issues/747)) ([8c96031](https://github.com/dryvist/ansible-splunk/commit/8c960318bbe3ef425d564869c74980688a156677))
+
 ## [0.99.12](https://github.com/dryvist/ansible-splunk/compare/v0.99.11...v0.99.12) (2026-10-20)
 
 
