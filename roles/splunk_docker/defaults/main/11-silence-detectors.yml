@@ -34,24 +34,16 @@
 #                       threshold).
 #   suppress_minutes  — BY_HOST ONLY. alert.suppress.period; throttles
 #                       re-fires.
-#   by_host           — optional, default false. Detect PER-HOST (`by host`
-#                       + alert.suppress.fields = host) so a healthy emitter
-#                       can't mask a dead one, using each host's own cadence
-#                       (see threshold_minutes above). Note: a host that has
-#                       never emitted has no baseline and cannot be detected.
+#   by_host           — optional, default false. Detect per host using its own
+#                       cadence so a healthy emitter cannot mask a dead one.
+#                       A never-seen host needs expected_roster.
 #   cadence_multiplier — by_host only, optional, default 3. Multiplies a
 #                       host's 95th-percentile gap between non-empty
 #                       10-minute bins to get its effective threshold.
-#   min_active_bins   — by_host only, optional, default 3. A host with fewer
-#                       non-empty 10-minute bins in the lookback has no
-#                       baseline and is not evaluated.
-#   max_baseline_minutes — by_host only, optional. A host whose p95 gap
-#                       exceeds this writes on events rather than on a
-#                       schedule and is not evaluated.
-#   lookback_minutes  — by_host only, optional. Replaces the derived
-#                       threshold_minutes x splunk_docker_silence_lookback_multiplier
-#                       window. It is also how long a retired or renamed host
-#                       keeps firing before it ages out.
+#   min_active_bins   — observed-host entries only; default 3 non-empty bins.
+#   max_baseline_minutes — observed-host entries only; skips larger p95 gaps.
+#   lookback_minutes  — by_host only; replaces the derived event-history
+#                       window. For observed-only entries it bounds host age.
 #   host_overrides    — by_host only, optional, default {}. Map of
 #                       hostname -> exact threshold_minutes, for a host whose
 #                       computed cadence baseline is wrong (commonly: too new
@@ -90,12 +82,9 @@
 #                       reason is itself uncertain, rather than let it stand
 #                       indefinitely.
 #
-# dispatch.earliest_time (the search lookback) is threshold_minutes x this
-# multiplier — see the comment above each rendered stanza in
-# savedsearches.conf.j2 for why it is derived per-detector rather than one
-# flat window shared by a 15-minute and a 24-hour detector alike, and for the
-# residual limit (a host silent longer than the window still has no row for
-# tstats to return, same as an index with zero events in the whole window).
+# The search lookback is threshold_minutes x this multiplier unless a
+# detector sets lookback_minutes. Expected-roster detectors retain silent
+# hosts beyond this window; observed-only detectors do not.
 splunk_docker_silence_lookback_multiplier: 2000
 
 # OS emitters have two sources: PVE assets in the published inventory and
