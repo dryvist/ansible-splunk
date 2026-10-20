@@ -41,6 +41,12 @@
       {%- endfor -%}
       {{ delta }}
 
+# Names only: values can carry the delivery URL.
+- name: "Report which settings differ for {{ splunk_override.name }}"
+  ansible.builtin.debug:
+    msg: "{{ splunk_docker_saved_search_delta.keys() | list }}"
+  when: splunk_docker_saved_search_delta | length > 0
+
 - name: "Apply settings to {{ splunk_override.name }}"
   ansible.builtin.uri:
     url: "{{ splunk_docker_saved_search_url }}"
