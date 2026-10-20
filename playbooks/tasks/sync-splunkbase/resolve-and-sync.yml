@@ -6,6 +6,7 @@
     return_content: true
     status_code: 200
     timeout: 30
+  check_mode: false
   register: splunkbase_release_q
   loop: "{{ splunkbase_entries }}"
   loop_control:
@@ -114,6 +115,10 @@
   loop: "{{ splunkbase_plan }}"
   loop_control:
     label: "{{ item.filename }}"
+
+- name: End Splunkbase sync play after the check-mode preview
+  ansible.builtin.meta: end_play
+  when: ansible_check_mode
 
 - name: Build list of entries that need sync
   ansible.builtin.set_fact:
