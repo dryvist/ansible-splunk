@@ -81,3 +81,4 @@
 
     - name: Verify published object-storage tags and manifest
       ansible.builtin.include_tasks: tasks/sync-splunkbase/verify-manifest.yml
+      when: splunkbase_plan is not defined or splunkbase_plan | length > 0
