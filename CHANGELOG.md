@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.4](https://github.com/dryvist/ansible-splunk/compare/v0.99.3...v0.99.4) (2026-10-20)
+
+
+### Bug Fixes
+
+* **splunkbase:** keep empty resolution plans as no-ops ([#728](https://github.com/dryvist/ansible-splunk/issues/728)) ([2bbb42d](https://github.com/dryvist/ansible-splunk/commit/2bbb42dce073b0b7be69713ab36212653e45c0af))
+
 ## [0.99.3](https://github.com/dryvist/ansible-splunk/compare/v0.99.2...v0.99.3) (2026-10-20)
 
 
