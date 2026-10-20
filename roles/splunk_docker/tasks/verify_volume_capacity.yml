@@ -15,9 +15,25 @@
 #      Two 'separate' tiers on one disk is a silent no-op for tiering, and the
 #      combined caps overcommit it.
 #
-# Splunk reads the unprivileged 'available' figure, not 'free', so compare
-# against size_available - see data_disk_reserve.yml for why that distinction
-# caused a four-hour outage.
+# A configured cap must fit the filesystem's usable capacity, not its current
+# free space. Use allocated blocks plus blocks available to an unprivileged
+# process; this excludes the blocks reserved for root.
+
+- name: Calculate usable filesystem capacity for each volume
+  vars:
+    splunk_docker_volume_current_usable_capacity_mb: >-
+      {{
+        ((item.value.block_used | default(0, true) | int)
+         + (item.value.block_available | default(0, true) | int))
+        * (item.value.block_size | default(0, true) | int) // 1048576
+      }}
+  ansible.builtin.set_fact:
+    splunk_docker_volume_usable_capacity_mb: >-
+      {{ splunk_docker_volume_usable_capacity_mb | default({})
+         | combine({item.key: splunk_docker_volume_current_usable_capacity_mb | int}) }}
+  loop: "{{ splunk_docker_volume_mounts | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
 
 # A path that resolves to no mount at all is UNKNOWN capacity, not zero. Any
 # environment without real mount facts (a test container, a host where the
@@ -39,8 +55,12 @@
       }}
     splunk_docker_volume_caps_verifiable: >-
       {{
-        (splunk_docker_volume_mounts.hot_warm.size_available is defined)
-        and (splunk_docker_volume_mounts.cold.size_available is defined)
+        (splunk_docker_volume_mounts.hot_warm.block_used is defined)
+        and (splunk_docker_volume_mounts.hot_warm.block_available is defined)
+        and (splunk_docker_volume_mounts.hot_warm.block_size is defined)
+        and (splunk_docker_volume_mounts.cold.block_used is defined)
+        and (splunk_docker_volume_mounts.cold.block_available is defined)
+        and (splunk_docker_volume_mounts.cold.block_size is defined)
       }}
     splunk_docker_volumes_share_fs: >-
       {{
@@ -97,21 +117,20 @@
     that:
       - >-
         (splunk_docker_volumes_share_fs | bool)
-        or (item.cap | int) <= ((item.mount.size_available | default(0) | int) // 1048576)
+        or (item.cap | int) <= (splunk_docker_volume_usable_capacity_mb[item.name] | int)
     fail_msg: >-
       Volume '{{ item.name }}' cap of {{ item.cap }} MB exceeds the
-      {{ (item.mount.size_available | default(0) | int) // 1048576 }} MB available on
-      {{ item.mount.device | default('its filesystem') }}. A cap larger than its own
-      filesystem enforces nothing — the disk fills before the cap binds, which is the
-      exact failure that caused the Splunk search outage. Either shrink the cap or
-      attach the intended storage before converging.
+      {{ splunk_docker_volume_usable_capacity_mb[item.name] }} MB of usable filesystem
+      capacity on {{ item.mount.device | default('its filesystem') }}. A cap larger
+      than its filesystem enforces nothing — the disk fills before the cap binds.
+      Either shrink the cap or attach the intended storage before converging.
     success_msg: >-
       {%- if splunk_docker_volumes_share_fs | bool -%}
       Volume '{{ item.name }}' not checked individually — both volumes share a
       filesystem, so the combined check below is the one that applies.
       {%- else -%}
       Volume '{{ item.name }}' cap {{ item.cap }} MB fits
-      {{ (item.mount.size_available | default(0) | int) // 1048576 }} MB available.
+      {{ splunk_docker_volume_usable_capacity_mb[item.name] }} MB of usable filesystem capacity.
       {%- endif -%}
   loop:
     - name: hot_warm
@@ -135,17 +154,16 @@
       - >-
         ((splunk_docker_volume_hot_warm_max_mb | int)
          + (splunk_docker_volume_cold_max_mb | int))
-        <= ((splunk_docker_volume_mounts.cold.size_available | default(0) | int) // 1048576)
+        <= (splunk_docker_volume_usable_capacity_mb.cold | int)
     fail_msg: >-
       Both Splunk volumes share
       {{ splunk_docker_volume_mounts.cold.device | default('one filesystem') }}, so their
       caps are additive: {{ splunk_docker_volume_hot_warm_max_mb }} +
       {{ splunk_docker_volume_cold_max_mb }} =
       {{ (splunk_docker_volume_hot_warm_max_mb | int) + (splunk_docker_volume_cold_max_mb | int) }}
-      MB against only
-      {{ (splunk_docker_volume_mounts.cold.size_available | default(0) | int) // 1048576 }}
-      MB available. Caps that cannot bind are the defect this tiering work exists to
-      remove. Attach the cold-tier disk, or lower the caps to fit this filesystem.
+      MB against only {{ splunk_docker_volume_usable_capacity_mb.cold }} MB of usable
+      filesystem capacity. Attach the cold-tier disk, or lower the caps to fit this
+      filesystem.
     success_msg: >-
       Combined caps fit the shared filesystem.
   when:
