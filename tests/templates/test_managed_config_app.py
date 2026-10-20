@@ -139,16 +139,18 @@ inputs_deploy = task_named(config_tasks, "Deploy inputs.conf for HEC configurati
 inputs_prepare = task_named(config_tasks, "Prepare the inputs.conf migration")
 if inputs_deploy.get("no_log") is not True or inputs_deploy.get("diff") is not False:
     errors.append("FAIL: inputs.conf deployment must hide token values and diffs")
-if inputs_prepare.get("no_log") is not True or inputs_prepare.get("diff") is not False:
-    errors.append("FAIL: inputs.conf migration include must hide token values and diffs")
+if inputs_prepare.get("no_log") is not True or "diff" in inputs_prepare:
+    errors.append("FAIL: inputs.conf migration include must hide token values and omit diff")
 if inputs_deploy.get("register") != "splunk_docker_inputs_conf_update":
     errors.append("FAIL: HEC completeness verification must retain the deploy result")
 
 for task in (app_stat, migration_gate, *migration_tasks, *shared_tasks):
-    if "splunk_docker_managed_config_file" in str(task) and task.get("diff") is not False:
-        errors.append("FAIL: migration gate tasks must disable diffs")
-    if "splunk_docker_migration_file" in str(task) and task.get("diff") is not False:
-        errors.append("FAIL: migration tasks must disable diffs")
+    # include_tasks rejects diff at runtime; the included module tasks disable it themselves.
+    expected_diff = None if "ansible.builtin.include_tasks" in task else False
+    if "splunk_docker_managed_config_file" in str(task) and task.get("diff") is not expected_diff:
+        errors.append("FAIL: migration gate modules must disable diffs; includes must omit diff")
+    if "splunk_docker_migration_file" in str(task) and task.get("diff") is not expected_diff:
+        errors.append("FAIL: migration modules must disable diffs; includes must omit diff")
     if "splunk_docker_managed_config_file" in str(task) or "splunk_docker_migration_file" in str(task):
         if "inputs.conf'" not in normalized(task.get("no_log")):
             errors.append("FAIL: migration tasks must use no_log for inputs.conf")

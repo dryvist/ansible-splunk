@@ -40,4 +40,3 @@
     label: "{{ splunk_docker_migration_shared_section.key }}"
   when: splunk_docker_legacy_config.stat.exists
   no_log: "{{ splunk_docker_migration_file == 'inputs.conf' }}"
-  diff: false

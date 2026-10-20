@@ -13,4 +13,3 @@
     splunk_docker_migration_template: "{{ splunk_docker_managed_config_template }}"
   when: not splunk_docker_managed_config_app_stat.stat.exists
   no_log: "{{ splunk_docker_managed_config_file == 'inputs.conf' }}"
-  diff: false
