@@ -178,6 +178,7 @@
     owner: "{{ splunk_docker_user }}"
     group: "{{ splunk_docker_group }}"
     mode: '0600'
+  register: splunk_docker_inputs_conf_update
   no_log: true
   notify: Restart Splunk container
 

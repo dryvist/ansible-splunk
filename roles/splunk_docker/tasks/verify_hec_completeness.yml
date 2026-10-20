@@ -55,4 +55,8 @@
       {{ splunk_docker_verify_hec_missing | join(', ') }}.
       A converge reporting success while an index has no HEC listener is
       exactly the outage this check exists to catch.
-  when: splunk_docker_verify_hec_missing | length > 0
+  # Check mode cannot apply a pending inputs.conf template, so its live HEC
+  # view is stale until the corresponding normal converge runs.
+  when:
+    - splunk_docker_verify_hec_missing | length > 0
+    - not (ansible_check_mode and (splunk_docker_inputs_conf_update.changed | default(false)))
