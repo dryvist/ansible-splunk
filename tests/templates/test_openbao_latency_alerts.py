@@ -83,7 +83,6 @@ EXPECTED = {
         "earliest": "-20m@5m",
         "latest": "@5m",
         "suppress_fields": "host",
-        "active_filter_span": "5m",
         "search_defaults": ("splunk_docker_openbao_leader_io_wait_s",),
         "alert_fields": ("host", "role", "observed_s", "pct"),
         "alert_defaults": ("splunk_docker_openbao_leader_io_wait_s",),
