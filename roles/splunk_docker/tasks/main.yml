@@ -117,6 +117,9 @@
     group: "{{ splunk_docker_group }}"
     mode: '0755'
 
+- name: Prepare the role-owned configuration app
+  ansible.builtin.include_tasks: prepare_managed_config_app.yml
+
 # MUST precede the compose template: it resolves the archive credential into
 # splunk_docker_frozen_env, which the compose environment renders. Ordered after
 # the directories above because it also drops the freeze script into
@@ -162,52 +165,8 @@
     path: "{{ splunk_docker_etc_dir }}/apps/search/local/indexes.conf"
     state: absent
 
-- name: Deploy indexes.conf
-  ansible.builtin.template:
-    src: indexes.conf.j2
-    dest: "{{ splunk_docker_etc_dir }}/system/local/indexes.conf"
-    owner: "{{ splunk_docker_user }}"
-    group: "{{ splunk_docker_group }}"
-    mode: '0644'
-  notify: Restart Splunk container
-
-- name: Deploy inputs.conf for HEC configuration
-  ansible.builtin.template:
-    src: inputs.conf.j2
-    dest: "{{ splunk_docker_etc_dir }}/system/local/inputs.conf"
-    owner: "{{ splunk_docker_user }}"
-    group: "{{ splunk_docker_group }}"
-    mode: '0600'
-  register: splunk_docker_inputs_conf_update
-  no_log: true
-  notify: Restart Splunk container
-
-- name: Deploy limits.conf for HEC memory buffer sizing
-  ansible.builtin.template:
-    src: limits.conf.j2
-    dest: "{{ splunk_docker_etc_dir }}/system/local/limits.conf"
-    owner: "{{ splunk_docker_user }}"
-    group: "{{ splunk_docker_group }}"
-    mode: '0644'
-  notify: Restart Splunk container
-
-- name: Deploy web.conf for SSL and update checker configuration
-  ansible.builtin.template:
-    src: web.conf.j2
-    dest: "{{ splunk_docker_etc_dir }}/system/local/web.conf"
-    owner: "{{ splunk_docker_user }}"
-    group: "{{ splunk_docker_group }}"
-    mode: '0644'
-  notify: Restart Splunk container
-
-- name: Deploy server.conf for internet access control
-  ansible.builtin.template:
-    src: server.conf.j2
-    dest: "{{ splunk_docker_etc_dir }}/system/local/server.conf"
-    owner: "{{ splunk_docker_user }}"
-    group: "{{ splunk_docker_group }}"
-    mode: '0644'
-  notify: Restart Splunk container
+- name: Configure the role-owned configuration files
+  ansible.builtin.include_tasks: configure_managed_configs.yml
 
 # The alerts live in an app, NOT in system/local. Splunk's scheduler dispatches
 # saved searches per app context and never walks the system namespace, so a

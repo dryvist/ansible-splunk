@@ -46,6 +46,11 @@ The Splunk container runs processes as UID 41812 (splunk user inside container).
 All Splunk data directories and apps are owned by this UID to ensure proper
 permissions inside the container.
 
+The role keeps its runtime `inputs.conf`, `indexes.conf`, `server.conf`, and
+`web.conf` settings in the `homelab_config` app. When each app-local file is
+first created, it migrates only sections and keys rendered by the matching role
+template from `system/local`.
+
 ## Technology Add-ons
 
 TAs are placed in `files/` and configured in `splunk_docker_addons`:

@@ -1,7 +1,7 @@
 ---
 - name: Check web.conf exists
   ansible.builtin.stat:
-    path: "{{ (splunk_docker_etc_dir | default(_splunk_docker_defaults.splunk_docker_etc_dir)) }}/system/local/web.conf"
+    path: "{{ (splunk_docker_managed_config_app_dir | default(_splunk_docker_defaults.splunk_docker_managed_config_app_dir)) }}/local/web.conf"
   register: web_conf
 
 - name: Record web.conf status
@@ -10,7 +10,7 @@
 
 - name: Check indexes.conf exists
   ansible.builtin.stat:
-    path: "{{ (splunk_docker_etc_dir | default(_splunk_docker_defaults.splunk_docker_etc_dir)) }}/system/local/indexes.conf"
+    path: "{{ (splunk_docker_managed_config_app_dir | default(_splunk_docker_defaults.splunk_docker_managed_config_app_dir)) }}/local/indexes.conf"
   register: indexes_conf
 
 - name: Record indexes.conf status

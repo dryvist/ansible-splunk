@@ -1,0 +1,15 @@
+---
+- name: Check for {{ splunk_docker_managed_config_file }} in the role-owned app
+  ansible.builtin.stat:
+    path: "{{ splunk_docker_managed_config_app_dir }}/local/{{ splunk_docker_managed_config_file }}"
+  register: splunk_docker_managed_config_app_stat
+  no_log: "{{ splunk_docker_managed_config_file == 'inputs.conf' }}"
+  diff: false
+
+- name: Migrate {{ splunk_docker_managed_config_file }} from system/local once
+  ansible.builtin.include_tasks: migrate_system_local.yml
+  vars:
+    splunk_docker_migration_file: "{{ splunk_docker_managed_config_file }}"
+    splunk_docker_migration_template: "{{ splunk_docker_managed_config_template }}"
+  when: not splunk_docker_managed_config_app_stat.stat.exists
+  no_log: "{{ splunk_docker_managed_config_file == 'inputs.conf' }}"

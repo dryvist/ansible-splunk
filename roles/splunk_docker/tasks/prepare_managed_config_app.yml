@@ -1,0 +1,26 @@
+---
+- name: Create directories for the role-owned configuration app
+  ansible.builtin.file:
+    path: "{{ splunk_docker_managed_config_app_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0755'
+  loop: [default, local]
+
+- name: Deploy the role-owned configuration app manifest
+  ansible.builtin.copy:
+    content: |
+      # Managed by the splunk_docker Ansible role.
+      [install]
+      state = enabled
+      [package]
+      id = homelab_config
+      [ui]
+      is_visible = 0
+      label = Homelab Configuration
+    dest: "{{ splunk_docker_managed_config_app_dir }}/default/app.conf"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  notify: Restart Splunk container

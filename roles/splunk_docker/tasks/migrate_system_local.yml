@@ -1,0 +1,42 @@
+---
+- name: Check for legacy {{ splunk_docker_migration_file }} in system/local
+  ansible.builtin.stat:
+    path: "{{ splunk_docker_etc_dir }}/system/local/{{ splunk_docker_migration_file }}"
+  register: splunk_docker_legacy_config
+  no_log: "{{ splunk_docker_migration_file == 'inputs.conf' }}"
+  diff: false
+
+- name: Remove role-owned sections from legacy {{ splunk_docker_migration_file }}
+  community.general.ini_file:
+    path: "{{ splunk_docker_etc_dir }}/system/local/{{ splunk_docker_migration_file }}"
+    section: "{{ item.key }}"
+    state: absent
+    create: false
+  loop: >-
+    {{ lookup('ansible.builtin.template',
+              role_path ~ '/templates/' ~ splunk_docker_migration_template)
+       | community.general.from_ini
+       | dict2items
+       | rejectattr('key', 'in', ['http', 'settings', 'default'])
+       | list }}
+  loop_control:
+    label: "{{ item.key }}"
+  when: splunk_docker_legacy_config.stat.exists
+  no_log: "{{ splunk_docker_migration_file == 'inputs.conf' }}"
+  diff: false
+  notify: Restart Splunk container
+
+- name: Select shared sections from legacy {{ splunk_docker_migration_file }}
+  ansible.builtin.include_tasks: migrate_system_local_shared_section.yml
+  loop: >-
+    {{ lookup('ansible.builtin.template',
+              role_path ~ '/templates/' ~ splunk_docker_migration_template)
+       | community.general.from_ini
+       | dict2items
+       | selectattr('key', 'in', ['http', 'settings', 'default'])
+       | list }}
+  loop_control:
+    loop_var: splunk_docker_migration_shared_section
+    label: "{{ splunk_docker_migration_shared_section.key }}"
+  when: splunk_docker_legacy_config.stat.exists
+  no_log: "{{ splunk_docker_migration_file == 'inputs.conf' }}"

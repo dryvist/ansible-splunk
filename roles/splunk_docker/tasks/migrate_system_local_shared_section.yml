@@ -1,0 +1,14 @@
+---
+- name: Remove role-owned keys from [{{ splunk_docker_migration_shared_section.key }}] in legacy {{ splunk_docker_migration_file }}
+  community.general.ini_file:
+    path: "{{ splunk_docker_etc_dir }}/system/local/{{ splunk_docker_migration_file }}"
+    section: "{{ splunk_docker_migration_shared_section.key }}"
+    option: "{{ item.key }}"
+    state: absent
+    create: false
+  loop: "{{ splunk_docker_migration_shared_section.value | dict2items }}"
+  loop_control:
+    label: "[{{ splunk_docker_migration_shared_section.key }}] {{ item.key }}"
+  no_log: "{{ splunk_docker_migration_file == 'inputs.conf' }}"
+  diff: false
+  notify: Restart Splunk container

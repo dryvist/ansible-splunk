@@ -7,6 +7,9 @@ splunk_docker_etc_dir: "{{ splunk_docker_data_dir }}/etc"
 # Splunk configuration directory (for compose and configs)
 splunk_docker_config_dir: /opt/splunk-config
 
+# The role-owned app is outside the files rewritten by container provisioning.
+splunk_docker_managed_config_app_dir: "{{ splunk_docker_etc_dir }}/apps/homelab_config"
+
 # Cold-tier data directory. Default nests it under splunk_docker_data_dir, but
 # operators SHOULD point this at a separate, larger/slower mounted disk when
 # one exists (override in inventory) — nesting it here just gives a working
