@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.11](https://github.com/dryvist/ansible-splunk/compare/v0.99.10...v0.99.11) (2026-10-20)
+
+
+### Bug Fixes
+
+* make OS silence roster-driven ([#743](https://github.com/dryvist/ansible-splunk/issues/743)) ([36a7794](https://github.com/dryvist/ansible-splunk/commit/36a77945e1421d604bd0810edf007372a7980c44))
+
 ## [0.99.10](https://github.com/dryvist/ansible-splunk/compare/v0.99.9...v0.99.10) (2026-10-20)
 
 
