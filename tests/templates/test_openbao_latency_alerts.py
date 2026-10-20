@@ -59,6 +59,7 @@ EXPECTED = {
         "earliest": "-5m@m",
         "latest": "@m",
         "suppress_fields": "host",
+        "active_filter_span": "1m",
         "search_defaults": (
             "splunk_docker_openbao_raft_commit_sustained_ms",
             "splunk_docker_openbao_raft_commit_spike_ms",
@@ -73,6 +74,7 @@ EXPECTED = {
         "earliest": "-5m@m",
         "latest": "@m",
         "suppress_fields": "peer_id",
+        "active_filter_span": "1m",
         "search_defaults": ("splunk_docker_openbao_follower_heartbeat_ms",),
         "alert_fields": ("peer_id", "role", "leader", "observed_ms"),
         "alert_defaults": ("splunk_docker_openbao_follower_heartbeat_ms",),
@@ -81,6 +83,7 @@ EXPECTED = {
         "earliest": "-20m@5m",
         "latest": "@5m",
         "suppress_fields": "host",
+        "active_filter_span": "5m",
         "search_defaults": ("splunk_docker_openbao_leader_io_wait_s",),
         "alert_fields": ("host", "role", "observed_s", "pct"),
         "alert_defaults": ("splunk_docker_openbao_leader_io_wait_s",),
@@ -171,6 +174,13 @@ def check_stanza(name, body, spec, errors):
     need("#" not in search, "search carries a # comment")
     for key in spec["search_defaults"]:
         need(has_token(search, DEFAULTS[key]), f"search does not carry {key} = {DEFAULTS[key]}")
+    if span := spec.get("active_filter_span"):
+        active_filter = (
+            "| join type=inner _time host [| mstats latest(vault_core_active) as openbao_active "
+            f"WHERE index=netmon_metrics AND job=openbao span={span} BY host "
+            "| where openbao_active=1 | fields _time host]"
+        )
+        need(active_filter in search, "does not keep only rows from the active host in the same time bucket")
 
     # streamstats keeps one window per BY group only when rows arrive grouped,
     # and its window counts rows, so each windowed streamstats must follow a
@@ -194,6 +204,12 @@ def check_stanza(name, body, spec, errors):
 rendered = render()
 bodies = stanza_bodies(rendered)
 errors = []
+
+request_latency_search = value(bodies.get("openbao_request_latency_tail", ""), "search") or ""
+if "latest(vault_core_active) as active" not in request_latency_search:
+    errors.append("FAIL: [openbao_request_latency_tail] does not use vault_core_active for leader labeling")
+if "vault_raft_storage_follower_last_heartbeat_ms" in request_latency_search:
+    errors.append("FAIL: [openbao_request_latency_tail] still uses the leader-only follower-heartbeat gauge for labeling")
 
 for name, spec in EXPECTED.items():
     body = bodies.get(name)
