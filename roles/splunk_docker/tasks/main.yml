@@ -193,7 +193,7 @@
     owner: "{{ splunk_docker_user }}"
     group: "{{ splunk_docker_group }}"
     mode: '0755'
-  loop: [default, local, metadata]
+  loop: [default, local, lookups, metadata]
   tags: [alerting]
 
 - name: Deploy the homelab_alerts app manifest
@@ -228,6 +228,27 @@
     owner: "{{ splunk_docker_user }}"
     group: "{{ splunk_docker_group }}"
     mode: '0644'
+  notify: Restart Splunk container
+  tags: [alerting]
+
+- name: Render PVE OS emitter roster from published inventory
+  ansible.builtin.template:
+    src: lookups/os_pve_emitters.csv.j2
+    dest: "{{ splunk_docker_etc_dir }}/apps/homelab_alerts/lookups/{{ splunk_docker_os_emitter_roster.pve_lookup }}"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  notify: Restart Splunk container
+  tags: [alerting]
+
+- name: Seed the rolling OS expected-host lookup from PVE inventory
+  ansible.builtin.template:
+    src: lookups/os_pve_emitters.csv.j2
+    dest: "{{ splunk_docker_etc_dir }}/apps/homelab_alerts/lookups/{{ splunk_docker_os_emitter_roster.expected_lookup }}"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+    force: false
   notify: Restart Splunk container
   tags: [alerting]
 

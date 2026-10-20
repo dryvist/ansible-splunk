@@ -62,6 +62,9 @@
 #                       exclude the index from splunk_docker_indexes instead.
 #   sourcetype        — BY_HOST ONLY, optional filter added to the tstats
 #                       WHERE clause.
+#   expected_roster   — BY_HOST ONLY, optional, default false. Compare against
+#                       an Ansible-rendered inventory lookup, with recent
+#                       non-inventory emitters supplied by a rolling lookup.
 #   exempt            — optional, default false. index_gap_detector-only:
 #                       excludes this index from the firing check entirely
 #                       (a boolean gate, evaluated separately from
@@ -95,6 +98,17 @@
 # tstats to return, same as an index with zero events in the whole window).
 splunk_docker_silence_lookback_multiplier: 2000
 
+# OS emitters have two sources: PVE assets in the published inventory and
+# non-PVE hosts discovered from recent OS log metadata. The scheduled refresh
+# expires metadata-only hosts after five days; inventory-backed guests remain
+# expected while their pve_up status is not stopped.
+splunk_docker_os_emitter_roster:
+  pve_lookup: pve_os_emitters.csv
+  expected_lookup: os_expected_hosts.csv
+  indexes_macro: homelab_os_log_indexes
+  observed_expiry_days: 5
+  refresh_cron: "*/15 * * * *"
+
 # Surfaces shown by the [llm_surface_freshness] report (savedsearches.conf.j2).
 # Single definition: the template joins this list into both the roster and the
 # tstats WHERE clause, so the two can never drift apart.
@@ -124,19 +138,17 @@ splunk_docker_silence_detectors:
     cron: "*/5 * * * *"
     suppress_minutes: 60
     disabled: 0
-  # by_host means this only ever alerts on a host it currently SEES in index=os.
-  # os_proxmox/os_ai/os_metrics above carve hosts out of the os catch-all at the
-  # Cribl source, so a host that migrates to one of those simply stops
-  # appearing here — no zero-row trip, no error, just a quieter host list than
-  # this detector's own comment implies. os_proxmox and os_ai have no silence
-  # detector of their own, so a host is covered by exactly one of "os" here or
-  # nothing, never both.
+  # OS logs are routed across os, os_proxmox and os_ai. The rendered expected
+  # host lookup closes the zero-row gap for declared PVE assets; a scheduled
+  # metadata lookup supplies recent non-PVE emitters and expires them after
+  # the configured window. os_metrics is a metric index, not an event index.
   - name: os
     index: os
     threshold_minutes: 15
     cron: "*/5 * * * *"
     suppress_minutes: 360
     by_host: true
+    expected_roster: true
     # iac-platform: the computed baseline (p95 gap between active 10-minute
     # bins of 10 min x cadence_multiplier 3 = 30 min) is shorter than this
     # guest's pauses between bursts. Evidence: 8 firings in the 2026-10-06 to

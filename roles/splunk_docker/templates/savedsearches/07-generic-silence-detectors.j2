@@ -7,8 +7,9 @@
    its own stanza per detector rather than folded into index_gap_detector
    below because per-host cadence needs one row per host, which
    a single cross-index report cannot express — a healthy emitter can't mask
-   a dead one, and a host that has never emitted has no baseline and is not
-   detected.
+   a dead one. A detector with `expected_roster` compares against its lookup,
+   so hosts with no events in the lookback still produce a row; other entries
+   retain the observed-host behavior.
 
    Threshold is CADENCE-DERIVED, not the flat det.threshold_minutes: tstats
    buckets each host's events into 10-minute bins,
@@ -16,9 +17,10 @@
    (p95_gap_minutes) times cadence_multiplier is its effective threshold,
    floored at det.threshold_minutes. A percentile of real gaps follows a
    bursty emitter (an hourly cron burst) that an average inter-event gap
-   understates. A host with fewer than min_active_bins (default 3)
-   non-empty bins in the lookback has no baseline and is not evaluated, and
-   neither is a host whose p95 gap exceeds max_baseline_minutes (when set):
+   understates. An observed-host entry with fewer than min_active_bins
+   (default 3) non-empty bins in the lookback has no baseline and is not
+   evaluated, and neither is a host whose p95 gap exceeds max_baseline_minutes
+   (when set):
    it writes on events, not on a schedule, so its silence means nothing. The
    empty-index sentinel row below is exempt from both filters. A per-host
    `host_overrides` map (name -> minutes) pins an exact value when the
@@ -29,24 +31,36 @@
    added this for the dry-run evidence.
 
    tstats returns ZERO rows (not a row with a null last_seen) when nothing in
-   the whole lookback window matches — the llm_router lesson, verified live:
-   coalesce(last_seen, 0) alone did not fix it, because there is no row for
-   eval to apply it to. The appendpipe guard below synthesizes a sentinel row
-   when the tstats result set is empty, and coalesce stays as a second guard
-   once that row exists.
+   the whole lookback window matches. The expected-roster branch starts with
+   the inventory lookup and left-joins those rows; observed-host branches use
+   the appendpipe sentinel for an entirely empty result set.
 --------------------------------------------------------------------------- #}
 {% for det in splunk_docker_silence_detectors | default([]) if det.by_host | default(false) %}
 [{{ det.name }}_silence_detector]
 {{ alert_delivery -}}
-description = Alerts when the {{ det.index }} index has received no events for more than {{ det.threshold_minutes }} minutes{% if det.sourcetype is defined %} (sourcetype={{ det.sourcetype }}){% endif %}{% if det.by_host | default(false) %}, detected per-host against each host's own cadence so a healthy emitter cannot mask a dead one{% endif %}. Catches the emitter, its Cribl pipeline, and Splunk HEC ingestion failing with a single signal.
-{# The appendpipe guard covers the fully-empty-index blind spot: tstats over
-   an index/window with zero matching events returns ZERO rows — with by_host
-   that means zero rows instead of a null-last_seen row per host; without
-   by_host it means zero rows instead of one null-last_seen row. Either way,
-   without the guard the alert goes quiet exactly when everything is dead.
-   stats count on the empty set still yields one count=0 row (an ungrouped
-   aggregate always emits a row), which synthesizes the sentinel result. #}
-search = | tstats count as {% if det.by_host | default(false) %}bin_events latest(_time) as bin_last{% else %}event_count latest(_time) as last_seen{% endif %} WHERE index={{ det.index }}{% if det.sourcetype is defined %} sourcetype={{ det.sourcetype }}{% endif %}{% if det.by_host | default(false) %} by host _time span=10m | streamstats current=f window=1 last(_time) as prev_bin by host | eval gap_minutes = (_time - prev_bin) / 60 | stats sum(bin_events) as event_count max(bin_last) as last_seen count as active_bins perc95(gap_minutes) as p95_gap_minutes by host | appendpipe [ stats count as _rows | where _rows == 0 | eval host = "(no hosts reporting)", last_seen = 0, event_count = 0 | fields - _rows ] | where coalesce(active_bins, {{ det.min_active_bins | default(3) }}) >= {{ det.min_active_bins | default(3) }}{% if det.max_baseline_minutes is defined %} AND coalesce(p95_gap_minutes, 0) <= {{ det.max_baseline_minutes }}{% endif %} | eval host_threshold_minutes = case({% for host, mins in (det.host_overrides | default({})) | dictsort %}host="{{ host }}", {{ mins }}, {% endfor %}true(), max(coalesce(p95_gap_minutes, 0) * {{ det.cadence_multiplier | default(3) }}, {{ det.threshold_minutes }})){% else %} | appendpipe [ stats count as _rows | where _rows == 0 | eval last_seen = 0, event_count = 0 | fields - _rows ]{% endif %} | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > {% if det.by_host | default(false) %}host_threshold_minutes | eventstats values(host) as silent_hosts | eval silent_hosts = mvjoin(mvsort(silent_hosts), ","){% else %}{{ det.threshold_minutes }}{% endif +%}
+description = Alerts when {% if det.expected_roster | default(false) and splunk_docker_os_emitter_roster is defined %}an expected OS host has stopped sending to the OS event indexes{% else %}the {{ det.index }} index has received no events{% endif %} for more than {{ det.threshold_minutes }} minutes{% if det.sourcetype is defined %} (sourcetype={{ det.sourcetype }}){% endif %}{% if det.by_host | default(false) %}, detected per-host against each host's own cadence so a healthy emitter cannot mask a dead one{% endif %}. Catches the emitter, its Cribl pipeline, and Splunk HEC ingestion failing with a single signal.
+{# The expected-roster branch preserves its lookup rows with a left join;
+   observed-host branches use the appendpipe sentinel because grouped tstats
+   returns no rows when its entire input is empty. #}
+{% if det.expected_roster | default(false) and splunk_docker_os_emitter_roster is defined %}
+{% set silence_search %}
+| inputlookup {{ splunk_docker_os_emitter_roster.expected_lookup }}
+| search host=*
+| join type=left host [
+    | tstats count as bin_events latest(_time) as bin_last WHERE `{{ splunk_docker_os_emitter_roster.indexes_macro }}`{% if det.sourcetype is defined %} sourcetype={{ det.sourcetype }}{% endif %} by host _time span=10m
+    | streamstats current=f window=1 last(_time) as prev_bin by host
+    | eval gap_minutes = (_time - prev_bin) / 60
+    | stats sum(bin_events) as event_count max(bin_last) as last_seen count as active_bins perc95(gap_minutes) as p95_gap_minutes by host
+]
+| eval event_count=coalesce(event_count, 0), host_threshold_minutes=case({% for host, mins in (det.host_overrides | default({})) | dictsort %}host="{{ host }}", {{ mins }}, {% endfor %}true(), max(coalesce(p95_gap_minutes, 0) * {{ det.cadence_multiplier | default(3) }}, {{ det.threshold_minutes }})), minutes_silent=(now()-coalesce(last_seen, 0))/60
+| where minutes_silent > host_threshold_minutes
+| eventstats values(host) as silent_hosts
+| eval silent_hosts=mvjoin(mvsort(silent_hosts), ",")
+{% endset %}
+search = {{ silence_search | replace('\n', ' ') | trim }}
+{% else %}
+search = | tstats count as {% if det.by_host | default(false) %}bin_events latest(_time) as bin_last{% else %}event_count latest(_time) as last_seen{% endif %} WHERE index={{ det.index }}{% if det.sourcetype is defined %} sourcetype={{ det.sourcetype }}{% endif %}{% if det.by_host | default(false) %} by host _time span=10m | streamstats current=f window=1 last(_time) as prev_bin by host | eval gap_minutes = (_time - prev_bin) / 60 | stats sum(bin_events) as event_count max(bin_last) as last_seen count as active_bins perc95(gap_minutes) as p95_gap_minutes by host | appendpipe [ stats count as _rows | where _rows == 0 | eval host = "(no hosts reporting)", last_seen = 0, event_count = 0 | fields - _rows ] | where coalesce(active_bins, {{ det.min_active_bins | default(3) }}) >= {{ det.min_active_bins | default(3) }}{% if det.max_baseline_minutes is defined %} AND coalesce(p95_gap_minutes, 0) <= {{ det.max_baseline_minutes }}{% endif %} | eval host_threshold_minutes = case({% for host, mins in (det.host_overrides | default({})) | dictsort %}host="{{ host }}", {{ mins }}, {% endfor %}true(), max(coalesce(p95_gap_minutes, 0) * {{ det.cadence_multiplier | default(3) }}, {{ det.threshold_minutes }})){% else %} | appendpipe [ stats count as _rows | where _rows == 0 | eval last_seen = 0, event_count = 0 | fields - _rows ]{% endif %} | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > {% if det.by_host | default(false) %}host_threshold_minutes | eventstats values(host) as silent_hosts | eval silent_hosts = mvjoin(mvsort(silent_hosts), ","){% else %}{{ det.threshold_minutes }}{% endif %}
+{% endif +%}
 {# The `+` above is load-bearing. Ansible renders templates with
    trim_blocks=True, which eats the newline that follows a `{% ... %}` block
    tag. This `search =` line ends in one, so without the `+` the comment block
@@ -62,10 +76,9 @@ search = | tstats count as {% if det.by_host | default(false) %}bin_events lates
 # silent for many multiples of its own threshold is still inside the window.
 # tstats reads only indexed metadata, so a wide window is cheap. This does
 # NOT make the window unbounded — a host silent longer than this still has no
-# row for tstats to return at all (the same inherent gap the "zero events in
-# the whole index" case above closes only for the fully-empty-index case).
-# Closing that class fully needs comparing against the full host roster
-# (an inventory-diff detector), not a wider tstats lookback; out of scope here.
+# row for tstats to return at all. The OS detector closes this gap with its
+# expected-host lookup; other by_host detectors remain bounded by observed
+# hosts and the empty-index sentinel above.
 # A detector's lookback_minutes, when set, replaces the derived window: the
 # window is also how long a retired or renamed host keeps firing.
 dispatch.earliest_time = -{{ det.lookback_minutes | default(det.threshold_minutes * splunk_docker_silence_lookback_multiplier) | int }}m
@@ -91,6 +104,34 @@ relation = greater than
 quantity = 0
 
 {% endfor %}
+{% if splunk_docker_os_emitter_roster is defined %}
+[os_silence_roster_refresh]
+description = Refreshes expected OS hosts from PVE inventory and recent OS event metadata.
+{% set roster_search %}
+| inputlookup {{ splunk_docker_os_emitter_roster.pve_lookup }}
+| join type=left id [ | mstats latest(pve_up) as pve_up WHERE index=* by id ]
+| where kind="node" OR isnull(pve_up) OR pve_up!=0
+| fields host
+| append [
+    | tstats max(_indextime) as last_indexed WHERE `{{ splunk_docker_os_emitter_roster.indexes_macro }}` _index_earliest=-{{ splunk_docker_os_emitter_roster.observed_expiry_days }}d _index_latest=now by host
+    | join type=left host [ | inputlookup {{ splunk_docker_os_emitter_roster.pve_lookup }} | eval in_pve_inventory=1 | fields host in_pve_inventory ]
+    | where isnull(in_pve_inventory)
+    | fields host
+]
+| dedup host
+| appendpipe [ stats count as _rows | where _rows==0 | eval host="" | fields - _rows ]
+| outputlookup createinapp=true {{ splunk_docker_os_emitter_roster.expected_lookup }}
+{% endset %}
+search = {{ roster_search | replace('\n', ' ') | trim }}
+dispatch.earliest_time = -30d
+dispatch.latest_time = now
+cron_schedule = {{ splunk_docker_os_emitter_roster.refresh_cron }}
+enableSched = 1
+is_visible = 0
+disabled = 0
+alert.track = 0
+{% endif %}
+
 {# ---------------------------------------------------------------------------
    One gap detector, replacing the flat (non-by_host) per-index stanzas the
    loop above used to also emit. Thresholds stay declarative in

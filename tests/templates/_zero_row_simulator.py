@@ -177,6 +177,12 @@ def simulate(search):
     """Run a search against a fully-silent data source (a grouped
     aggregation over zero matching input rows returns zero result rows) and
     return the surviving rows -- what the alert would fire on."""
+    if "inputlookup os_expected_hosts.csv" in search:
+        if not re.search(r"join\s+type=left\s+host\s+\[.*?tstats", search):
+            return []
+        table = [{"host": "expected-host", "last_seen": None, "host_threshold_minutes": 15}]
+        table = run_eval_minutes_silent(table)
+        return run_where_threshold(table, search)
     append_guard = run_append_stats_max_guard(search)
     if append_guard is not None:
         append_table, recency_field = append_guard

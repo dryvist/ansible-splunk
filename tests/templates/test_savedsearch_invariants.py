@@ -11,7 +11,7 @@ and the same audit that lifted the gate found several detectors pointed at
 indexes with zero events ever. This test keeps the invariants that audit
 actually verified true for all 33 detectors it touched:
 
-1. Every scheduled stanza (enableSched = 1) throttles its own notification
+1. Every scheduled alert (enableSched = 1 and alert.track = 1) throttles its own notification
    rate with `alert.suppress = 1` plus a non-empty `alert.suppress.period`.
    Without it, a detector on a `*/5 * * * *` cron over a noisy or
    structurally-empty index is a pager storm, not a signal.
@@ -47,6 +47,7 @@ DEFAULTS = load_defaults(ROOT)
 # Same stanza-block extraction as the other savedsearches tests.
 STANZA_RE = re.compile(r"^\[(\S+)\]$(.*?)(?=^\[|\Z)", re.M | re.S)
 ENABLED_RE = re.compile(r"^enableSched\s*=\s*1\s*$", re.M)
+TRACKED_ALERT_RE = re.compile(r"^alert\.track\s*=\s*1\s*$", re.M)
 SUPPRESS_ON_RE = re.compile(r"^alert\.suppress\s*=\s*1\s*$", re.M)
 SUPPRESS_PERIOD_RE = re.compile(r"^alert\.suppress\.period\s*=\s*\S+\s*$", re.M)
 
@@ -56,6 +57,7 @@ rendered = template.render(
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
     splunk_docker_silence_exemptions=DEFAULTS["splunk_docker_silence_exemptions"],
     splunk_docker_silence_lookback_multiplier=DEFAULTS["splunk_docker_silence_lookback_multiplier"],
+    splunk_docker_os_emitter_roster=DEFAULTS["splunk_docker_os_emitter_roster"],
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
     splunk_docker_openbao_raft_expected_voters=DEFAULTS["splunk_docker_openbao_raft_expected_voters"],
@@ -73,7 +75,7 @@ rendered = template.render(
 errors = []
 
 for name, body in ((m.group(1), m.group(2)) for m in STANZA_RE.finditer(rendered)):
-    if not ENABLED_RE.search(body):
+    if not ENABLED_RE.search(body) or not TRACKED_ALERT_RE.search(body):
         continue
     if not SUPPRESS_ON_RE.search(body):
         errors.append(f"FAIL: [{name}] is scheduled but has no alert.suppress = 1")
@@ -87,6 +89,7 @@ delivered = template.render(
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
     splunk_docker_silence_exemptions=DEFAULTS["splunk_docker_silence_exemptions"],
     splunk_docker_silence_lookback_multiplier=DEFAULTS["splunk_docker_silence_lookback_multiplier"],
+    splunk_docker_os_emitter_roster=DEFAULTS["splunk_docker_os_emitter_roster"],
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
     splunk_docker_openbao_raft_expected_voters=DEFAULTS["splunk_docker_openbao_raft_expected_voters"],
@@ -104,9 +107,9 @@ delivered = template.render(
 if re.search(r"^\[default\]$", delivered, re.M):
     errors.append("FAIL: a [default] stanza is rendered; it would export actions to every app")
 for name, body in ((m.group(1), m.group(2)) for m in STANZA_RE.finditer(delivered)):
-    if ENABLED_RE.search(body) and not re.search(r"^action\.webhook = 1$", body, re.M):
+    if ENABLED_RE.search(body) and TRACKED_ALERT_RE.search(body) and not re.search(r"^action\.webhook = 1$", body, re.M):
         errors.append(f"FAIL: [{name}] is scheduled but carries no action.webhook delivery")
-    elif ENABLED_RE.search(body) and "&tpl=yes&t=" not in body:
+    elif ENABLED_RE.search(body) and TRACKED_ALERT_RE.search(body) and "&tpl=yes&t=" not in body:
         errors.append(f"FAIL: [{name}] hub URL lacks the ntfy title/message templates")
 
 for det in DEFAULTS["splunk_docker_silence_detectors"]:
@@ -123,7 +126,7 @@ if errors:
     sys.exit(1)
 
 print(
-    "PASS: every scheduled stanza suppresses its own notification rate "
+    "PASS: every scheduled alert suppresses its own notification rate "
     "(alert.suppress = 1 with a period) and carries its own hub delivery, "
     "no [default] stanza is rendered, and every by_host silence-detector "
     "list entry declares 'disabled' explicitly"

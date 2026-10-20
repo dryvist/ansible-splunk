@@ -73,6 +73,7 @@ SEARCH_RE = re.compile(r"^search = (.*)$", re.M)
 # a selector regression that stops matching anything still fails loudly
 # instead of passing vacuously with zero detectors checked.
 EXPECTED_INCLUDED = {
+    "os_silence_detector",
     "macos_edge_silence_detector",
     "llm_pipeline_silence_detector",
     "llm_router_silence_detector",
@@ -105,6 +106,7 @@ rendered = env.get_template("savedsearches.conf.j2").render(
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
     splunk_docker_silence_exemptions=DEFAULTS["splunk_docker_silence_exemptions"],
     splunk_docker_silence_lookback_multiplier=DEFAULTS["splunk_docker_silence_lookback_multiplier"],
+    splunk_docker_os_emitter_roster=DEFAULTS["splunk_docker_os_emitter_roster"],
     # index_gap_detector's zero-row guard covers a wildcarded search, so it
     # needs the real expected-index roster to have any members to guard --
     # without these two, its append branch has an empty list and this test
@@ -187,6 +189,22 @@ UPPERCASE_BY = (
 )
 if not is_silence_detector(UPPERCASE_BY):
     errors.append("FAIL: regression fixture -- inclusion rule is case-sensitive to the BY keyword")
+
+ROSTER_INNER_JOIN = (
+    "| inputlookup os_expected_hosts.csv "
+    "| join type=inner host [ | tstats latest(_time) as last_seen by host ] "
+    "| eval minutes_silent=(now()-coalesce(last_seen,0))/60 "
+    "| where minutes_silent > host_threshold_minutes"
+)
+ROSTER_LEFT_JOIN = ROSTER_INNER_JOIN.replace("type=inner", "type=left")
+if not is_silence_detector(ROSTER_INNER_JOIN):
+    errors.append("FAIL: roster fixture -- inclusion rule failed to recognize the detector")
+elif simulate(ROSTER_INNER_JOIN):
+    errors.append("FAIL: roster fixture -- an inner join should lose expected hosts over zero events")
+if not is_silence_detector(ROSTER_LEFT_JOIN):
+    errors.append("FAIL: roster fixture -- inclusion rule rejected the left-joined expected roster")
+elif not simulate(ROSTER_LEFT_JOIN):
+    errors.append("FAIL: roster fixture -- the left join did not preserve an expected silent host")
 
 if errors:
     for err in errors:

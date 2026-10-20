@@ -1,0 +1,14 @@
+{% set inventory = tofu_data | default({}) %}
+host,kind,id
+{% for name, node in inventory.nodes | default({}) | dictsort if node.commissioned | default(true) != false %}
+{{ name }},node,node/{{ name }}
+{% endfor %}
+{% for name, guest in inventory.containers | default({}) | dictsort if guest.started | default(true) != false %}
+{{ guest.hostname | default(name, true) }},guest,lxc/{{ guest.vmid }}
+{% endfor %}
+{% for name, guest in inventory.vms | default({}) | dictsort if guest.started | default(true) != false %}
+{{ guest.hostname | default(name, true) }},guest,qemu/{{ guest.vmid }}
+{% endfor %}
+{% if inventory.splunk_vm.splunk is defined %}
+{{ inventory.splunk_vm.splunk.hostname }},guest,qemu/{{ inventory.splunk_vm.splunk.vmid }}
+{% endif %}
