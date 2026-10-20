@@ -20,3 +20,4 @@ concurrency:
 jobs:
   next-steps:
     uses: JacobPEvans/.github-ai/.github/workflows/cc-next-steps.yml@v1
+    secrets: inherit
