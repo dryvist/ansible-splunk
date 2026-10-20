@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.99.1](https://github.com/dryvist/ansible-splunk/compare/v0.99.0...v0.99.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **deps:** require amazon.aws 11.3.0 or newer ([#720](https://github.com/dryvist/ansible-splunk/issues/720)) ([15b8ef9](https://github.com/dryvist/ansible-splunk/commit/15b8ef9935f2849c33f802b206d8c1948246f2c4))
+
 ## [0.99.0](https://github.com/dryvist/ansible-splunk/compare/v0.98.0...v0.99.0) (2026-10-17)
 
 
