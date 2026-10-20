@@ -152,11 +152,17 @@
             - always
       always:
         - name: Apply pending Splunk configuration before verifying HEC inputs
-          ansible.builtin.meta: flush_handlers
           when:
             - not ansible_check_mode
             - splunk_docker_deploy_completed | default(false)
             - splunk_docker_inputs_conf_update.changed | default(false)
+          block:
+            - name: Run the pending Splunk restart
+              ansible.builtin.meta: flush_handlers
+            - name: Wait for Splunk to be ready before the live HEC readback
+              ansible.builtin.include_role:
+                name: splunk_docker
+                tasks_from: wait_for_splunk
         - name: Verify every configured index has a live, enabled HEC input stanza
           ansible.builtin.include_tasks: ../roles/splunk_docker/tasks/verify_hec_completeness.yml
           when: _splunk_docker_defaults is defined

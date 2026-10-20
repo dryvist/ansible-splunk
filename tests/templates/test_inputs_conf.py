@@ -275,8 +275,13 @@ elif conditions_pass(
 else:
     print("PASS: successful normal deployments restart before HEC readback; check mode stays read-only")
 
-if flush_task.get("ansible.builtin.meta") != "flush_handlers":
+flush_steps = flush_task.get("block", [])
+if [step.get("ansible.builtin.meta") for step in flush_steps[:1]] != ["flush_handlers"]:
     errors.append("FAIL: pending HEC configuration does not use Ansible's handler flush")
+elif (flush_steps[1:2] or [{}])[0].get("ansible.builtin.include_role", {}).get("tasks_from") != "wait_for_splunk":
+    errors.append("FAIL: HEC readback does not wait for Splunk after the flushed restart")
+else:
+    print("PASS: the flushed restart waits for Splunk before the HEC readback")
 
 canonical_defaults = load_defaults(ROOT)
 canonical_indexes = (
