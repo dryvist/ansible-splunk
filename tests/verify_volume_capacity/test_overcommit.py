@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Test the nominal-index-cap-overcommit Jinja expressions in
-verify_volume_capacity.yml ("Sum nominal index caps per volume").
+Test filesystem-capacity and nominal-index-cap Jinja expressions in
+verify_volume_capacity.yml.
 
 Renders the two `set_fact` expressions verbatim out of the task file (not a
 reimplementation) against fixture index lists, so a change to the real
@@ -27,15 +27,28 @@ TASK_FILE = (
 )
 
 # Ansible task files carry Jinja inside YAML scalars, which safe_load parses
-# fine without evaluating the Jinja — only the "Sum nominal index caps per
-# volume" task's two set_fact expressions are pulled out and rendered here.
+# fine without evaluating the Jinja. The relevant expressions are pulled out
+# and rendered here so the checks exercise the task file itself.
 tasks = yaml.safe_load(TASK_FILE.read_text())
+capacity_task = next(
+    t for t in tasks if t.get("name") == "Calculate usable filesystem capacity for each volume"
+)
+capacity_expr = capacity_task["vars"]["splunk_docker_volume_current_usable_capacity_mb"]
+individual_capacity_task = next(
+    t for t in tasks if t.get("name") == "Assert each volume cap fits the filesystem holding it"
+)
+individual_capacity_expr = individual_capacity_task["ansible.builtin.assert"]["that"][0]
+combined_capacity_task = next(
+    t for t in tasks if t.get("name") == "Assert the combined caps fit when both volumes share a filesystem"
+)
+combined_capacity_expr = combined_capacity_task["ansible.builtin.assert"]["that"][0]
 sum_task = next(t for t in tasks if t.get("name") == "Sum nominal index caps per volume")
 set_fact = sum_task["ansible.builtin.set_fact"]
 HOT_WARM_EXPR = set_fact["splunk_docker_hot_warm_nominal_mb"]
 COLD_EXPR = set_fact["splunk_docker_cold_nominal_mb"]
 
 env = Environment()
+env.filters["bool"] = bool
 
 
 def render_totals(system_indexes, indexes):
@@ -47,6 +60,52 @@ def render_totals(system_indexes, indexes):
 
 
 errors = []
+
+# The cap is checked against allocated plus non-root-available blocks, so
+# current free space can be below a cap without making the guard fail.
+mount = {
+    "block_used": 55_752_984,
+    "block_available": 60_079_796,
+    "block_size": 4096,
+    "size_available": 234_686 * 1_048_576,
+}
+capacity_mb = (
+    (mount["block_used"] + mount["block_available"]) * mount["block_size"]
+) // 1_048_576
+capacities = {}
+for name in ("hot_warm", "cold"):
+    rendered = env.from_string(capacity_expr).render(item={"key": name, "value": mount})
+    capacities[name] = int(rendered.strip())
+
+if capacities != {"hot_warm": capacity_mb, "cold": capacity_mb}:
+    errors.append(
+        f"FAIL: usable filesystem capacities {capacities} != expected {capacity_mb} MB per volume"
+    )
+else:
+    print(f"PASS: unprivileged usable filesystem capacity is {capacity_mb} MB")
+
+for name in ("hot_warm", "cold"):
+    rendered = env.from_string("{{ " + individual_capacity_expr + " }}").render(
+        splunk_docker_volumes_share_fs=False,
+        splunk_docker_volume_usable_capacity_mb=capacities,
+        item={"name": name, "cap": 270_000, "mount": mount},
+    )
+    if rendered.strip().lower() != "true":
+        errors.append(
+            f"FAIL: {name} cap should fit usable capacity despite lower current free space"
+        )
+    else:
+        print(f"PASS: {name} cap fits usable capacity when current free space is lower")
+
+combined_rendered = env.from_string("{{ " + combined_capacity_expr + " }}").render(
+    splunk_docker_volume_hot_warm_max_mb=150_000,
+    splunk_docker_volume_cold_max_mb=270_000,
+    splunk_docker_volume_usable_capacity_mb=capacities,
+)
+if combined_rendered.strip().lower() != "true":
+    errors.append("FAIL: shared volume caps should fit the usable filesystem capacity")
+else:
+    print("PASS: combined caps fit the usable filesystem capacity")
 
 # --- under-committed: sums stay under both volume caps -----------------
 SYSTEM_INDEXES = [{"name": "_internal", "max_size_mb": 20480}]
