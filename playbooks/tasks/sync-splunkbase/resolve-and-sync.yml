@@ -14,10 +14,14 @@
   changed_when: false
   failed_when: false
 
+- name: Initialize resolved release versions
+  ansible.builtin.set_fact:
+    splunkbase_desired_all: []
+
 - name: Compute every resolved release's desired version
   ansible.builtin.set_fact:
     splunkbase_desired_all: >-
-      {{ splunkbase_desired_all | default([]) + [item.0 | combine({
+      {{ splunkbase_desired_all + [item.0 | combine({
         'desired_version': (
           item.0.pin_version if item.0.pin_version is defined
           else (
@@ -46,6 +50,22 @@
   ansible.builtin.set_fact:
     splunkbase_desired: >-
       {{ splunkbase_desired_all | rejectattr('desired_version', 'equalto', '') | list }}
+
+- name: Initialize sync plan from resolvable entries
+  ansible.builtin.set_fact:
+    splunkbase_plan: "{{ splunkbase_desired }}"
+
+- name: Fail closed when no configured Splunkbase version resolves
+  ansible.builtin.assert:
+    that:
+      - splunkbase_entries | length == 0 or splunkbase_desired | length > 0
+    fail_msg: >-
+      Splunkbase release resolution produced no versions for any of
+      {{ splunkbase_entries | length }} configured entries. Check the release
+      API status, response format, and controller connectivity; object storage
+      was not changed.
+    quiet: true
+  when: not (splunkbase_sync_fail_open | default(true) | bool)
 
 # `aws s3api get-object-tagging` returns nonzero for a missing object
 # ("NoSuchKey" in stderr) — expected, drives a sync. Any other nonzero
@@ -94,7 +114,9 @@
 - name: Compute sync decisions (bucket tag vs resolved latest)
   ansible.builtin.set_fact:
     splunkbase_plan: >-
-      {{ splunkbase_plan | default([]) + [item.item | combine({
+      {{ (splunkbase_plan
+          | rejectattr('filename', 'equalto', item.item.filename) | list)
+         + [item.item | combine({
         'current_version': (item.stdout | default('') | trim) if item.rc == 0 else '',
         'needs_sync': (
           item.rc != 0
@@ -229,7 +251,9 @@
   register: existing_splunkbase_manifest
   changed_when: false
   failed_when: false
-  when: splunkbase_manifest_is_partial | bool
+  when:
+    - splunkbase_manifest_is_partial | bool
+    - splunkbase_plan | length > 0
   no_log: true
 
 - name: Verify scoped update can preserve the existing manifest
@@ -241,13 +265,16 @@
       A scoped update must read the existing manifest.json before publishing.
       Run the complete update scope to rebuild a missing or invalid manifest.
     quiet: true
-  when: splunkbase_manifest_is_partial | bool
+  when:
+    - splunkbase_manifest_is_partial | bool
+    - splunkbase_plan | length > 0
 
 - name: Initialize manifest for this update scope
   ansible.builtin.set_fact:
     splunkbase_manifest: >-
       {{ (existing_splunkbase_manifest.stdout | default('{}', true) | from_json)
          if splunkbase_manifest_is_partial | bool else {} }}
+  when: splunkbase_plan | length > 0
 
 - name: Build manifest (app_dir → {version, filename})
   ansible.builtin.set_fact:
@@ -264,6 +291,7 @@
     content: "{{ splunkbase_manifest | to_nice_json }}\n"
     dest: "{{ splunkbase_sync_tmpdir }}/manifest.json"
     mode: "0600"
+  when: splunkbase_plan | length > 0
 
 - name: Publish manifest.json to object storage
   ansible.builtin.command:
@@ -275,11 +303,20 @@
       - "s3://{{ object_storage_bucket }}/manifest.json"
   environment: "{{ s3_env }}"
   changed_when: true
+  when: splunkbase_plan | length > 0
 
 - name: Remove manifest from controller tmpdir
   ansible.builtin.file:
     path: "{{ splunkbase_sync_tmpdir }}/manifest.json"
     state: absent
+  when: splunkbase_plan | length > 0
+
+- name: Report empty Splunkbase plan
+  ansible.builtin.debug:
+    msg: >-
+      Nothing to sync; the resolved plan is empty, so the existing bucket and
+      manifest.json were left unchanged.
+  when: splunkbase_plan | length == 0
 
 - name: Summary
   ansible.builtin.debug:
@@ -288,3 +325,4 @@
       {{ splunkbase_to_sync | length }} of
       {{ splunkbase_desired | length }} resolvable entries updated;
       manifest.json published with {{ splunkbase_manifest | length }} apps.
+  when: splunkbase_plan | length > 0
