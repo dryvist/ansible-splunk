@@ -57,12 +57,16 @@ DEFAULTS = load_defaults(ROOT)
 DETECTORS = DEFAULTS["splunk_docker_silence_detectors"]
 EXEMPTIONS = DEFAULTS["splunk_docker_silence_exemptions"]
 MULTIPLIER = DEFAULTS["splunk_docker_silence_lookback_multiplier"]
+CADENCE_MULTIPLIER = DEFAULTS["splunk_docker_silence_cadence_multiplier"]
+LLM_FLOOR = DEFAULTS["splunk_docker_llm_pipeline_silence_threshold_minutes"]
 
 env = ansible_env(ROOT / "roles/splunk_docker/templates")
 rendered = env.get_template("savedsearches.conf.j2").render(
     splunk_docker_silence_detectors=DETECTORS,
     splunk_docker_silence_exemptions=EXEMPTIONS,
     splunk_docker_silence_lookback_multiplier=MULTIPLIER,
+    splunk_docker_silence_cadence_multiplier=CADENCE_MULTIPLIER,
+    splunk_docker_llm_pipeline_silence_threshold_minutes=LLM_FLOOR,
     splunk_docker_indexes_core=DEFAULTS["splunk_docker_indexes_core"],
     splunk_docker_indexes_extra=DEFAULTS["splunk_docker_indexes_extra"],
     splunk_docker_openbao_raft_expected_voters=DEFAULTS["splunk_docker_openbao_raft_expected_voters"],
@@ -204,6 +208,47 @@ for det in DETECTORS:
         f"coalesce(p95_gap_minutes, 0) <= {det['max_baseline_minutes']}" not in body
     ):
         errors.append(f"FAIL: [{name}] ignores its max_baseline_minutes filter")
+
+# --- bespoke LLM detector shares the adaptive baseline and threshold --------
+llm_body = by_name.get("llm_pipeline_silence_detector")
+if llm_body is None:
+    errors.append("FAIL: [llm_pipeline_silence_detector] not found in rendered output")
+else:
+    llm_search_match = re.search(r"^search = (.*)$", llm_body, re.M)
+    llm_search = llm_search_match.group(1) if llm_search_match else ""
+    expected_threshold = (
+        f"max(coalesce(p95_gap_minutes, 0) * {CADENCE_MULTIPLIER}, {LLM_FLOOR})"
+    )
+    baseline_shape = (
+        "| tstats count as bin_events latest(_time) as bin_last WHERE index=llm by host _time span=10m",
+        "| streamstats current=f window=1 last(_time) as prev_bin by host",
+        "| eval gap_minutes = (_time - prev_bin) / 60",
+        "perc95(gap_minutes) as p95_gap_minutes by host",
+    )
+    if any(part not in llm_search for part in baseline_shape):
+        errors.append(
+            "FAIL: [llm_pipeline_silence_detector] does not use the shared 10-minute p95 gap baseline"
+        )
+    if expected_threshold not in llm_search or "where minutes_silent > host_threshold_minutes" not in llm_search:
+        errors.append(
+            f"FAIL: [llm_pipeline_silence_detector] does not use the cadence threshold with its {LLM_FLOOR}-minute floor"
+        )
+    if LLM_FLOOR != 30:
+        errors.append(
+            f"FAIL: splunk_docker_llm_pipeline_silence_threshold_minutes default is {LLM_FLOOR}, expected 30"
+        )
+    sentinel = 'eval host = "(no hosts reporting)", last_seen = 0 | fields - _rows'
+    if sentinel not in llm_search:
+        errors.append("FAIL: [llm_pipeline_silence_detector] changed its whole-index silence sentinel row")
+
+    os_detector = next(det for det in DETECTORS if det["name"] == "os")
+    expected_llm_lookback = os_detector.get(
+        "lookback_minutes", os_detector["threshold_minutes"] * MULTIPLIER
+    )
+    if f"dispatch.earliest_time = -{expected_llm_lookback}m" not in llm_body:
+        errors.append(
+            f"FAIL: [llm_pipeline_silence_detector] lookback does not match the OS silence detector ({expected_llm_lookback}m)"
+        )
 
 if errors:
     for err in errors:
