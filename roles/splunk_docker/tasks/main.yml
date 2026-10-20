@@ -117,6 +117,32 @@
     group: "{{ splunk_docker_group }}"
     mode: '0755'
 
+- name: Create the role-owned configuration app directories
+  ansible.builtin.file:
+    path: "{{ splunk_docker_managed_config_app_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0755'
+  loop: [default, local]
+
+- name: Deploy the role-owned configuration app manifest
+  ansible.builtin.copy:
+    content: |
+      # Managed by the splunk_docker Ansible role.
+      [install]
+      state = enabled
+      [package]
+      id = homelab_config
+      [ui]
+      is_visible = 0
+      label = Homelab Configuration
+    dest: "{{ splunk_docker_managed_config_app_dir }}/default/app.conf"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  notify: Restart Splunk container
+
 # MUST precede the compose template: it resolves the archive credential into
 # splunk_docker_frozen_env, which the compose environment renders. Ordered after
 # the directories above because it also drops the freeze script into
@@ -162,10 +188,132 @@
     path: "{{ splunk_docker_etc_dir }}/apps/search/local/indexes.conf"
     state: absent
 
+# These keys used to be templated as whole files in system/local. Remove only
+# those managed keys before deploying their app-local replacements, preserving
+# Splunk-generated secrets and every unrelated setting in the same files.
+- name: Check for legacy inputs.conf in system/local
+  ansible.builtin.stat:
+    path: "{{ splunk_docker_etc_dir }}/system/local/inputs.conf"
+  register: splunk_docker_legacy_inputs_conf
+
+- name: Remove role-owned HEC settings from system/local
+  community.general.ini_file:
+    path: "{{ splunk_docker_etc_dir }}/system/local/inputs.conf"
+    section: "{{ item.0 }}"
+    option: "{{ item.1 }}"
+    state: absent
+    create: false
+  vars:
+    splunk_docker_hec_cleanup_sections: >-
+      {{ (splunk_docker_indexes | map(attribute='name')
+          | map('regex_replace', '^', 'http://') | list) + ['http://legacy'] }}
+    splunk_docker_hec_cleanup_options:
+      - token
+      - disabled
+      - description
+      - index
+      - indexes
+    splunk_docker_hec_cleanup_items: >-
+      {{ [['http', 'disabled'], ['http', 'index']]
+         + (splunk_docker_hec_cleanup_sections
+            | product(splunk_docker_hec_cleanup_options) | list) }}
+  loop: "{{ splunk_docker_hec_cleanup_items }}"
+  loop_control:
+    label: "{{ item.0 }} {{ item.1 }}"
+  no_log: true
+  diff: false
+  notify: Restart Splunk container
+  when: splunk_docker_legacy_inputs_conf.stat.exists
+
+- name: Check for legacy web.conf in system/local
+  ansible.builtin.stat:
+    path: "{{ splunk_docker_etc_dir }}/system/local/web.conf"
+  register: splunk_docker_legacy_web_conf
+
+- name: Remove role-owned web settings from system/local
+  community.general.ini_file:
+    path: "{{ splunk_docker_etc_dir }}/system/local/web.conf"
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    state: absent
+    create: false
+  loop:
+    - {section: settings, option: enableSplunkWebSSL}
+    - {section: settings, option: updateCheckerBaseURL}
+  loop_control:
+    label: "[{{ item.section }}] {{ item.option }}"
+  notify: Restart Splunk container
+  when: splunk_docker_legacy_web_conf.stat.exists
+
+- name: Check for legacy server.conf in system/local
+  ansible.builtin.stat:
+    path: "{{ splunk_docker_etc_dir }}/system/local/server.conf"
+  register: splunk_docker_legacy_server_conf
+
+- name: Remove role-owned server settings from system/local
+  community.general.ini_file:
+    path: "{{ splunk_docker_etc_dir }}/system/local/server.conf"
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    state: absent
+    create: false
+  loop:
+    - {section: applicationsManagement, option: allowInternetAccess}
+    - {section: applicationsManagement, option: splunkbaseAppsDumpUrl}
+    - {section: applicationsManagement, option: archivedSplunkbaseAppsDumpUrl}
+    - {section: applicationsManagement, option: updateHost}
+  loop_control:
+    label: "[{{ item.section }}] {{ item.option }}"
+  notify: Restart Splunk container
+  when: splunk_docker_legacy_server_conf.stat.exists
+
+- name: Check for legacy indexes.conf in system/local
+  ansible.builtin.stat:
+    path: "{{ splunk_docker_etc_dir }}/system/local/indexes.conf"
+  register: splunk_docker_legacy_indexes_conf
+
+- name: Remove role-owned index settings from system/local
+  community.general.ini_file:
+    path: "{{ splunk_docker_etc_dir }}/system/local/indexes.conf"
+    section: "{{ item.0 }}"
+    option: "{{ item.1 }}"
+    state: absent
+    create: false
+  vars:
+    splunk_docker_index_volume_sections:
+      - volume:hot_warm
+      - volume:cold
+    splunk_docker_index_sections: >-
+      {{ (splunk_docker_system_indexes + splunk_docker_indexes)
+         | map(attribute='name') | unique | list }}
+    splunk_docker_index_volume_options:
+      - path
+      - maxVolumeDataSizeMB
+    splunk_docker_index_options:
+      - homePath
+      - homePath.maxDataSizeMB
+      - coldPath
+      - thawedPath
+      - maxTotalDataSizeMB
+      - frozenTimePeriodInSecs
+      - coldToFrozenScript
+      - coldToFrozenDir
+      - datatype
+    splunk_docker_indexes_cleanup_items: >-
+      {{ (splunk_docker_index_volume_sections
+          | product(splunk_docker_index_volume_options) | list)
+         + (splunk_docker_index_sections
+            | product(splunk_docker_index_options) | list) }}
+  loop: "{{ splunk_docker_indexes_cleanup_items }}"
+  loop_control:
+    label: "{{ item.0 }} {{ item.1 }}"
+  notify: Restart Splunk container
+  when: splunk_docker_legacy_indexes_conf.stat.exists
+
 - name: Deploy indexes.conf
   ansible.builtin.template:
     src: indexes.conf.j2
-    dest: "{{ splunk_docker_etc_dir }}/system/local/indexes.conf"
+    dest: "{{ splunk_docker_managed_config_app_dir }}/local/indexes.conf"
     owner: "{{ splunk_docker_user }}"
     group: "{{ splunk_docker_group }}"
     mode: '0644'
@@ -174,7 +322,7 @@
 - name: Deploy inputs.conf for HEC configuration
   ansible.builtin.template:
     src: inputs.conf.j2
-    dest: "{{ splunk_docker_etc_dir }}/system/local/inputs.conf"
+    dest: "{{ splunk_docker_managed_config_app_dir }}/local/inputs.conf"
     owner: "{{ splunk_docker_user }}"
     group: "{{ splunk_docker_group }}"
     mode: '0600'
@@ -194,7 +342,7 @@
 - name: Deploy web.conf for SSL and update checker configuration
   ansible.builtin.template:
     src: web.conf.j2
-    dest: "{{ splunk_docker_etc_dir }}/system/local/web.conf"
+    dest: "{{ splunk_docker_managed_config_app_dir }}/local/web.conf"
     owner: "{{ splunk_docker_user }}"
     group: "{{ splunk_docker_group }}"
     mode: '0644'
@@ -203,7 +351,7 @@
 - name: Deploy server.conf for internet access control
   ansible.builtin.template:
     src: server.conf.j2
-    dest: "{{ splunk_docker_etc_dir }}/system/local/server.conf"
+    dest: "{{ splunk_docker_managed_config_app_dir }}/local/server.conf"
     owner: "{{ splunk_docker_user }}"
     group: "{{ splunk_docker_group }}"
     mode: '0644'
