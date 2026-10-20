@@ -40,18 +40,18 @@
         state: present
       when: ansible_os_family == 'Debian'
 
-    # Docker-in-Docker on GitHub Actions (Ubuntu 24.04) cannot use overlayfs
-    # to convert whiteout files even in privileged containers — EPERM from mknod.
-    # Pre-creating daemon.json with vfs storage driver before Docker is installed
-    # ensures the daemon starts with vfs on first run.
+    # Nested overlayfs fails with EPERM on whiteouts, so molecule.yml mounts a
+    # volume at /var/lib/docker (host filesystem), where overlay2 works. The
+    # mirror serves the Docker Hub Splunk image the role pulls. Written before
+    # Docker is installed so the daemon starts with it on first run.
     - name: Ensure /etc/docker directory exists
       ansible.builtin.file:
         path: /etc/docker
         state: directory
         mode: '0755'
 
-    - name: Configure Docker daemon to use vfs storage driver
+    - name: Configure Docker daemon storage driver and registry mirror
       ansible.builtin.copy:
         dest: /etc/docker/daemon.json
-        content: '{"storage-driver": "vfs"}'
+        content: '{"storage-driver": "overlay2", "registry-mirrors": ["https://mirror.gcr.io"]}'
         mode: '0644'
