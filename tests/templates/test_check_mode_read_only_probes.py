@@ -28,6 +28,9 @@ PROBES = {
         "Look for the object-storage client",
         "Query object-storage bucket versioning",
     ],
+    "playbooks/tasks/sync-splunkbase/resolve-and-sync.yml": [
+        "Query current object-storage version tag for each entry",
+    ],
     "roles/splunk_docker/tasks/verify_hec_completeness.yml": [
         "Query live HEC input stanzas from Splunk",
     ],
