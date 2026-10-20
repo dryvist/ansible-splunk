@@ -18,6 +18,7 @@
    Grouped tstats returns zero rows for empty input. The expected-roster
    branch left-joins events; observed-host branches append an empty sentinel.
 --------------------------------------------------------------------------- #}
+{% from "savedsearches/00-silence-macros.j2" import host_gap_baseline, adaptive_host_threshold %}
 {% for det in splunk_docker_silence_detectors | default([]) if det.by_host | default(false) %}
 [{{ det.name }}_silence_detector]
 {{ alert_delivery -}}
@@ -30,19 +31,16 @@ description = Alerts when {% if det.expected_roster | default(false) and splunk_
 | inputlookup {{ splunk_docker_os_emitter_roster.expected_lookup }}
 | search host=*
 | join type=left host [
-    | tstats count as bin_events latest(_time) as bin_last WHERE `{{ splunk_docker_os_emitter_roster.indexes_macro }}`{% if det.sourcetype is defined %} sourcetype={{ det.sourcetype }}{% endif %} by host _time span=10m
-    | streamstats current=f window=1 last(_time) as prev_bin by host
-    | eval gap_minutes = (_time - prev_bin) / 60
-    | stats sum(bin_events) as event_count max(bin_last) as last_seen count as active_bins perc95(gap_minutes) as p95_gap_minutes by host
+    {{ host_gap_baseline('`' ~ splunk_docker_os_emitter_roster.indexes_macro ~ '`', det.sourcetype | default(none)) | replace('\n', ' ') | trim }}
 ]
-| eval event_count=coalesce(event_count, 0), host_threshold_minutes=case({% for host, mins in (det.host_overrides | default({})) | dictsort %}host="{{ host }}", {{ mins }}, {% endfor %}true(), max(coalesce(p95_gap_minutes, 0) * {{ det.cadence_multiplier | default(3) }}, {{ det.threshold_minutes }})), minutes_silent=(now()-coalesce(last_seen, 0))/60
+| eval event_count=coalesce(event_count, 0), host_threshold_minutes=case({% for host, mins in (det.host_overrides | default({})) | dictsort %}host="{{ host }}", {{ mins }}, {% endfor %}true(), {{ adaptive_host_threshold('p95_gap_minutes', det.cadence_multiplier | default(splunk_docker_silence_cadence_multiplier | default(3)), det.threshold_minutes) }}), minutes_silent=(now()-coalesce(last_seen, 0))/60
 | where minutes_silent > host_threshold_minutes
 | eventstats values(host) as silent_hosts
 | eval silent_hosts=mvjoin(mvsort(silent_hosts), ",")
 {% endset %}
 search = {{ silence_search | replace('\n', ' ') | trim }}
 {% else %}
-search = | tstats count as {% if det.by_host | default(false) %}bin_events latest(_time) as bin_last{% else %}event_count latest(_time) as last_seen{% endif %} WHERE index={{ det.index }}{% if det.sourcetype is defined %} sourcetype={{ det.sourcetype }}{% endif %}{% if det.by_host | default(false) %} by host _time span=10m | streamstats current=f window=1 last(_time) as prev_bin by host | eval gap_minutes = (_time - prev_bin) / 60 | stats sum(bin_events) as event_count max(bin_last) as last_seen count as active_bins perc95(gap_minutes) as p95_gap_minutes by host | appendpipe [ stats count as _rows | where _rows == 0 | eval host = "(no hosts reporting)", last_seen = 0, event_count = 0 | fields - _rows ] | where coalesce(active_bins, {{ det.min_active_bins | default(3) }}) >= {{ det.min_active_bins | default(3) }}{% if det.max_baseline_minutes is defined %} AND coalesce(p95_gap_minutes, 0) <= {{ det.max_baseline_minutes }}{% endif %} | eval host_threshold_minutes = case({% for host, mins in (det.host_overrides | default({})) | dictsort %}host="{{ host }}", {{ mins }}, {% endfor %}true(), max(coalesce(p95_gap_minutes, 0) * {{ det.cadence_multiplier | default(3) }}, {{ det.threshold_minutes }})){% else %} | appendpipe [ stats count as _rows | where _rows == 0 | eval last_seen = 0, event_count = 0 | fields - _rows ]{% endif %} | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > {% if det.by_host | default(false) %}host_threshold_minutes | eventstats values(host) as silent_hosts | eval silent_hosts = mvjoin(mvsort(silent_hosts), ","){% else %}{{ det.threshold_minutes }}{% endif %}
+search = {{ host_gap_baseline('index=' ~ det.index, det.sourcetype | default(none)) | replace('\n', ' ') | trim }} | appendpipe [ stats count as _rows | where _rows == 0 | eval host = "(no hosts reporting)", last_seen = 0, event_count = 0 | fields - _rows ] | where coalesce(active_bins, {{ det.min_active_bins | default(3) }}) >= {{ det.min_active_bins | default(3) }}{% if det.max_baseline_minutes is defined %} AND coalesce(p95_gap_minutes, 0) <= {{ det.max_baseline_minutes }}{% endif %} | eval host_threshold_minutes = case({% for host, mins in (det.host_overrides | default({})) | dictsort %}host="{{ host }}", {{ mins }}, {% endfor %}true(), {{ adaptive_host_threshold('p95_gap_minutes', det.cadence_multiplier | default(splunk_docker_silence_cadence_multiplier | default(3)), det.threshold_minutes) }}) | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > host_threshold_minutes | eventstats values(host) as silent_hosts | eval silent_hosts = mvjoin(mvsort(silent_hosts), ",")
 {% endif +%}
 {# Keep `+`: with trim_blocks=True the next comment otherwise joins the search
    value. Template tests use the Ansible Jinja environment to check this. #}

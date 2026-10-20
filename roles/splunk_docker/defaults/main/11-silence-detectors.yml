@@ -86,6 +86,11 @@
 # detector sets lookback_minutes. Expected-roster detectors retain silent
 # hosts beyond this window; observed-only detectors do not.
 splunk_docker_silence_lookback_multiplier: 2000
+splunk_docker_silence_cadence_multiplier: 3
+
+# Minimum silence before the per-host LLM detector fires; sparse hosts use
+# their own p95 gap between active 10-minute bins when that is longer.
+splunk_docker_llm_pipeline_silence_threshold_minutes: 30
 
 # OS emitters have two sources: PVE assets in the published inventory and
 # non-PVE hosts discovered from recent OS log metadata. The scheduled refresh

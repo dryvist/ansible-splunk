@@ -1,0 +1,10 @@
+{% macro host_gap_baseline(index_filter, sourcetype=None) -%}
+| tstats count as bin_events latest(_time) as bin_last WHERE {{ index_filter }}{% if sourcetype %} sourcetype={{ sourcetype }}{% endif %} by host _time span=10m
+| streamstats current=f window=1 last(_time) as prev_bin by host
+| eval gap_minutes = (_time - prev_bin) / 60
+| stats sum(bin_events) as event_count max(bin_last) as last_seen count as active_bins perc95(gap_minutes) as p95_gap_minutes by host
+{%- endmacro %}
+
+{% macro adaptive_host_threshold(gap_field, multiplier, floor_minutes) -%}
+max(coalesce({{ gap_field }}, 0) * {{ multiplier }}, {{ floor_minutes }})
+{%- endmacro %}

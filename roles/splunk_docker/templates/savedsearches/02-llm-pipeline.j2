@@ -1,14 +1,16 @@
 [llm_pipeline_silence_detector]
+{% from "savedsearches/00-silence-macros.j2" import host_gap_baseline, adaptive_host_threshold %}
 {{ alert_delivery -}}
-description = Alerts when any llama-swap emitter feeding the llm index goes silent for more than 30 minutes. Detection is PER-HOST (`by host`) so a healthy emitter can never mask a dead one — with the fabric running multiple llama-swap serving guests, an index-wide `latest(_time)` would stay fresh as long as a single host reports, hiding the failure of every other host. Each silent host produces its own result row, so the alert fires once per dead emitter. A host that has never emitted has no baseline and cannot be detected here (same inherent limitation as the macOS edge detector).
+description = Alerts when an llm index host exceeds its cadence-derived silence threshold (at least {{ splunk_docker_llm_pipeline_silence_threshold_minutes }} minutes).
 # `by host` over a fully-empty index returns ZERO rows, not a null-last_seen
 # row for a synthetic host — so a plain eval/where guard never runs during a
 # whole-index outage (verified live: index=llm was empty for 18 days and this
 # detector never fired). appendpipe synthesizes a single sentinel row when
 # the tstats result set is empty, giving eval something to set last_seen = 0
 # on so the where clause below can fire.
-search = | tstats latest(_time) as last_seen WHERE index=llm by host | appendpipe [ stats count as _rows | where _rows == 0 | eval host = "(no hosts reporting)", last_seen = 0 | fields - _rows ] | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > 30
-dispatch.earliest_time = -24h
+search = {{ host_gap_baseline('index=llm') | replace('\n', ' ') | trim }} | appendpipe [ stats count as _rows | where _rows == 0 | eval host = "(no hosts reporting)", last_seen = 0 | fields - _rows ] | eval host_threshold_minutes = {{ adaptive_host_threshold('p95_gap_minutes', splunk_docker_silence_cadence_multiplier, splunk_docker_llm_pipeline_silence_threshold_minutes) }} | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > host_threshold_minutes
+{% set os_silence_detector = splunk_docker_silence_detectors | selectattr('name', 'equalto', 'os') | first %}
+dispatch.earliest_time = -{{ os_silence_detector.lookback_minutes | default(os_silence_detector.threshold_minutes * splunk_docker_silence_lookback_multiplier) | int }}m
 dispatch.latest_time = now
 cron_schedule = */10 * * * *
 enableSched = 1
