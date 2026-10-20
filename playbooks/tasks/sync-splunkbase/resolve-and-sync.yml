@@ -70,8 +70,8 @@
 # `aws s3api get-object-tagging` returns nonzero for a missing object
 # ("NoSuchKey" in stderr) — expected, drives a sync. Any other nonzero
 # (auth/network/bucket) must fail loud, validated in the next task.
-# `--query`/`--output text` reduces the reply to the bare tag value, or
-# empty when the object carries no `version` tag.
+# Read the complete TagSet so sync decisions can verify every required tag
+# using the same read-only query.
 - name: Query current object-storage version tag for each entry
   ansible.builtin.command:
     argv:
@@ -83,9 +83,9 @@
       - --key
       - "{{ item.filename }}"
       - --query
-      - TagSet[?Key=='version'].Value
+      - TagSet
       - --output
-      - text
+      - json
   environment: "{{ s3_env }}"
   loop: "{{ splunkbase_desired }}"
   loop_control:
@@ -117,16 +117,26 @@
       {{ (splunkbase_plan
           | rejectattr('filename', 'equalto', item.item.filename) | list)
          + [item.item | combine({
-        'current_version': (item.stdout | default('') | trim) if item.rc == 0 else '',
+        'current_tags': current_object_tags,
+        'current_version': current_object_tags.get('version', ''),
         'needs_sync': (
           item.rc != 0
-          or (item.stdout | default('') | trim)
-             != (item.item.desired_version | string | trim)
+          or current_object_tags.get('version', '') != desired_object_tags.version
         ),
+        'needs_tag': item.rc != 0 or current_object_tags != desired_object_tags,
       })] }}
   loop: "{{ object_storage_tag_query.results }}"
   loop_control:
     label: "{{ item.item.filename }}"
+  vars:
+    current_object_tags: >-
+      {{ (item.stdout | from_json | default([], true)
+          | items2dict(key_name='Key', value_name='Value'))
+         if item.rc == 0 else {} }}
+    desired_object_tags:
+      channel: latest
+      version: "{{ item.item.desired_version | string | trim }}"
+      splunkbase_id: "{{ item.item.splunkbase_id | string }}"
 
 - name: Show sync decisions
   ansible.builtin.debug:
@@ -208,8 +218,6 @@
     label: "{{ item.filename }}"
   changed_when: true
 
-# Tag every desired entry (not only re-uploads). Pre-native-versioning objects
-# often lack channel=latest; verify-manifest requires it on every key.
 - name: Tag object-storage objects as the current latest release
   ansible.builtin.command:
     argv:
@@ -226,10 +234,11 @@
              {'Key': 'version', 'Value': item.desired_version | string | trim},
              {'Key': 'splunkbase_id', 'Value': item.splunkbase_id | string}]} | to_json }}"
   environment: "{{ s3_env }}"
-  loop: "{{ splunkbase_desired }}"
+  loop: "{{ splunkbase_plan }}"
   loop_control:
     label: "{{ item.filename }}"
-  changed_when: true
+  changed_when: item.needs_tag
+  when: item.needs_tag
 
 - name: Remove downloaded archives from controller tmpdir
   ansible.builtin.file:
@@ -239,7 +248,7 @@
   loop_control:
     label: "{{ item.filename }}"
 
-- name: Read existing manifest for a scoped update
+- name: Read existing manifest for scoped updates and change detection
   ansible.builtin.command:
     argv:
       - aws
@@ -251,9 +260,7 @@
   register: existing_splunkbase_manifest
   changed_when: false
   failed_when: false
-  when:
-    - splunkbase_manifest_is_partial | bool
-    - splunkbase_plan | length > 0
+  when: splunkbase_plan | length > 0
   no_log: true
 
 - name: Verify scoped update can preserve the existing manifest
@@ -286,12 +293,47 @@
   loop_control:
     label: "{{ item.app_dir }}"
 
+- name: Initialize published manifest comparison
+  ansible.builtin.set_fact:
+    splunkbase_published_manifest: {}
+    splunkbase_published_manifest_readable: false
+  changed_when: false
+  when: splunkbase_plan | length > 0
+
+- name: Parse published manifest when readable
+  when:
+    - splunkbase_plan | length > 0
+    - existing_splunkbase_manifest.rc == 0
+  block:
+    - name: Parse published manifest JSON
+      ansible.builtin.set_fact:
+        splunkbase_published_manifest: "{{ existing_splunkbase_manifest.stdout | from_json }}"
+        splunkbase_published_manifest_readable: true
+      changed_when: false
+      no_log: true
+  rescue:
+    - name: Mark published manifest as unreadable
+      ansible.builtin.set_fact:
+        splunkbase_published_manifest_readable: false
+      changed_when: false
+      no_log: true
+
+- name: Decide whether the published manifest needs an update
+  ansible.builtin.set_fact:
+    splunkbase_manifest_needs_publish: >-
+      {{ not (splunkbase_published_manifest_readable | bool)
+         or splunkbase_published_manifest != splunkbase_manifest }}
+  changed_when: false
+  when: splunkbase_plan | length > 0
+
 - name: Write manifest to controller tmpdir
   ansible.builtin.copy:
     content: "{{ splunkbase_manifest | to_nice_json }}\n"
     dest: "{{ splunkbase_sync_tmpdir }}/manifest.json"
     mode: "0600"
-  when: splunkbase_plan | length > 0
+  when:
+    - splunkbase_plan | length > 0
+    - splunkbase_manifest_needs_publish | bool
 
 - name: Publish manifest.json to object storage
   ansible.builtin.command:
@@ -302,8 +344,10 @@
       - "{{ splunkbase_sync_tmpdir }}/manifest.json"
       - "s3://{{ object_storage_bucket }}/manifest.json"
   environment: "{{ s3_env }}"
-  changed_when: true
-  when: splunkbase_plan | length > 0
+  changed_when: splunkbase_manifest_needs_publish | bool
+  when:
+    - splunkbase_plan | length > 0
+    - splunkbase_manifest_needs_publish | bool
 
 - name: Remove manifest from controller tmpdir
   ansible.builtin.file:
