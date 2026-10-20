@@ -9,10 +9,11 @@
 # test instance that does not expose the management port declares none.
 splunk_docker_saved_search_overrides: []
 
-# Delivery keys merged into every override, matching the [default] block in
-# savedsearches.conf.j2.
+# REST API form of the webhook delivery in savedsearches.conf.j2. The API's
+# `actions` list controls which alert actions are enabled; `action.webhook` is
+# returned as the derived enabled state.
 splunk_docker_saved_search_delivery_ntfy:
-  action.webhook: 1
+  actions: webhook
   action.webhook.param.url: "{{ splunk_docker_alert_ntfy_url }}{{ splunk_docker_alert_ntfy_query }}"
 
 # Query string on every hub publish. ntfy renders Splunk's webhook JSON body
