@@ -29,6 +29,7 @@ PROBES = {
         "Query object-storage bucket versioning",
     ],
     "playbooks/tasks/sync-splunkbase/resolve-and-sync.yml": [
+        "Resolve latest release per Splunkbase entry",
         "Query current object-storage version tag for each entry",
     ],
     "roles/splunk_docker/tasks/verify_hec_completeness.yml": [
