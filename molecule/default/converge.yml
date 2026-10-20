@@ -34,7 +34,7 @@
       vscode: "molecule-test-token-vscode"
       legacy: "molecule-test-token-legacy"
     # Use test image
-    splunk_docker_image: splunk/splunk:latest
+    splunk_docker_image: mirror.gcr.io/splunk/splunk:latest
 
   tasks:
     - name: Include splunk_docker role
