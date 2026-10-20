@@ -47,9 +47,9 @@ All Splunk data directories and apps are owned by this UID to ensure proper
 permissions inside the container.
 
 The role keeps its runtime `inputs.conf`, `indexes.conf`, `server.conf`, and
-`web.conf` settings in the `homelab_config` app. During migration it removes
-only the keys previously managed in `system/local`, preserving Splunk-generated
-secrets, pools, and unrelated settings.
+`web.conf` settings in the `homelab_config` app. When each app-local file is
+first created, it migrates only sections and keys rendered by the matching role
+template from `system/local`.
 
 ## Technology Add-ons
 

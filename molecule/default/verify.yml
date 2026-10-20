@@ -10,6 +10,7 @@
   vars:
     splunk_docker_config_dir: /opt/splunk-config
     splunk_docker_etc_dir: /opt/splunk/etc
+    splunk_docker_managed_config_app_dir: "{{ splunk_docker_etc_dir }}/apps/homelab_config"
 
   tasks:
     - name: Check Splunk config directory exists
@@ -49,7 +50,7 @@
 
     - name: Check indexes.conf exists
       ansible.builtin.stat:
-        path: "{{ splunk_docker_etc_dir }}/system/local/indexes.conf"
+        path: "{{ splunk_docker_managed_config_app_dir }}/local/indexes.conf"
       register: indexes_conf
 
     - name: Assert indexes.conf configured
@@ -60,7 +61,7 @@
 
     - name: Check web.conf exists
       ansible.builtin.stat:
-        path: "{{ splunk_docker_etc_dir }}/system/local/web.conf"
+        path: "{{ splunk_docker_managed_config_app_dir }}/local/web.conf"
       register: web_conf
 
     - name: Assert web.conf configured
@@ -96,7 +97,7 @@
 
     - name: Read indexes.conf content
       ansible.builtin.slurp:
-        src: "{{ splunk_docker_etc_dir }}/system/local/indexes.conf"
+        src: "{{ splunk_docker_managed_config_app_dir }}/local/indexes.conf"
       register: indexes_content
 
     - name: Verify all pipeline indexes are configured
@@ -131,7 +132,7 @@
 
     - name: Check inputs.conf exists
       ansible.builtin.stat:
-        path: "{{ splunk_docker_etc_dir }}/system/local/inputs.conf"
+        path: "{{ splunk_docker_managed_config_app_dir }}/local/inputs.conf"
       register: inputs_conf
 
     - name: Assert inputs.conf configured
@@ -142,7 +143,7 @@
 
     - name: Read inputs.conf content
       ansible.builtin.slurp:
-        src: "{{ splunk_docker_etc_dir }}/system/local/inputs.conf"
+        src: "{{ splunk_docker_managed_config_app_dir }}/local/inputs.conf"
       register: inputs_conf_content
 
     - name: Verify llm_pricefeed HEC token is scoped to its index

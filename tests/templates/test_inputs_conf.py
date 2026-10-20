@@ -180,7 +180,7 @@ else:
 ROOT = Path(__file__).resolve().parents[2]
 role_tasks = {
     task["name"]: task
-    for task in yaml.safe_load((ROOT / "roles/splunk_docker/tasks/main.yml").read_text())
+    for task in yaml.safe_load((ROOT / "roles/splunk_docker/tasks/configure_managed_configs.yml").read_text())
 }
 if role_tasks["Deploy inputs.conf for HEC configuration"].get("register") != "splunk_docker_inputs_conf_update":
     errors.append("FAIL: inputs.conf template result is not registered for check-mode validation")

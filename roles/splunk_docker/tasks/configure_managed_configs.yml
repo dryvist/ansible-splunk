@@ -1,0 +1,74 @@
+---
+- name: Prepare the indexes.conf migration
+  ansible.builtin.include_tasks: prepare_managed_config.yml
+  vars:
+    splunk_docker_managed_config_file: indexes.conf
+    splunk_docker_managed_config_template: indexes.conf.j2
+
+- name: Deploy indexes.conf
+  ansible.builtin.template:
+    src: indexes.conf.j2
+    dest: "{{ splunk_docker_managed_config_app_dir }}/local/indexes.conf"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  notify: Restart Splunk container
+
+- name: Prepare the inputs.conf migration
+  ansible.builtin.include_tasks: prepare_managed_config.yml
+  vars:
+    splunk_docker_managed_config_file: inputs.conf
+    splunk_docker_managed_config_template: inputs.conf.j2
+  no_log: true
+  diff: false
+
+- name: Deploy inputs.conf for HEC configuration
+  ansible.builtin.template:
+    src: inputs.conf.j2
+    dest: "{{ splunk_docker_managed_config_app_dir }}/local/inputs.conf"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0600'
+  register: splunk_docker_inputs_conf_update
+  no_log: true
+  diff: false
+  notify: Restart Splunk container
+
+- name: Deploy limits.conf for HEC memory buffer sizing
+  ansible.builtin.template:
+    src: limits.conf.j2
+    dest: "{{ splunk_docker_etc_dir }}/system/local/limits.conf"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  notify: Restart Splunk container
+
+- name: Prepare the web.conf migration
+  ansible.builtin.include_tasks: prepare_managed_config.yml
+  vars:
+    splunk_docker_managed_config_file: web.conf
+    splunk_docker_managed_config_template: web.conf.j2
+
+- name: Deploy web.conf for SSL and update checker configuration
+  ansible.builtin.template:
+    src: web.conf.j2
+    dest: "{{ splunk_docker_managed_config_app_dir }}/local/web.conf"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  notify: Restart Splunk container
+
+- name: Prepare the server.conf migration
+  ansible.builtin.include_tasks: prepare_managed_config.yml
+  vars:
+    splunk_docker_managed_config_file: server.conf
+    splunk_docker_managed_config_template: server.conf.j2
+
+- name: Deploy server.conf for internet access control
+  ansible.builtin.template:
+    src: server.conf.j2
+    dest: "{{ splunk_docker_managed_config_app_dir }}/local/server.conf"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  notify: Restart Splunk container
