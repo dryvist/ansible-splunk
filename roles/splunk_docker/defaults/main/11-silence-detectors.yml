@@ -34,24 +34,16 @@
 #                       threshold).
 #   suppress_minutes  — BY_HOST ONLY. alert.suppress.period; throttles
 #                       re-fires.
-#   by_host           — optional, default false. Detect PER-HOST (`by host`
-#                       + alert.suppress.fields = host) so a healthy emitter
-#                       can't mask a dead one, using each host's own cadence
-#                       (see threshold_minutes above). Note: a host that has
-#                       never emitted has no baseline and cannot be detected.
+#   by_host           — optional, default false. Detect per host using its own
+#                       cadence so a healthy emitter cannot mask a dead one.
+#                       A never-seen host needs expected_roster.
 #   cadence_multiplier — by_host only, optional, default 3. Multiplies a
 #                       host's 95th-percentile gap between non-empty
 #                       10-minute bins to get its effective threshold.
-#   min_active_bins   — by_host only, optional, default 3. A host with fewer
-#                       non-empty 10-minute bins in the lookback has no
-#                       baseline and is not evaluated.
-#   max_baseline_minutes — by_host only, optional. A host whose p95 gap
-#                       exceeds this writes on events rather than on a
-#                       schedule and is not evaluated.
-#   lookback_minutes  — by_host only, optional. Replaces the derived
-#                       threshold_minutes x splunk_docker_silence_lookback_multiplier
-#                       window. It is also how long a retired or renamed host
-#                       keeps firing before it ages out.
+#   min_active_bins   — observed-host entries only; default 3 non-empty bins.
+#   max_baseline_minutes — observed-host entries only; skips larger p95 gaps.
+#   lookback_minutes  — by_host only; replaces the derived event-history
+#                       window. For observed-only entries it bounds host age.
 #   host_overrides    — by_host only, optional, default {}. Map of
 #                       hostname -> exact threshold_minutes, for a host whose
 #                       computed cadence baseline is wrong (commonly: too new
@@ -62,6 +54,9 @@
 #                       exclude the index from splunk_docker_indexes instead.
 #   sourcetype        — BY_HOST ONLY, optional filter added to the tstats
 #                       WHERE clause.
+#   expected_roster   — BY_HOST ONLY, optional, default false. Compare against
+#                       an Ansible-rendered inventory lookup, with recent
+#                       non-inventory emitters supplied by a rolling lookup.
 #   exempt            — optional, default false. index_gap_detector-only:
 #                       excludes this index from the firing check entirely
 #                       (a boolean gate, evaluated separately from
@@ -87,13 +82,21 @@
 #                       reason is itself uncertain, rather than let it stand
 #                       indefinitely.
 #
-# dispatch.earliest_time (the search lookback) is threshold_minutes x this
-# multiplier — see the comment above each rendered stanza in
-# savedsearches.conf.j2 for why it is derived per-detector rather than one
-# flat window shared by a 15-minute and a 24-hour detector alike, and for the
-# residual limit (a host silent longer than the window still has no row for
-# tstats to return, same as an index with zero events in the whole window).
+# The search lookback is threshold_minutes x this multiplier unless a
+# detector sets lookback_minutes. Expected-roster detectors retain silent
+# hosts beyond this window; observed-only detectors do not.
 splunk_docker_silence_lookback_multiplier: 2000
+
+# OS emitters have two sources: PVE assets in the published inventory and
+# non-PVE hosts discovered from recent OS log metadata. The scheduled refresh
+# expires metadata-only hosts after five days; inventory-backed guests remain
+# expected while their pve_up status is not stopped.
+splunk_docker_os_emitter_roster:
+  pve_lookup: pve_os_emitters.csv
+  expected_lookup: os_expected_hosts.csv
+  indexes_macro: homelab_os_log_indexes
+  observed_expiry_days: 5
+  refresh_cron: "*/15 * * * *"
 
 # Surfaces shown by the [llm_surface_freshness] report (savedsearches.conf.j2).
 # Single definition: the template joins this list into both the roster and the
@@ -124,19 +127,17 @@ splunk_docker_silence_detectors:
     cron: "*/5 * * * *"
     suppress_minutes: 60
     disabled: 0
-  # by_host means this only ever alerts on a host it currently SEES in index=os.
-  # os_proxmox/os_ai/os_metrics above carve hosts out of the os catch-all at the
-  # Cribl source, so a host that migrates to one of those simply stops
-  # appearing here — no zero-row trip, no error, just a quieter host list than
-  # this detector's own comment implies. os_proxmox and os_ai have no silence
-  # detector of their own, so a host is covered by exactly one of "os" here or
-  # nothing, never both.
+  # OS logs are routed across os, os_proxmox and os_ai. The rendered expected
+  # host lookup closes the zero-row gap for declared PVE assets; a scheduled
+  # metadata lookup supplies recent non-PVE emitters and expires them after
+  # the configured window. os_metrics is a metric index, not an event index.
   - name: os
     index: os
     threshold_minutes: 15
     cron: "*/5 * * * *"
     suppress_minutes: 360
     by_host: true
+    expected_roster: true
     # iac-platform: the computed baseline (p95 gap between active 10-minute
     # bins of 10 min x cadence_multiplier 3 = 30 min) is shorter than this
     # guest's pauses between bursts. Evidence: 8 firings in the 2026-10-06 to
