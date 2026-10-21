@@ -1,0 +1,3 @@
+---
+splunk_docker_hindsight_retain_consecutive_failures: 2
+splunk_docker_hindsight_retain_lookback_minutes: 30
