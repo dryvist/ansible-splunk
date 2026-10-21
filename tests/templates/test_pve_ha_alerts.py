@@ -72,17 +72,22 @@ fence_search = value(fence, "search") or ""
 for fragment in (
     "index=os_proxmox",
     '"Trying to fence node"',
-    '"Successfully fenced node"',
     '"watchdog expired"',
     'metric_name="pve_ha_state" state="fence"',
     "sum(_value)",
     f"fence_count >= {pve_ha['fence_repeat_count']}",
-    "values(_raw) as event_messages",
+    'signal_kind=case(match(lower(_raw), "trying to fence node"), "fence_attempt"',
+    '"watchdog_expired")',
+    "dc(_raw) as fence_count latest(_raw) as event_message by host signal_kind",
     "BY host",
     "table host fence_count detection_sources event_messages",
 ):
     if fragment not in fence_search:
         errors.append(f"FAIL: [pve_ha_fence] search is missing {fragment!r}")
+if '"Successfully fenced node"' in fence_search or '"fenc*"' in fence_search:
+    errors.append(
+        "FAIL: [pve_ha_fence] counts one attempt plus its completion as separate fencing events"
+    )
 
 quorum = stanzas.get("pve_cluster_quorum_lost", "")
 errors.extend(
