@@ -45,6 +45,7 @@ else:
     for fragment in (
         "index=llm",
         'sourcetype="litellm:proxy"',
+        "fields _time message",
         "path=event output=event",
         'event="llm_request"',
         "message",
