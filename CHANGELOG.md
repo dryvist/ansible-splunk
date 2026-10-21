@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.100.0](https://github.com/dryvist/ansible-splunk/compare/v0.99.13...v0.100.0) (2026-10-21)
+
+
+### Features
+
+* alert on Proxmox HA fencing and quorum loss ([#749](https://github.com/dryvist/ansible-splunk/issues/749)) ([313b2c1](https://github.com/dryvist/ansible-splunk/commit/313b2c1686f725bba967a492e42c02c32d331f3a))
+* **alerts:** detect consecutive Hindsight retain failures ([#754](https://github.com/dryvist/ansible-splunk/issues/754)) ([92c5338](https://github.com/dryvist/ansible-splunk/commit/92c5338f57aef5d305e2cc656093e74b3807f3dc))
+* **alerts:** detect low LiteLLM request volume ([#753](https://github.com/dryvist/ansible-splunk/issues/753)) ([011794e](https://github.com/dryvist/ansible-splunk/commit/011794e6afd2bcee59e99548580d0c432bb6e41d))
+* summarize fleet syslog silence ([#750](https://github.com/dryvist/ansible-splunk/issues/750)) ([1b6875b](https://github.com/dryvist/ansible-splunk/commit/1b6875bc9afe0d82d96dbe7c329e0e299826e6db))
+
+
+### Bug Fixes
+
+* bound index gap detector lookback ([#751](https://github.com/dryvist/ansible-splunk/issues/751)) ([db36051](https://github.com/dryvist/ansible-splunk/commit/db36051a598dc5f5b0f555b982d906ba47341846))
+
 ## [0.99.13](https://github.com/dryvist/ansible-splunk/compare/v0.99.12...v0.99.13) (2026-10-20)
 
 
