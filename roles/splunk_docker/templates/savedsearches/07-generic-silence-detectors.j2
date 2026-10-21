@@ -101,14 +101,15 @@ alert.track = 0
 {% set syslog_plane = splunk_docker_syslog_plane_down %}
 [syslog_plane_down]
 {{ alert_delivery -}}
-description = Alerts once when at least {{ syslog_plane.minimum_silent_hosts }} hosts that reported syslog in the previous {{ syslog_plane.reporting_window_minutes }} minutes have gone silent for {{ syslog_plane.silence_minutes }} minutes.
+description = Alerts when the active syslog host count drops by at least {{ syslog_plane.minimum_silent_hosts }} from its highest {{ syslog_plane.silence_minutes }}-minute bucket in the previous {{ syslog_plane.reporting_window_minutes }} minutes.
 {% set plane_search %}
-| tstats latest(_time) as last_seen WHERE index={{ syslog_plane.index }} sourcetype={{ syslog_plane.sourcetype }} by host
-| eval reporting_start=relative_time(now(), "-{{ syslog_plane.reporting_window_minutes + syslog_plane.silence_minutes }}m"), silent_cutoff=relative_time(now(), "-{{ syslog_plane.silence_minutes }}m")
-| where last_seen >= reporting_start AND last_seen <= silent_cutoff
-| stats count as silent_host_count min(last_seen) as earliest_silent
+index={{ syslog_plane.index }} sourcetype={{ syslog_plane.sourcetype }}
+| timechart cont=true span={{ syslog_plane.silence_minutes }}m dc(host) as active_hosts
+| fillnull value=0 active_hosts
+| streamstats current=f window={{ syslog_plane.reporting_window_minutes // syslog_plane.silence_minutes }} max(active_hosts) as reporting_hosts
+| eval silent_host_count=reporting_hosts-active_hosts
 | where silent_host_count >= {{ syslog_plane.minimum_silent_hosts }}
-| eval earliest_silent=strftime(earliest_silent, "%Y-%m-%dT%H:%M:%SZ")
+| eval earliest_silent=strftime(_time, "%Y-%m-%dT%H:%M:%SZ")
 | table silent_host_count earliest_silent
 {% endset %}
 search = {{ plane_search | replace('\n', ' ') | trim }}

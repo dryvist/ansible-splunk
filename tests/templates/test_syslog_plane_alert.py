@@ -63,12 +63,12 @@ search = value("search") or ""
 required = (
     f"index={config['index']}",
     f"sourcetype={config['sourcetype']}",
-    "latest(_time) as last_seen",
-    "by host",
-    "last_seen >= reporting_start AND last_seen <= silent_cutoff",
-    "count as silent_host_count min(last_seen) as earliest_silent",
+    f"timechart cont=true span={config['silence_minutes']}m dc(host) as active_hosts",
+    "fillnull value=0 active_hosts",
+    f"streamstats current=f window={config['reporting_window_minutes'] // config['silence_minutes']} max(active_hosts) as reporting_hosts",
+    "silent_host_count=reporting_hosts-active_hosts",
     f"silent_host_count >= {config['minimum_silent_hosts']}",
-    'strftime(earliest_silent, "%Y-%m-%dT%H:%M:%SZ")',
+    'strftime(_time, "%Y-%m-%dT%H:%M:%SZ")',
     "table silent_host_count earliest_silent",
 )
 for fragment in required:
