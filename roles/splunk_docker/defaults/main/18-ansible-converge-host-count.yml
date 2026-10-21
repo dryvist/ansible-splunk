@@ -1,0 +1,6 @@
+---
+splunk_docker_ansible_converge_host_count:
+  history_window_days: 7
+  minimum_history_runs: 3
+  low_host_count_ratio: 0.5
+  freshness_window_minutes: 15
