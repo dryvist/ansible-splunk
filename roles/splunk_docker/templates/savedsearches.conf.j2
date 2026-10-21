@@ -47,6 +47,8 @@ action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/
 
 {% include 'savedsearches/04-litellm-router.j2' %}
 
+{% include 'savedsearches/23-litellm-request-volume.j2' %}
+
 {% include 'savedsearches/05-hermes-delivery-slo.j2' %}
 
 {% include 'savedsearches/06-model-eval-regression.j2' %}
