@@ -1,0 +1,8 @@
+---
+splunk_docker_pve_ha_alerts:
+  fence_window_minutes: 10
+  fence_repeat_count: 2
+  quorum_window_minutes: 5
+  cron: "*/5 * * * *"
+  fence_suppress_minutes: 30
+  quorum_suppress_minutes: 10

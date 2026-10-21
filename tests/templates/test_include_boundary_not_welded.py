@@ -68,8 +68,16 @@ assert literal_stanza_names(FIXTURE_CLEAN) == ["a_detector", "b_detector"]
 # --- expected names: declared per-file, unaffected by cross-file welding ----
 
 expected = set()
+conditional_defaults = {
+    "pve_ha_fence": "splunk_docker_pve_ha_alerts",
+    "pve_cluster_quorum_lost": "splunk_docker_pve_ha_alerts",
+    "syslog_plane_down": "splunk_docker_syslog_plane_down",
+}
 for f in sorted(SAVEDSEARCHES_DIR.glob("*.j2")):
-    expected.update(literal_stanza_names(f.read_text()))
+    for name in literal_stanza_names(f.read_text()):
+        required_default = conditional_defaults.get(name)
+        if required_default is None or required_default in DEFAULTS:
+            expected.add(name)
 
 assert expected, (
     "no literal stanza names found in roles/splunk_docker/templates/savedsearches/*.j2 "
@@ -96,6 +104,11 @@ rendered = ansible_env(TEMPLATES).get_template("savedsearches.conf.j2").render(
     splunk_docker_openbao_leader_io_wait_s=DEFAULTS["splunk_docker_openbao_leader_io_wait_s"],
     splunk_docker_openbao_voter_io_wait_s=DEFAULTS["splunk_docker_openbao_voter_io_wait_s"],
     splunk_docker_alert_ntfy_url=None,
+    **{
+        key: DEFAULTS[key]
+        for key in conditional_defaults.values()
+        if key in DEFAULTS
+    },
 )
 
 found = set(literal_stanza_names(rendered))
