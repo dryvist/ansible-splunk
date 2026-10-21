@@ -1,0 +1,5 @@
+---
+splunk_docker_litellm_request_drop_ratio: 0.2
+splunk_docker_litellm_request_min_baseline_per_hour: 100
+splunk_docker_litellm_request_baseline_days: 7
+splunk_docker_litellm_request_dispatch_days: 8
