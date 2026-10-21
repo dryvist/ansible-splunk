@@ -49,6 +49,7 @@ else:
         "hindsight_retain",
         "retain:write-path",
         "message",
+        'match(lower(message), "(?:fail|error|exception|timeout).{0,50}retain|retain.{0,50}(?:fail|error|exception|timeout)")',
         "streamstats window=2",
         "consecutive_failures",
         "by host source",
@@ -56,6 +57,8 @@ else:
     ):
         if fragment not in search:
             errors.append(f"FAIL: search is missing {fragment!r}")
+    if 'match(lower(message), "fail|error")' in search:
+        errors.append("FAIL: search treats any failure-related word as a retain failure")
     if "{{" in search or "}}" in search:
         errors.append("FAIL: search contains an unrendered placeholder")
     if value("description") is None:

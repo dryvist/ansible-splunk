@@ -2,7 +2,7 @@
 [hindsight_retain_consecutive_failure]
 {{ alert_delivery -}}
 description = Alerts when Hindsight retain checks fail on consecutive self-audit events.
-search = index=hermes sourcetype=hermes:agent ("hindsight_retain" OR "retain:write-path") | eval retain_failed=if(match(lower(message), "fail|error"), 1, 0) | sort 0 host source _time | streamstats window={{ splunk_docker_hindsight_retain_consecutive_failures }} sum(retain_failed) as consecutive_failures by host source | where consecutive_failures >= {{ splunk_docker_hindsight_retain_consecutive_failures }} | table _time host source
+search = index=hermes sourcetype=hermes:agent ("hindsight_retain" OR "retain:write-path") | eval retain_failed=if(match(lower(message), "(?:fail|error|exception|timeout).{0,50}retain|retain.{0,50}(?:fail|error|exception|timeout)"), 1, 0) | sort 0 host source _time | streamstats window={{ splunk_docker_hindsight_retain_consecutive_failures }} sum(retain_failed) as consecutive_failures by host source | where consecutive_failures >= {{ splunk_docker_hindsight_retain_consecutive_failures }} | table _time host source
 dispatch.earliest_time = -{{ splunk_docker_hindsight_retain_lookback_minutes }}m
 dispatch.latest_time = now
 cron_schedule = */5 * * * *
