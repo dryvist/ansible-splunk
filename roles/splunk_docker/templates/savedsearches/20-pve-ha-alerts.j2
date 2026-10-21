@@ -12,7 +12,7 @@ description = Alerts when at least {{ pve_ha.fence_repeat_count }} fencing or wa
 {% set fence_search %}
 (index=os OR index=os_proxmox) host=pve-* ("Trying to fence node" OR "watchdog expired")
 | eval signal_kind=case(match(lower(_raw), "trying to fence node"), "fence_attempt", match(lower(_raw), "watchdog expired"), "watchdog_expired")
-| stats dc(_raw) as fence_count latest(_raw) as event_message by host signal_kind
+| stats count as fence_count latest(_raw) as event_message by host signal_kind
 | where fence_count >= {{ pve_ha.fence_repeat_count }}
 | eval detection_source="syslog"
 | append [ | mstats sum(_value) as fence_count WHERE index=netmon_metrics metric_name="pve_ha_state" state="fence" BY host | where fence_count >= {{ pve_ha.fence_repeat_count }} | eval detection_source="ha_metric", signal_kind="ha_metric", event_message="" | fields host fence_count detection_source signal_kind event_message ]

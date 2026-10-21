@@ -78,7 +78,7 @@ for fragment in (
     f"fence_count >= {pve_ha['fence_repeat_count']}",
     'signal_kind=case(match(lower(_raw), "trying to fence node"), "fence_attempt"',
     '"watchdog_expired")',
-    "dc(_raw) as fence_count latest(_raw) as event_message by host signal_kind",
+    "count as fence_count latest(_raw) as event_message by host signal_kind",
     "BY host",
     "table host fence_count detection_sources event_messages",
 ):
