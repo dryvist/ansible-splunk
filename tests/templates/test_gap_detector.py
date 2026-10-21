@@ -114,6 +114,43 @@ if not bounds_by_index_time_in_base_search(search):
         "_index_latest bound in the base search"
     )
 
+# The dispatch window and the index-time selector must use the same bounded
+# duration. Keep this derived from the declared thresholds so a future
+# detector threshold increase cannot silently reintroduce an invalid SPL
+# duration through an oversized multiplier.
+all_thresholds = [
+    det["threshold_minutes"]
+    for det in DEFAULTS["splunk_docker_silence_detectors"]
+    + DEFAULTS["splunk_docker_silence_exemptions"]
+    if not det.get("by_host")
+]
+expected_lookback = max(all_thresholds + [1440]) * DEFAULTS[
+    "splunk_docker_silence_lookback_multiplier"
+]
+if DEFAULTS["splunk_docker_silence_lookback_multiplier"] != 2:
+    errors.append(
+        "FAIL: index_gap_detector lookback multiplier must remain 2 so the "
+        "largest declared threshold produces a valid bounded SPL duration"
+    )
+os_detector = next(
+    det for det in DEFAULTS["splunk_docker_silence_detectors"] if det["name"] == "os"
+)
+if os_detector.get("lookback_minutes") != 30000:
+    errors.append(
+        "FAIL: the OS expected-host detector no longer preserves its "
+        "30,000-minute cadence history"
+    )
+if f"_index_earliest=-{expected_lookback}m" not in search:
+    errors.append(
+        "FAIL: index_gap_detector's index-time lookback does not match the "
+        f"derived threshold window ({expected_lookback}m)"
+    )
+if f"dispatch.earliest_time = -{expected_lookback}m" not in body:
+    errors.append(
+        "FAIL: index_gap_detector dispatch window does not match the "
+        f"derived threshold window ({expected_lookback}m)"
+    )
+
 # --- covers every declared index, not just ones with a detector entry -----
 all_indexes = {
     idx["name"]

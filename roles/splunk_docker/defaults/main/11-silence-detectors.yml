@@ -82,10 +82,9 @@
 #                       reason is itself uncertain, rather than let it stand
 #                       indefinitely.
 #
-# The search lookback is threshold_minutes x this multiplier unless a
-# detector sets lookback_minutes. Expected-roster detectors retain silent
-# hosts beyond this window; observed-only detectors do not.
-splunk_docker_silence_lookback_multiplier: 2000
+# Generated silence searches use twice their declared threshold as their
+# bounded lookback unless a detector sets lookback_minutes explicitly.
+splunk_docker_silence_lookback_multiplier: 2
 splunk_docker_silence_cadence_multiplier: 3
 
 # Minimum silence before the per-host LLM detector fires; sparse hosts use
@@ -139,6 +138,8 @@ splunk_docker_silence_detectors:
   - name: os
     index: os
     threshold_minutes: 15
+    # Preserve the longer cadence history used by the expected-host roster.
+    lookback_minutes: 30000
     cron: "*/5 * * * *"
     suppress_minutes: 360
     by_host: true
