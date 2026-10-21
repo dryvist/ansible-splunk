@@ -101,6 +101,10 @@ if body is None:
     sys.exit(1)
 
 search = SEARCH_RE.search(body).group(1)
+if "dispatch.earliest_time" in search:
+    errors.append(
+        "FAIL: index_gap_detector SPL includes saved-search dispatch metadata"
+    )
 
 if not uses_index_time_only(search):
     errors.append(
