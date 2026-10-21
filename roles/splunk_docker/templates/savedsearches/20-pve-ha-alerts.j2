@@ -1,27 +1,66 @@
 {# ---------------------------------------------------------------------------
-   Proxmox HA fencing and recovery errors from syslog.
+   Proxmox HA fencing and quorum loss.
    It also alerts on recent Proxmox node boots.
 
-   The role does not manage syslog props, so extract the program name inline.
+   Fencing reads both event signatures and the existing HA state metric.
 --------------------------------------------------------------------------- #}
+{% if splunk_docker_pve_ha_alerts is defined %}
+{% set pve_ha = splunk_docker_pve_ha_alerts %}
 [pve_ha_fence]
 {{ alert_delivery -}}
-description = Alerts on Proxmox HA fencing, watchdog activity, or a node reported lost.
-search = (index=os OR index=os_proxmox) host=pve-* ("fenc*" OR "state changed from 'online' => 'unknown'" OR "watchdog expired" OR "node lost") | rex field=_raw "(?<appname>pve-ha-crm|pve-ha-lrm|watchdog-mux)(?:\[\d+\])?:" | where in(appname, "pve-ha-crm", "pve-ha-lrm", "watchdog-mux") | stats count by host
-dispatch.earliest_time = -10m
+description = Alerts when at least {{ pve_ha.fence_repeat_count }} fencing or watchdog self-fence signals occur for a Proxmox host in {{ pve_ha.fence_window_minutes }} minutes.
+{% set fence_search %}
+(index=os OR index=os_proxmox) host=pve-* ("Trying to fence node" OR "watchdog expired")
+| eval signal_kind=case(match(lower(_raw), "trying to fence node"), "fence_attempt", match(lower(_raw), "watchdog expired"), "watchdog_expired")
+| stats count as fence_count latest(_raw) as event_message by host signal_kind
+| where fence_count >= {{ pve_ha.fence_repeat_count }}
+| eval detection_source="syslog"
+| append [ | mstats sum(_value) as fence_count WHERE index=netmon_metrics metric_name="pve_ha_state" state="fence" BY host | where fence_count >= {{ pve_ha.fence_repeat_count }} | eval detection_source="ha_metric", signal_kind="ha_metric", event_message="" | fields host fence_count detection_source signal_kind event_message ]
+| stats max(fence_count) as fence_count values(detection_source) as detection_sources values(event_message) as event_messages by host
+| table host fence_count detection_sources event_messages
+{% endset %}
+search = {{ fence_search | replace('\n', ' ') | trim }}
+dispatch.earliest_time = -{{ pve_ha.fence_window_minutes }}m
 dispatch.latest_time = now
-cron_schedule = */5 * * * *
+cron_schedule = {{ pve_ha.cron }}
 enableSched = 1
 is_visible = 1
 disabled = 0
 alert.severity = 5
 alert.suppress = 1
-alert.suppress.period = 30m
+alert.suppress.period = {{ pve_ha.fence_suppress_minutes }}m
 alert.suppress.fields = host
 alert.track = 1
 counttype = number of events
 relation = greater than
 quantity = 0
+
+[pve_cluster_quorum_lost]
+{{ alert_delivery -}}
+description = Alerts when the Proxmox cluster quorate metric reports a lost quorum.
+{% set quorum_search %}
+| mstats count(_value) as quorum_loss_samples WHERE index=netmon_metrics metric_name="pve_cluster_info" quorate="0" BY host
+| where quorum_loss_samples > 0
+| eval quorum_state="lost"
+| table host quorum_loss_samples quorum_state
+{% endset %}
+search = {{ quorum_search | replace('\n', ' ') | trim }}
+dispatch.earliest_time = -{{ pve_ha.quorum_window_minutes }}m
+dispatch.latest_time = now
+cron_schedule = {{ pve_ha.cron }}
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 5
+alert.suppress = 1
+alert.suppress.period = {{ pve_ha.quorum_suppress_minutes }}m
+alert.suppress.fields = host
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
+
+{% endif %}
 
 [pve_node_boot]
 {{ alert_delivery -}}
