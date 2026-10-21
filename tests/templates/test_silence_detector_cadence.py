@@ -62,6 +62,7 @@ LLM_FLOOR = DEFAULTS["splunk_docker_llm_pipeline_silence_threshold_minutes"]
 
 env = ansible_env(ROOT / "roles/splunk_docker/templates")
 rendered = env.get_template("savedsearches.conf.j2").render(
+    splunk_docker_ansible_converge_host_count=DEFAULTS["splunk_docker_ansible_converge_host_count"],
     splunk_docker_silence_detectors=DETECTORS,
     splunk_docker_silence_exemptions=EXEMPTIONS,
     splunk_docker_silence_lookback_multiplier=MULTIPLIER,

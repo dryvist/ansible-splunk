@@ -27,6 +27,7 @@ def raft_search(voters):
     rendered = ansible_env(ROOT / "roles/splunk_docker/templates").get_template(
         "savedsearches.conf.j2"
     ).render(
+        splunk_docker_ansible_converge_host_count=DEFAULTS["splunk_docker_ansible_converge_host_count"],
         splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
         splunk_docker_silence_lookback_multiplier=DEFAULTS["splunk_docker_silence_lookback_multiplier"],
         splunk_docker_llm_freshness_indexes=DEFAULTS["splunk_docker_llm_freshness_indexes"],
