@@ -2,7 +2,7 @@
 [terrakube_state_version_5xx]
 {{ alert_delivery -}}
 description = Alerts on HTTP 5xx responses from the state-version API endpoints.
-search = index=proxy sourcetype=traefik:syslog ("current-state-version" OR "state-version") | eval status_5xx=if(match(message, "(?<![0-9])5[0-9][0-9](?![0-9])"), 1, 0) | where status_5xx=1 | stats count as status_5xx by host | where status_5xx >= {{ splunk_docker_terrakube_state_5xx_min_events }}
+search = index=proxy sourcetype=traefik:syslog ("current-state-version" OR "state-version") | rex field=_raw "\"[A-Z]+ [^\"]+ HTTP/[0-9.]+\" (?<http_status>[0-9]{3}) (?<response_bytes>[0-9]+)" | where tonumber(http_status) >= {{ splunk_docker_terrakube_state_5xx_status_threshold }} | stats count as status_5xx by host | where status_5xx >= {{ splunk_docker_terrakube_state_5xx_min_events }}
 dispatch.earliest_time = -{{ splunk_docker_terrakube_state_5xx_lookback_minutes }}m
 dispatch.latest_time = now
 cron_schedule = */5 * * * *

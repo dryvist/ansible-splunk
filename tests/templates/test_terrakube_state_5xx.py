@@ -47,13 +47,33 @@ else:
         "sourcetype=traefik:syslog",
         "current-state-version",
         "state-version",
-        "message",
         "status_5xx",
         "host",
         f"where status_5xx >= {DEFAULTS['splunk_docker_terrakube_state_5xx_min_events']}",
+        f"tonumber(http_status) >= {DEFAULTS['splunk_docker_terrakube_state_5xx_status_threshold']}",
     ):
         if fragment not in search:
             errors.append(f"FAIL: search is missing {fragment!r}")
+    request_status_rex = (
+        r'rex field=_raw "\"[A-Z]+ [^\"]+ HTTP/[0-9.]+\" '
+        r'(?<http_status>[0-9]{3}) (?<response_bytes>[0-9]+)"'
+    )
+    if request_status_rex not in search:
+        errors.append("FAIL: search does not extract status after the quoted HTTP request line")
+    if "match(message," in search:
+        errors.append("FAIL: search still matches standalone status-like numbers in the message")
+    sample = '"GET /remote/tfe/v2/workspaces/example/current-state-version HTTP/2.0" 200 512 "-" "-" 500'
+    parsed_sample = re.search(
+        r'"[A-Z]+ [^"]+ HTTP/[0-9.]+" (?P<http_status>[0-9]{3}) (?P<response_bytes>[0-9]+)',
+        sample,
+    )
+    if not parsed_sample or (
+        parsed_sample.group("http_status") != "200"
+        or parsed_sample.group("response_bytes") != "512"
+        or int(parsed_sample.group("http_status"))
+        >= DEFAULTS["splunk_docker_terrakube_state_5xx_status_threshold"]
+    ):
+        errors.append("FAIL: a 200 response with 512 bytes is not separated from later numbers")
     if "{{" in search or "}}" in search:
         errors.append("FAIL: search contains an unrendered placeholder")
     if value("description") is None:
