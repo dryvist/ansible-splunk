@@ -1,0 +1,4 @@
+---
+splunk_docker_terrakube_state_5xx_min_events: 1
+splunk_docker_terrakube_state_5xx_lookback_minutes: 15
+splunk_docker_terrakube_state_5xx_status_threshold: 500

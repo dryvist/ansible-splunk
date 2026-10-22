@@ -79,6 +79,8 @@ action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/
 
 {% include 'savedsearches/16-terrakube-job-alerts.j2' %}
 
+{% include 'savedsearches/22-terrakube-state-reads.j2' %}
+
 {% include 'savedsearches/17-offbox-sync.j2' %}
 
 {% include 'savedsearches/18-llm-queue-metrics.j2' %}
