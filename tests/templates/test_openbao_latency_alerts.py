@@ -111,6 +111,7 @@ COMMON_KEYS = (
 
 def render(**overrides):
     values = {
+        "splunk_docker_ansible_converge_host_count": DEFAULTS["splunk_docker_ansible_converge_host_count"],
         "splunk_docker_silence_detectors": DEFAULTS["splunk_docker_silence_detectors"],
         "splunk_docker_silence_exemptions": DEFAULTS["splunk_docker_silence_exemptions"],
         "splunk_docker_silence_lookback_multiplier": DEFAULTS["splunk_docker_silence_lookback_multiplier"],
