@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.101.0](https://github.com/dryvist/ansible-splunk/compare/v0.100.0...v0.101.0) (2026-10-22)
+
+
+### Features
+
+* alert on low-host converge runs ([#755](https://github.com/dryvist/ansible-splunk/issues/755)) ([ff6c879](https://github.com/dryvist/ansible-splunk/commit/ff6c879162f445320dfddf52b6872a071d36e12f))
+* **alerts:** detect state API 5xx responses ([#752](https://github.com/dryvist/ansible-splunk/issues/752)) ([f9f08db](https://github.com/dryvist/ansible-splunk/commit/f9f08db9cc13f894adf76e4a1ef8cc981e34ccb4))
+
 ## [0.100.0](https://github.com/dryvist/ansible-splunk/compare/v0.99.13...v0.100.0) (2026-10-21)
 
 
