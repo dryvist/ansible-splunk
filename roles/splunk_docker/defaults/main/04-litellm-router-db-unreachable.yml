@@ -1,0 +1,4 @@
+---
+splunk_docker_llm_router_db_unreachable:
+  window_minutes: 5
+  failure_threshold: 1
