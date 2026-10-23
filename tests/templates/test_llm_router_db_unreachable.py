@@ -12,6 +12,7 @@ ROOT = Path(__file__).parent.parent.parent
 DEFAULTS = load_defaults(ROOT)
 TEMPLATES = ROOT / "roles/splunk_docker/templates"
 NTFY = "https://ntfy.example.test/keystone"
+ALERT_DEFAULTS = DEFAULTS["splunk_docker_llm_router_db_unreachable"]
 
 render_values = dict(DEFAULTS)
 render_values["splunk_docker_alert_ntfy_url"] = NTFY
