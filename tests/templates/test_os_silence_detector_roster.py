@@ -22,6 +22,7 @@ def render_savedsearches():
         splunk_docker_ansible_converge_host_count=DEFAULTS["splunk_docker_ansible_converge_host_count"],
         splunk_docker_object_store_disk_fill=DEFAULTS["splunk_docker_object_store_disk_fill"],
         splunk_docker_llm_router_db_unreachable=DEFAULTS["splunk_docker_llm_router_db_unreachable"],
+        splunk_docker_zfs_arc_pressure=DEFAULTS["splunk_docker_zfs_arc_pressure"],
         splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
         splunk_docker_silence_exemptions=DEFAULTS["splunk_docker_silence_exemptions"],
         splunk_docker_silence_lookback_multiplier=DEFAULTS[

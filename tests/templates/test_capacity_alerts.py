@@ -32,6 +32,7 @@ rendered = ansible_env(TEMPLATES).get_template("savedsearches.conf.j2").render(
     splunk_docker_openbao_voter_io_wait_s=DEFAULTS["splunk_docker_openbao_voter_io_wait_s"],
     splunk_docker_object_store_disk_fill=DEFAULTS["splunk_docker_object_store_disk_fill"],
     splunk_docker_llm_router_db_unreachable=DEFAULTS["splunk_docker_llm_router_db_unreachable"],
+    splunk_docker_zfs_arc_pressure=DEFAULTS["splunk_docker_zfs_arc_pressure"],
     splunk_docker_alert_ntfy_url=NTFY,
     splunk_docker_alert_ntfy_query=DEFAULTS["splunk_docker_alert_ntfy_query"],
 )

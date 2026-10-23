@@ -1,0 +1,4 @@
+---
+splunk_docker_zfs_arc_pressure:
+  available_pct_threshold: 10
+  span_minutes: 5
