@@ -36,14 +36,14 @@ else:
         "isnotnull(start) AND isnotnull(end) AND isnotnull(success)",
         'match(lower(tostring(error)), "timeout|timed[_ -]?out")',
         "streamstats reset_after=(failed=0) sum(failed) as consecutive_failures by pipe_name",
-        "consecutive_failures=3",
+        "consecutive_failures>=3",
         '_indextime >= relative_time(now(), "-5m")',
         "timed_out=1 OR",
     ):
         if fragment not in search:
             errors.append(f"FAIL: search is missing {fragment!r}")
 
-    # The third failure trips the counter once; a success resets the streak.
+    # A failure streak of three or more triggers; a success resets the streak.
     def fires(successes):
         consecutive_failures = 0
         alerts = []
@@ -53,12 +53,12 @@ else:
                 alerts.append(False)
             else:
                 consecutive_failures += 1
-                alerts.append(consecutive_failures == 3)
+                alerts.append(consecutive_failures >= 3)
         return alerts
 
-    if fires([False, False, False, False]) != [False, False, True, False]:
-        errors.append("FAIL: three consecutive failures do not alert on the third run")
-    if fires([False, False, True, False]) != [False, False, False, False]:
+    if fires([False, False, False, False]) != [False, False, True, True]:
+        errors.append("FAIL: three consecutive failures do not keep triggering at the threshold")
+    if fires([False, False, True, False, False, False]) != [False, False, False, False, False, True]:
         errors.append("FAIL: a success does not reset the consecutive-failure sequence")
 
 if "{{ alert_delivery" not in (ROOT / "roles/splunk_docker/templates/savedsearches/25-screenpipe-pipe-runs.j2").read_text():
@@ -74,4 +74,4 @@ if errors:
     print("\n".join(errors))
     sys.exit(1)
 
-print("PASS: pipe timeout events and the third consecutive failed run trigger the shared scheduled alert")
+print("PASS: pipe timeouts and failure streaks trigger the shared scheduled alert")
