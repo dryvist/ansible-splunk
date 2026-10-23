@@ -1,0 +1,5 @@
+---
+splunk_docker_object_store_disk_fill:
+  mountpoint: /srv/object-storage
+  threshold_pct: 85
+  span_minutes: 5

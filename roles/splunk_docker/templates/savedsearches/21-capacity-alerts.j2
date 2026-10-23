@@ -1,4 +1,5 @@
-{# Pool, node-swap and ClickHouse filesystem capacity detectors. #}
+{# Pool, node-swap and filesystem capacity detectors. #}
+{% set object_store_fill = splunk_docker_object_store_disk_fill %}
 [pve_zpool_fill]
 {{ alert_delivery -}}
 description = Fires when a PVE node reports an imported ZFS pool at 85 percent capacity or higher.
@@ -53,6 +54,28 @@ search = | mstats latest(node_filesystem_avail_bytes) as a latest(node_filesyste
 dispatch.earliest_time = -15m
 dispatch.latest_time = now
 cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 5
+alert.suppress = 1
+alert.suppress.period = 6h
+alert.suppress.fields = host,mountpoint
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
+
+[object_store_disk_fill]
+{{ alert_delivery -}}
+description = Fires when the object-store filesystem mount reaches {{ object_store_fill.threshold_pct }} percent used capacity or higher.
+search = | mstats latest(node_filesystem_avail_bytes) as available latest(node_filesystem_size_bytes) as total WHERE index=host_metrics mountpoint="{{ object_store_fill.mountpoint }}" fstype!=tmpfs span={{ object_store_fill.span_minutes }}m BY host mountpoint \
+  | eval used_pct=round((1-available/total)*100,1) \
+  | where used_pct >= {{ object_store_fill.threshold_pct }} \
+  | stats count AS breaching_samples max(used_pct) AS peak_used_pct by host mountpoint
+dispatch.earliest_time = -15m
+dispatch.latest_time = now
+cron_schedule = */{{ object_store_fill.span_minutes }} * * * *
 enableSched = 1
 is_visible = 1
 disabled = 0

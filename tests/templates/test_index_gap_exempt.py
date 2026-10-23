@@ -47,6 +47,7 @@ SEARCH_RE = re.compile(r"^search = (.*)$", re.M)
 env = ansible_env(ROOT / "roles/splunk_docker/templates")
 rendered = env.get_template("savedsearches.conf.j2").render(
     splunk_docker_ansible_converge_host_count=DEFAULTS["splunk_docker_ansible_converge_host_count"],
+    splunk_docker_object_store_disk_fill=DEFAULTS["splunk_docker_object_store_disk_fill"],
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
     splunk_docker_silence_exemptions=DEFAULTS["splunk_docker_silence_exemptions"],
     splunk_docker_silence_lookback_multiplier=DEFAULTS[

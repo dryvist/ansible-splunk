@@ -30,6 +30,7 @@ rendered = ansible_env(TEMPLATES).get_template("savedsearches.conf.j2").render(
     splunk_docker_openbao_follower_heartbeat_ms=DEFAULTS["splunk_docker_openbao_follower_heartbeat_ms"],
     splunk_docker_openbao_leader_io_wait_s=DEFAULTS["splunk_docker_openbao_leader_io_wait_s"],
     splunk_docker_openbao_voter_io_wait_s=DEFAULTS["splunk_docker_openbao_voter_io_wait_s"],
+    splunk_docker_object_store_disk_fill=DEFAULTS["splunk_docker_object_store_disk_fill"],
     splunk_docker_alert_ntfy_url=NTFY,
     splunk_docker_alert_ntfy_query=DEFAULTS["splunk_docker_alert_ntfy_query"],
 )
@@ -79,6 +80,18 @@ contracts = {
             "WHERE index=host_metrics host=clickhouse fstype!=tmpfs span=5m BY host mountpoint",
             "| eval pct_used=round((1-a/s)*100,1)",
             "| where pct_used >= 85",
+        ),
+    },
+    "object_store_disk_fill": {
+        "severity": "5",
+        "fields": "host,mountpoint",
+        "search": (
+            "latest(node_filesystem_avail_bytes) as available",
+            "latest(node_filesystem_size_bytes) as total",
+            'WHERE index=host_metrics mountpoint="/srv/object-storage" fstype!=tmpfs span=5m BY host mountpoint',
+            "| eval used_pct=round((1-available/total)*100,1)",
+            "| where used_pct >= 85",
+            "| stats count AS breaching_samples max(used_pct) AS peak_used_pct by host mountpoint",
         ),
     },
 }
