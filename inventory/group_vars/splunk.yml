@@ -117,7 +117,10 @@ splunk_docker_roles:
       - claude
       - codex
       - gemini
-    srch_indexes_default: []
+    srch_indexes_default:
+      - claude
+      - codex
+      - gemini
     srch_jobs_quota: 2
     srch_disk_quota: 200
     capabilities:
