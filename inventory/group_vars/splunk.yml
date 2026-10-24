@@ -109,6 +109,20 @@ splunk_docker_roles:
     capabilities:
       - mcp_tool_execute
       - search
+  # Read-only search over the agent session indexes for the LlamaIndex
+  # agent-session indexer.
+  - name: agent_session_search
+    imported_roles: []
+    srch_indexes_allowed:
+      - claude
+      - codex
+      - gemini
+    srch_indexes_default: []
+    srch_jobs_quota: 2
+    srch_disk_quota: 200
+    capabilities:
+      - mcp_tool_execute
+      - search
   # Grants ONLY the capability to mint/manage tokens for other users — no
   # imported_roles, no index access. Held by svc-mcp-rotator (below), never by
   # hermes: minting is a separate identity from searching.
@@ -127,6 +141,12 @@ splunk_docker_users:
     token_openbao_path: "{{ splunk_docker_open_llm_token_openbao_path }}"
     token_openbao_key: "{{ splunk_docker_open_llm_token_openbao_key }}"
     url_openbao_key: ""
+  - name: svc-llamaindex-search
+    roles:
+      - agent_session_search
+    token_openbao_path: "apps/llamaindex"
+    token_openbao_key: "splunk_search_token"
+    url_openbao_key: ""
 
 # svc-mcp-rotator is NOT in splunk_docker_users above — see
 # defaults/main/03-users-tokens-mcp.yml for why. This turns on its separate
@@ -143,10 +163,6 @@ splunk_docker_token_publish_openbao: true
 # Publication destination for the sandbox-agent Splunk search token.
 splunk_docker_open_llm_token_openbao_path: "apps/sandbox-agent"
 splunk_docker_open_llm_token_openbao_key: "splunk_search_token"
-
-splunk_docker_token_owner_exceptions:
-  # Search token for the LlamaIndex agent-session indexer (secret/apps/llamaindex).
-  - svc-llamaindex-search
 
 # Archive frozen buckets rather than deleting them.
 #
