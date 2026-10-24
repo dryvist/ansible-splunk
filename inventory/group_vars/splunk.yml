@@ -144,6 +144,10 @@ splunk_docker_token_publish_openbao: true
 splunk_docker_open_llm_token_openbao_path: "apps/sandbox-agent"
 splunk_docker_open_llm_token_openbao_key: "splunk_search_token"
 
+splunk_docker_token_owner_exceptions:
+  # Search token for the LlamaIndex agent-session indexer (secret/apps/llamaindex).
+  - svc-llamaindex-search
+
 # Archive frozen buckets rather than deleting them.
 #
 # Splunk's default when a bucket ages out is deletion. That was inert here for
