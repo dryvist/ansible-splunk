@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.102.2](https://github.com/dryvist/ansible-splunk/compare/v0.102.1...v0.102.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* declare the agent-session indexer token owner ([#766](https://github.com/dryvist/ansible-splunk/issues/766)) ([78e59a8](https://github.com/dryvist/ansible-splunk/commit/78e59a8bf360a547083daf376878739cf359672a))
+
 ## [0.102.1](https://github.com/dryvist/ansible-splunk/compare/v0.102.0...v0.102.1) (2026-10-24)
 
 
