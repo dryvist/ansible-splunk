@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.103.2](https://github.com/dryvist/ansible-splunk/compare/v0.103.1...v0.103.2) (2026-10-25)
+
+
+### Bug Fixes
+
+* deploy splunk-homelab-alerts v0.19.0 ([#772](https://github.com/dryvist/ansible-splunk/issues/772)) ([354bee5](https://github.com/dryvist/ansible-splunk/commit/354bee5be17746b1ed07ac60085c806f673158fc))
+
 ## [0.103.1](https://github.com/dryvist/ansible-splunk/compare/v0.103.0...v0.103.1) (2026-10-24)
 
 
