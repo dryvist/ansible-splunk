@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.107.0](https://github.com/dryvist/ansible-splunk/compare/v0.106.0...v0.107.0) (2026-10-28)
+
+
+### Features
+
+* alert on WindowServer synchronize timeouts ([#786](https://github.com/dryvist/ansible-splunk/issues/786)) ([a6e0b47](https://github.com/dryvist/ansible-splunk/commit/a6e0b477e3c19abaa4cc1a813c3e462debc266f5))
+
 ## [0.106.0](https://github.com/dryvist/ansible-splunk/compare/v0.105.0...v0.106.0) (2026-10-28)
 
 
