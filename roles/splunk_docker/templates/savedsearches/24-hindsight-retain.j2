@@ -1,8 +1,8 @@
-{# Alert after consecutive failures in the Hindsight self-audit stream. #}
+{# Alert on repeated Hindsight retain failures logged by the Hermes agent (hindsight plugin v1.2.3 WARNING lines). #}
 [hindsight_retain_consecutive_failure]
 {{ alert_delivery -}}
-description = Alerts when Hindsight retain checks fail on consecutive self-audit events.
-search = index=hermes sourcetype=hermes:agent ("hindsight_retain" OR "retain:write-path") | eval retain_failed=if(match(lower(message), "(?:fail|error|exception|timeout).{0,50}retain|retain.{0,50}(?:fail|error|exception|timeout)"), 1, 0) | sort 0 host source _time | streamstats window={{ splunk_docker_hindsight_retain_consecutive_failures }} sum(retain_failed) as consecutive_failures by host source | where consecutive_failures >= {{ splunk_docker_hindsight_retain_consecutive_failures }} | table _time host source
+description = Alerts when the Hermes agent logs repeated Hindsight retain failures for one host and source within the lookback window.
+search = index=hermes sourcetype=hermes:agent ("Hindsight retain failed" OR "hindsight_retain failed" OR "Hindsight flush-on-switch failed" OR "Hindsight flush-on-shutdown failed") | stats count AS failure_count by host source | where failure_count >= {{ splunk_docker_hindsight_retain_consecutive_failures }} | table host source failure_count
 dispatch.earliest_time = -{{ splunk_docker_hindsight_retain_lookback_minutes }}m
 dispatch.latest_time = now
 cron_schedule = */5 * * * *

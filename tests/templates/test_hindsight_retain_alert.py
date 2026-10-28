@@ -46,19 +46,16 @@ else:
     for fragment in (
         "index=hermes",
         "sourcetype=hermes:agent",
-        "hindsight_retain",
-        "retain:write-path",
-        "message",
-        'match(lower(message), "(?:fail|error|exception|timeout).{0,50}retain|retain.{0,50}(?:fail|error|exception|timeout)")',
-        "streamstats window=2",
-        "consecutive_failures",
-        "by host source",
-        "table _time host source",
+        '"Hindsight retain failed"',
+        '"hindsight_retain failed"',
+        '"Hindsight flush-on-switch failed"',
+        '"Hindsight flush-on-shutdown failed"',
+        "stats count AS failure_count by host source",
+        f"where failure_count >= {DEFAULTS['splunk_docker_hindsight_retain_consecutive_failures']}",
+        "table host source failure_count",
     ):
         if fragment not in search:
             errors.append(f"FAIL: search is missing {fragment!r}")
-    if 'match(lower(message), "fail|error")' in search:
-        errors.append("FAIL: search treats any failure-related word as a retain failure")
     if "{{" in search or "}}" in search:
         errors.append("FAIL: search contains an unrendered placeholder")
     if value("description") is None:
