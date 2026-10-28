@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.105.0](https://github.com/dryvist/ansible-splunk/compare/v0.104.2...v0.105.0) (2026-10-28)
+
+
+### Features
+
+* alert on launchd service respawn loops ([#782](https://github.com/dryvist/ansible-splunk/issues/782)) ([c95ab21](https://github.com/dryvist/ansible-splunk/commit/c95ab21a36b270606f5f3fb033d39bc8f756adfc))
+
 ## [0.104.2](https://github.com/dryvist/ansible-splunk/compare/v0.104.1...v0.104.2) (2026-10-28)
 
 
