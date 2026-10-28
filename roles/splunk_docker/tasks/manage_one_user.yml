@@ -178,9 +178,9 @@
         - name: "Mint authorization token for {{ splunk_user.name }}"
           ansible.builtin.uri:
             url: >-
-              https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/mcp_token?username={{ splunk_user.name }}{{
+              https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/mcp_token/tokens?username={{ splunk_user.name }}{{
               ('&expires_on=' ~ (splunk_docker_token_expires_on | urlencode)) if (splunk_docker_token_expires_on | length > 0) else '' }}
-            method: GET
+            method: POST
             user: "{{ splunk_admin_user | default('admin') }}"
             password: "{{ splunk_docker_password }}"
             force_basic_auth: true
