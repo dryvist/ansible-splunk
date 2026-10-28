@@ -1,0 +1,6 @@
+---
+# Spawns of one launchd service label on one host within the 10-minute window
+# at which [mac_launchd_respawn_loop] alerts.
+splunk_docker_launchd_respawn_threshold: 20
+# launchd service labels [mac_launchd_respawn_loop] does not count. An empty list counts every label.
+splunk_docker_launchd_respawn_exemptions: []
