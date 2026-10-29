@@ -35,15 +35,14 @@
   no_log: true
 
 - name: Fetch the frozen-archive credential
-  ansible.builtin.uri:
-    url: "{{ splunk_docker_frozen_bao_addr }}/v1/auth/approle/login"
-    method: POST
-    body_format: json
-    body:
-      role_id: "{{ splunk_docker_frozen_bao_role_id }}"
-      secret_id: "{{ splunk_docker_frozen_bao_secret_id }}"
-    status_code: [200]
+  community.hashi_vault.vault_login:
+    url: "{{ splunk_docker_frozen_bao_addr }}"
+    auth_method: approle
+    role_id: "{{ splunk_docker_frozen_bao_role_id }}"
+    secret_id: "{{ splunk_docker_frozen_bao_secret_id }}"
+    validate_certs: true
   register: splunk_docker_frozen_login
+  changed_when: false
   no_log: true
   delegate_to: localhost
   become: false
@@ -58,7 +57,7 @@
       {{ splunk_docker_frozen_bao_addr }}/v1/{{ splunk_docker_frozen_secret_path }}
     method: GET
     headers:
-      X-Vault-Token: "{{ splunk_docker_frozen_login.json.auth.client_token }}"
+      X-Vault-Token: "{{ splunk_docker_frozen_login.login.auth.client_token }}"
     status_code: [200]
   register: splunk_docker_frozen_secret
   no_log: true
