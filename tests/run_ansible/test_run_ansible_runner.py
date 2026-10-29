@@ -17,6 +17,7 @@ RUNNER_OPTIONS = (
     "RUN_ANSIBLE_STATIC_KEY_FALLBACK",
     "RUN_ANSIBLE_REVOKE_ATTEMPTS",
     "RUN_ANSIBLE_RETIRING_IDENTITIES",
+    "RUN_ANSIBLE_EXPORT_CONVERGE_IDENTITY",
 )
 DEFAULTS = {
     "RUN_ANSIBLE_IDENTITIES": "signer,semaphore?,ansible",
@@ -24,6 +25,7 @@ DEFAULTS = {
     "RUN_ANSIBLE_STATIC_KEY_FALLBACK": "1",
     "RUN_ANSIBLE_REVOKE_ATTEMPTS": "3",
     "RUN_ANSIBLE_RETIRING_IDENTITIES": "ansible",
+    "RUN_ANSIBLE_EXPORT_CONVERGE_IDENTITY": "1",
 }
 
 
@@ -49,6 +51,7 @@ class RunAnsibleRunnerShim(unittest.TestCase):
                     "RUN_ANSIBLE_STATIC_KEY_FALLBACK",
                     "RUN_ANSIBLE_REVOKE_ATTEMPTS",
                     "RUN_ANSIBLE_RETIRING_IDENTITIES",
+                    "RUN_ANSIBLE_EXPORT_CONVERGE_IDENTITY",
                 )
                 with open(os.environ["RUNNER_CAPTURE"], "w", encoding="utf-8") as stream:
                     json.dump(
@@ -100,7 +103,7 @@ class RunAnsibleRunnerShim(unittest.TestCase):
             captured["argv"],
             [
                 "run",
-                "github:dryvist/homelab-contracts/v5.31.0#run-ansible",
+                "github:dryvist/homelab-contracts/v5.32.0#run-ansible",
                 "--",
                 *args,
             ],
