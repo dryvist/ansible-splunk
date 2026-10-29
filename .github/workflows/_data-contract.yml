@@ -108,7 +108,7 @@ jobs:
           python3 tests/verify_volume_capacity/test_overcommit.py
           python3 tests/verify_volume_capacity/test_mount_resolution.py
 
-      - name: Run run-ansible.sh identity tests
+      - name: Run run-ansible shim contract tests
         run: |
           python3 -m unittest discover -s tests/run_ansible -v
 

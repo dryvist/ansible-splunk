@@ -22,10 +22,10 @@ collections:
   # roles/inventory_resolve. A collection installs from the subdirectory
   # holding galaxy.yml, so every role is addressed unambiguously by FQCN.
   #
-  # Follow homelab-contracts' major tag; breaking changes ship as v6.
+  # Follow homelab-contracts' v5 release line; breaking changes ship in v6.
   - name: https://github.com/dryvist/homelab-contracts.git#/ansible/
     type: git
-    version: v5
+    version: v5.31.0
 
 # splunk.splunk stays a `roles:` entry: its repository root IS the role, which
 # is the one shape `role install` addresses correctly. Install both sections
