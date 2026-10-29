@@ -25,7 +25,7 @@ collections:
   # Follow homelab-contracts' v5 release line; breaking changes ship in v6.
   - name: https://github.com/dryvist/homelab-contracts.git#/ansible/
     type: git
-    version: v5.32.0
+    version: v5.34.0
 
 # splunk.splunk stays a `roles:` entry: its repository root IS the role, which
 # is the one shape `role install` addresses correctly. Install both sections
