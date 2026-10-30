@@ -26,6 +26,9 @@
           vars:
             tofu_data: {constants: {service_state: {hindsight_enabled: "false"}}}
       rescue:
+        - name: Require rejection by the published-state type gate
+          ansible.builtin.assert:
+            that: "'must be Boolean' in ansible_failed_result.msg"
         - name: Record rejection
           ansible.builtin.set_fact:
             malformed_rejected: true
