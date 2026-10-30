@@ -2,10 +2,8 @@
 """
 Test the Hindsight bank-DR alert contract in savedsearches.conf.j2.
 
-Four stanzas live in one file (18-hindsight-bank-dr.j2), all literal text --
-no Jinja substitution reaches any of them, so reading the file is equivalent
-to rendering it and needs none of the role vars the surrounding macros want.
-Same rationale as test_savedsearches_conf.py's hardware_smart_failure check.
+Four stanzas live in one file (18-hindsight-bank-dr.j2). The no-pass
+searches follow the shared desired state; explicit failure alerts stay on.
 
 What this guards: each stanza's `search` line carries the exact index,
 sourcetype, event name, result value, and (for the two absence detectors)
@@ -20,6 +18,8 @@ Run from repo root:
 import re
 import sys
 from pathlib import Path
+
+from _render_env import ansible_env
 
 ROOT = Path(__file__).parent.parent.parent
 TEMPLATE = ROOT / "roles/splunk_docker/templates/savedsearches/18-hindsight-bank-dr.j2"
@@ -56,6 +56,16 @@ REQUIRED_PHRASES = {
 
 errors = []
 body = TEMPLATE.read_text()
+
+template = ansible_env(TEMPLATE.parent).get_template(TEMPLATE.name)
+for desired, expected in ((None, "0"), (True, "0"), (False, "1"), ("false", "0")):
+    inventory = {} if desired is None else {"constants": {"service_state": {"hindsight_enabled": desired}}}
+    rendered = template.render(tofu_data=inventory, alert_delivery="")
+    for name in REQUIRED_PHRASES:
+        stanza = re.search(rf"^\[{re.escape(name)}\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S)
+        expected_disabled = expected if name.endswith("_no_pass") else "0"
+        if not stanza or f"disabled = {expected_disabled}" not in stanza.group(1).splitlines():
+            errors.append(f"FAIL: [{name}] disabled state incorrect for desired state {desired!r}")
 
 for stanza_name, phrases in REQUIRED_PHRASES.items():
     stanza = re.search(rf"^\[{re.escape(stanza_name)}\]$(.*?)(?=^\[|\Z)", body, re.M | re.S)

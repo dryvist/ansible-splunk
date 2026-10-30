@@ -1,4 +1,14 @@
 ---
+- name: Assert a published Hindsight desired state is Boolean
+  ansible.builtin.assert:
+    that:
+      - _service_state is mapping
+      - "'hindsight_enabled' not in _service_state or _service_state.hindsight_enabled is boolean"
+    fail_msg: The published Hindsight desired state must be Boolean when present.
+  vars:
+    _service_state: "{{ (tofu_data | default({})).get('constants', {}).get('service_state', {}) }}"
+  tags: [alerting]
+
 # Alerting is deployed unconditionally, and its only delivery is the ntfy hub
 # webhook. An empty or non-https URL would render a [default] stanza that
 # delivers nowhere while the converge still exits 0, so fail loudly instead.
