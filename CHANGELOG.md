@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.107.4](https://github.com/dryvist/ansible-splunk/compare/v0.107.3...v0.107.4) (2026-10-30)
+
+
+### Bug Fixes
+
+* **alerting:** follow shared Hindsight desired state ([8643a6f](https://github.com/dryvist/ansible-splunk/commit/8643a6f3003dc8f03088cad6781f0c56e01cebcd))
+* **alerting:** follow shared Hindsight desired state ([#796](https://github.com/dryvist/ansible-splunk/issues/796)) ([7c08fbc](https://github.com/dryvist/ansible-splunk/commit/7c08fbc9b23db421c0347c7b747b6df94b86a771))
+* **ci:** preserve the exact contract pin on cache hits ([81978f0](https://github.com/dryvist/ansible-splunk/commit/81978f0e61a2fcff298eb80fd3e75f5d2f14ec43))
+* **deps:** pin the shared service-state contract ([f0ae76d](https://github.com/dryvist/ansible-splunk/commit/f0ae76dcfd1dcc3c16a5919c38539c8bc4372c5a))
+
 ## [0.107.3](https://github.com/dryvist/ansible-splunk/compare/v0.107.2...v0.107.3) (2026-10-30)
 
 
