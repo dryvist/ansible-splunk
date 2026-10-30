@@ -1,0 +1,35 @@
+---
+- name: Verify published Hindsight desired-state validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    splunk_docker_alert_ntfy_url: https://example.test/alerts
+    splunk_docker_silence_detectors: []
+    splunk_docker_indexes: []
+  tasks:
+    - name: Accept absent and Boolean desired state
+      ansible.builtin.include_tasks: ../../roles/splunk_docker/tasks/assert_alerting_gates.yml
+      loop:
+        - {}
+        - {constants: {service_state: {hindsight_enabled: true}}}
+        - {constants: {service_state: {hindsight_enabled: false}}}
+      loop_control:
+        loop_var: fixture_inventory
+      vars:
+        tofu_data: "{{ fixture_inventory }}"
+
+    - name: Reject malformed desired state
+      block:
+        - name: Run the production alerting gate on a string value
+          ansible.builtin.include_tasks: ../../roles/splunk_docker/tasks/assert_alerting_gates.yml
+          vars:
+            tofu_data: {constants: {service_state: {hindsight_enabled: "false"}}}
+      rescue:
+        - name: Record rejection
+          ansible.builtin.set_fact:
+            malformed_rejected: true
+
+    - name: Require the malformed value to have failed
+      ansible.builtin.assert:
+        that: malformed_rejected | default(false) | bool
