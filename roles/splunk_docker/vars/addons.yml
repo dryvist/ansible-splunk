@@ -103,4 +103,4 @@ splunk_docker_addons:
     app_dir: splunk-homelab-alerts
     github_repo: dryvist/splunk-homelab-alerts
     # renovate: datasource=github-releases depName=dryvist/splunk-homelab-alerts
-    pin_version: "v0.23.1"
+    pin_version: "v0.24.0"
