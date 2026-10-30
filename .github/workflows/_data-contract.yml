@@ -48,8 +48,8 @@ jobs:
       # so a half-command leaves a dependency missing until something later
       # fails on it. This repo has a real `roles:` entry (splunk.splunk), so the
       # narrower form was already leaving it uninstalled here.
-      # Exact cache hits force-refresh only the floating homelab-contracts v5
-      # tag; misses and partial restores force-install the full requirement set.
+      # The key hashes exact requirements. Misses and partial restores
+      # force-install the full requirement set; exact hits reuse those pins.
       # Same key/paths as JacobPEvans/.github's _ansible-ci.yml so a warm run of
       # either workflow warms the other.
       - name: Cache Ansible Galaxy content
@@ -69,14 +69,6 @@ jobs:
         if: steps.galaxy-cache.outputs.cache-hit != 'true'
         run: |
           ansible-galaxy install -r requirements.yml --force
-
-      - name: Refresh homelab-contracts major tag
-        if: steps.galaxy-cache.outputs.cache-hit == 'true'
-        run: >-
-          ansible-galaxy collection install
-          'git+https://github.com/dryvist/homelab-contracts.git#/ansible/,v5' --force
-        env:
-          ANSIBLE_GALAXY_SERVER_TIMEOUT: "60"
 
       - name: Syntax check deploy.yml
         run: |
@@ -142,8 +134,8 @@ jobs:
       # installed here, and this run is what proves the collection resolves it.
       # `install` covers both sections; `collection install` and `role install`
       # each silently ignore the other and still exit zero.
-      # Exact cache hits force-refresh only the floating homelab-contracts v5
-      # tag; misses and partial restores force-install the full requirement set.
+      # The key hashes exact requirements. Misses and partial restores
+      # force-install the full requirement set; exact hits reuse those pins.
       # Same key/paths as JacobPEvans/.github's _ansible-ci.yml so a warm run of
       # either workflow warms the other.
       - name: Cache Ansible Galaxy content
@@ -168,14 +160,6 @@ jobs:
         run: |
           ansible-galaxy collection install ansible.utils
           ansible-galaxy install -r requirements.yml --force
-
-      - name: Refresh homelab-contracts major tag
-        if: steps.galaxy-cache.outputs.cache-hit == 'true'
-        run: >-
-          ansible-galaxy collection install
-          'git+https://github.com/dryvist/homelab-contracts.git#/ansible/,v5' --force
-        env:
-          ANSIBLE_GALAXY_SERVER_TIMEOUT: "60"
 
       - name: Verify tofu inventory loads correctly
         env:
