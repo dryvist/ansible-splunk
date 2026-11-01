@@ -37,6 +37,8 @@
 splunk_docker_addons:
   # --- object-storage, Splunkbase-sourced (auto-sync, tracks latest) ---
   - {filename: TA-unifi-cloud.tar, app_dir: TA-unifi-cloud, splunkbase_id: 7494}
+  # NVIDIA GPU telemetry; keep the requested upstream 1.0.0 release pin.
+  - {filename: TA-Nvidia.tar, app_dir: TA-Nvidia, splunkbase_id: 10131, pin_version: "1.0.0"}
   - {filename: duck-yeah.tar, app_dir: DuckYeah, splunkbase_id: 7015}
   - {filename: splunk-db-connect.tar, app_dir: splunk_app_db_connect, splunkbase_id: 2686}
   - {filename: Splunk_TA_H3_Unifi.tar, app_dir: Splunk_TA_H3_Unifi, splunkbase_id: 7935}

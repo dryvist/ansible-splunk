@@ -8,9 +8,29 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 TASKS = ROOT / "playbooks/tasks/sync-splunkbase/resolve-and-sync.yml"
+REGISTRY = ROOT / "roles/splunk_docker/vars/addons.yml"
 tasks = yaml.safe_load(TASKS.read_text())
 by_name = {task["name"]: task for task in tasks}
 errors = []
+
+nvidia_entries = [
+    entry for entry in yaml.safe_load(REGISTRY.read_text())["splunk_docker_addons"]
+    if str(entry.get("splunkbase_id")) == "10131"
+]
+if len(nvidia_entries) != 1:
+    errors.append("FAIL: TA-Nvidia must have one Splunkbase registry entry")
+elif any(nvidia_entries[0].get(key) != value for key, value in {
+    "filename": "TA-Nvidia.tar",
+    "app_dir": "TA-Nvidia",
+    "pin_version": "1.0.0",
+}.items()):
+    errors.append("FAIL: TA-Nvidia registry entry does not preserve its app folder and 1.0.0 pin")
+
+resolve_version = by_name["Compute every resolved release's desired version"]["ansible.builtin.set_fact"][
+    "splunkbase_desired_all"
+]
+if "item.0.pin_version if item.0.pin_version is defined" not in resolve_version:
+    errors.append("FAIL: Splunkbase version resolution does not honor the configured pin")
 
 query = by_name["Query current object-storage version tag for each entry"]
 if query["ansible.builtin.command"]["argv"][-3:] != ["TagSet", "--output", "json"]:

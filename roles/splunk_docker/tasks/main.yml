@@ -343,6 +343,10 @@
 - name: Install apps and add-ons
   ansible.builtin.include_tasks: apps.yml
 
+# Configure the NVIDIA app after its Splunkbase archive is installed.
+- name: Configure TA-Nvidia inputs
+  ansible.builtin.include_tasks: ta_nvidia.yml
+
 # Configure MCP Server post-install (server settings, not token auth)
 - name: Configure MCP Server
   ansible.builtin.include_tasks: mcp_server.yml

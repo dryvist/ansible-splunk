@@ -56,7 +56,7 @@ Per-index size caps and retention are set in
 `roles/splunk_docker/defaults/main/09-custom-indexes-core.yml` and
 `10-custom-indexes-extra.yml` (`splunk_docker_indexes`); most
 indexes use the 365-day/10 GiB defaults, but `netflow`, `host_metrics`,
-`llm_metrics`, `netmon_metrics`, `os_metrics`, and `unifi_metrics` use
+`llm_metrics`, `netmon_metrics`, `nvidia_metrics`, `os_metrics`, and `unifi_metrics` use
 90-day retention. `llm_pricefeed` uses 30-day retention and a 512 MB cap;
 `netflow` caps at 50 GiB. Two indexes — `firewall` and `unifi` — are tiered:
 their hot data stays on fast storage (`$SPLUNK_DB`) and their cold data rolls out to a separate
@@ -74,6 +74,8 @@ data on fast storage.
 | `netflow` | NetFlow / IPFIX flow data |
 | `netmon_metrics` | Per-WAN network-diagnosis probe telemetry, metric index (90-day retention) |
 | `network` | Network device syslog |
+| `nvidia` | TA-Nvidia GPU statistics events |
+| `nvidia_metrics` | TA-Nvidia GPU statistics, metric index (90-day retention) |
 | `openai` | OpenAI-specific events |
 | `os` | Linux / Windows system logs |
 | `os_metrics` | Per-host OS metric series (CPU/mem/disk/net, incl. per-process), metric index (90-day retention) |
@@ -84,12 +86,13 @@ data on fast storage.
 
 ## Technology Add-ons
 
-Archives must be placed in `roles/splunk_docker/files/` before running (gitignored).
+Manually managed archives must be placed in `roles/splunk_docker/files/` before running (gitignored).
 See [`roles/splunk_docker/files/README.md`](roles/splunk_docker/files/README.md) for download instructions.
 
 | Add-on | Source | Notes |
 | --- | --- | --- |
 | TA-unifi-cloud | Internal build | UniFi syslog parsing |
+| TA-Nvidia | Splunkbase [#10131](https://splunkbase.splunk.com/app/10131), pinned 1.0.0 | GPU events and metrics |
 | Duck Yeah | Splunkbase | App packaging utilities |
 | Splunk DB Connect | Splunkbase [#2686](https://splunkbase.splunk.com/app/2686) | DB connectivity |
 
