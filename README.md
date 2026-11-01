@@ -90,6 +90,7 @@ See [`roles/splunk_docker/files/README.md`](roles/splunk_docker/files/README.md)
 | Add-on | Source | Notes |
 | --- | --- | --- |
 | TA-unifi-cloud | Internal build | UniFi syslog parsing |
+| TA-Nvidia | Splunkbase [#10131](https://splunkbase.splunk.com/app/10131) | Mirrored only (`install: false`) |
 | Duck Yeah | Splunkbase | App packaging utilities |
 | Splunk DB Connect | Splunkbase [#2686](https://splunkbase.splunk.com/app/2686) | DB connectivity |
 

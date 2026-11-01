@@ -8,9 +8,23 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 TASKS = ROOT / "playbooks/tasks/sync-splunkbase/resolve-and-sync.yml"
+REGISTRY = ROOT / "roles/splunk_docker/vars/addons.yml"
 tasks = yaml.safe_load(TASKS.read_text())
 by_name = {task["name"]: task for task in tasks}
 errors = []
+
+nvidia_entries = [
+    entry for entry in yaml.safe_load(REGISTRY.read_text())["splunk_docker_addons"]
+    if str(entry.get("splunkbase_id")) == "10131"
+]
+if len(nvidia_entries) != 1:
+    errors.append("FAIL: TA-Nvidia must have one Splunkbase registry entry")
+elif (
+    nvidia_entries[0].get("app_dir") != "TA-Nvidia"
+    or nvidia_entries[0].get("install") is not False
+    or "pin_version" in nvidia_entries[0]
+):
+    errors.append("FAIL: TA-Nvidia must be mirrored at latest (no pin) with install: false")
 
 query = by_name["Query current object-storage version tag for each entry"]
 if query["ansible.builtin.command"]["argv"][-3:] != ["TagSet", "--output", "json"]:
