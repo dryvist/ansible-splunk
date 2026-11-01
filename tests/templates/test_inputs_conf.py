@@ -340,6 +340,16 @@ deploy_ta_nvidia_inputs = next(
     if task["name"] == "Deploy TA-Nvidia input overrides"
 )
 ta_nvidia_destination = deploy_ta_nvidia_inputs["ansible.builtin.template"]["dest"]
+disable_ta_nvidia = next(
+    task for task in ta_nvidia_config_block["block"]
+    if task["name"] == "Disable TA-Nvidia on the Splunk server"
+)["ansible.builtin.copy"]
+if not disable_ta_nvidia["dest"].endswith("/apps/TA-Nvidia/local/app.conf") or not any(
+    line.strip() == "state = disabled" for line in disable_ta_nvidia["content"].splitlines()
+):
+    errors.append("FAIL: TA-Nvidia is not disabled through its app-local app.conf")
+else:
+    print("PASS: TA-Nvidia is disabled on the Splunk server")
 main_tasks = yaml.safe_load((ROOT / "roles/splunk_docker/tasks/main.yml").read_text())
 apps_task_position = next(
     (index for index, task in enumerate(main_tasks)
