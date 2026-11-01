@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.108.0](https://github.com/dryvist/ansible-splunk/compare/v0.107.4...v0.108.0) (2026-11-01)
+
+
+### Features
+
+* **splunk:** mirror TA-Nvidia without installing it ([#798](https://github.com/dryvist/ansible-splunk/issues/798)) ([9237bdc](https://github.com/dryvist/ansible-splunk/commit/9237bdc9ad7a4b8b7354ccd0ff5d0764a9967278))
+
 ## [0.107.4](https://github.com/dryvist/ansible-splunk/compare/v0.107.3...v0.107.4) (2026-10-30)
 
 
