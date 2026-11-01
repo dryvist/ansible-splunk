@@ -85,9 +85,6 @@ INDEXES = [
      "frozen_time_secs": 31536000},
     {"name": "llm_pricefeed", "max_size_mb": 512, "frozen_time_secs": 2592000},
     {"name": "netflow", "max_size_mb": 51200, "frozen_time_secs": 7776000},
-    {"name": "nvidia", "max_size_mb": 10240, "frozen_time_secs": 31536000},
-    {"name": "nvidia_metrics", "datatype": "metric", "max_size_mb": 25600,
-     "frozen_time_secs": 7776000},
     {"name": "dns", "max_size_mb": 10240, "frozen_time_secs": 31536000},
 ]
 
@@ -176,13 +173,6 @@ if "datatype = metric" in stanza_body(result, "llm_pricefeed", all_names):
     errors.append("FAIL: llm_pricefeed should be an event index")
 else:
     print("PASS: llm_pricefeed renders as an event index")
-
-if "datatype = metric" in stanza_body(result, "nvidia", all_names):
-    errors.append("FAIL: nvidia should be an event index")
-elif "datatype = metric" not in stanza_body(result, "nvidia_metrics", all_names):
-    errors.append("FAIL: nvidia_metrics should be a metric index")
-else:
-    print("PASS: NVIDIA event and metric indexes render with their required datatypes")
 
 # Test 8: stanzas are independent — each index path uses only that index's name
 for idx in all_names:

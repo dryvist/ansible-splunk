@@ -24,8 +24,6 @@
       mac_perf: "molecule-test-token-mac-perf"
       netflow: "molecule-test-token-netflow"
       netmon_metrics: "molecule-test-token-netmon-metrics"
-      nvidia: "molecule-test-token-nvidia"
-      nvidia_metrics: "molecule-test-token-nvidia-metrics"
       network: "molecule-test-token-network"
       openai: "molecule-test-token-openai"
       otel_traces: "molecule-test-token-otel-traces"

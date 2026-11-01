@@ -40,15 +40,6 @@ splunk_docker_indexes_extra:
     datatype: metric
     max_size_mb: 25600
     frozen_time_secs: 7776000
-  # NVIDIA GPU telemetry from TA-Nvidia. Events keep the shared defaults;
-  # metric series use the standard 90-day metric-index retention.
-  - name: nvidia
-    max_size_mb: "{{ splunk_docker_index_default_max_size_mb }}"
-    frozen_time_secs: "{{ splunk_docker_index_default_frozen_time_secs }}"
-  - name: nvidia_metrics
-    datatype: metric
-    max_size_mb: 25600
-    frozen_time_secs: 7776000
   # network: SUPERSEDED by `netflow` (above) — do not send new data here, and do
   # not delete it. It holds 89 real IPFIX events (sourcetype=ipfix) from a single
   # ~11h window on 2026-06-11/12 and nothing since: it WAS the live IPFIX

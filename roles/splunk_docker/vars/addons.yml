@@ -37,8 +37,6 @@
 splunk_docker_addons:
   # --- object-storage, Splunkbase-sourced (auto-sync, tracks latest) ---
   - {filename: TA-unifi-cloud.tar, app_dir: TA-unifi-cloud, splunkbase_id: 7494}
-  # NVIDIA GPU telemetry; keep the requested upstream 1.0.0 release pin.
-  - {filename: TA-Nvidia.tar, app_dir: TA-Nvidia, splunkbase_id: 10131, pin_version: "1.0.0"}
   - {filename: duck-yeah.tar, app_dir: DuckYeah, splunkbase_id: 7015}
   - {filename: splunk-db-connect.tar, app_dir: splunk_app_db_connect, splunkbase_id: 2686}
   - {filename: Splunk_TA_H3_Unifi.tar, app_dir: Splunk_TA_H3_Unifi, splunkbase_id: 7935}
@@ -77,6 +75,8 @@ splunk_docker_addons:
   - {filename: splunk-common-information-model.tar, app_dir: Splunk_SA_CIM, splunkbase_id: 1621, install: false}
   - {filename: eventgen.tar, app_dir: SA-Eventgen, splunkbase_id: 1924, install: false}
   - {filename: splunk-app-for-lookup-file-editing.tar, app_dir: lookup_editor, splunkbase_id: 1724, install: false}
+  # NVIDIA GPU TA: mirrored and kept current, never installed (index-time-only props and transforms).
+  - {filename: TA-Nvidia.tar, app_dir: TA-Nvidia, splunkbase_id: 10131, install: false}
 
   # --- object-storage, no Splunkbase match (manual upload; sync skips) ---
   # Hurricane Labs' Automox add-on was removed from Splunkbase. The archive is

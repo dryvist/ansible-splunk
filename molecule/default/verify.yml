@@ -107,8 +107,6 @@
           - "'[unifi_metrics]' in (indexes_content.content | b64decode)"
           - "'[netflow]' in (indexes_content.content | b64decode)"
           - "'[netmon_metrics]' in (indexes_content.content | b64decode)"
-          - "'[nvidia]' in (indexes_content.content | b64decode)"
-          - "'[nvidia_metrics]' in (indexes_content.content | b64decode)"
           - "'[host_metrics]' in (indexes_content.content | b64decode)"
           - "'[llm_metrics]' in (indexes_content.content | b64decode)"
           - "'[os_metrics]' in (indexes_content.content | b64decode)"
