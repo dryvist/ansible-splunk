@@ -3,7 +3,7 @@
 #
 # A by_host: true entry (os, hardware) still renders its own
 # [<name>_silence_detector] saved search (see 07-generic-silence-detectors.j2)
-# cloning the macos_edge_silence_detector shape: tstats latest(_time) over the
+# cloning the mac_process_lifecycle_silence shape: tstats latest(_time) over the
 # index BY HOST, alert when a host's own silence exceeds its cadence-derived
 # threshold.
 #
