@@ -1,0 +1,18 @@
+{# Alert on the Langfuse worker failure signatures that precede an ingestion stall. #}
+[langfuse_ingest_failure_signature]
+{{ alert_delivery -}}
+description = Alerts when the Langfuse worker logs queue lock-renewal failures, ingestion stack overflows or Redis ping timeouts above their thresholds within the lookback window.
+search = index=langfuse sourcetype="langfuse:app" ("could not renew lock" OR "Maximum call stack size exceeded" OR "Redis ping timeout") | eval sig=case(searchmatch("could not renew lock"),"lock_renew", searchmatch("Maximum call stack size exceeded"),"stack_overflow", true(),"redis_ping") | stats count(eval(sig="lock_renew")) AS lock_renew count(eval(sig="stack_overflow")) AS stack_overflow count(eval(sig="redis_ping")) AS redis_ping | where lock_renew >= {{ splunk_docker_langfuse_ingest_lock_renew_failures }} OR stack_overflow >= {{ splunk_docker_langfuse_ingest_stack_overflows }} OR redis_ping >= {{ splunk_docker_langfuse_ingest_redis_ping_timeouts }} | eval alert_text="Langfuse ingestion at risk: " . lock_renew . " queue lock-renewal failures, " . stack_overflow . " ingestion stack overflows, " . redis_ping . " Redis ping timeouts in the last {{ splunk_docker_langfuse_ingest_lookback_minutes }} minutes."
+dispatch.earliest_time = -{{ splunk_docker_langfuse_ingest_lookback_minutes }}m
+dispatch.latest_time = now
+cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 4
+alert.suppress = 1
+alert.suppress.period = 60m
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
