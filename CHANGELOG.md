@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.110.0](https://github.com/dryvist/ansible-splunk/compare/v0.109.0...v0.110.0) (2026-11-02)
+
+
+### Features
+
+* **splunk:** alert on Langfuse ingestion failure signatures ([#802](https://github.com/dryvist/ansible-splunk/issues/802)) ([65ede95](https://github.com/dryvist/ansible-splunk/commit/65ede95280d5004a59c3e0cf7de20cb14d83fbeb))
+
 ## [0.109.0](https://github.com/dryvist/ansible-splunk/compare/v0.108.0...v0.109.0) (2026-11-02)
 
 
