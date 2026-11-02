@@ -1,5 +1,6 @@
 {# ---------------------------------------------------------------------------
-   OpenBao latency, raft-commit, follower-heartbeat and guest IO-wait detectors
+   OpenBao latency, raft-commit, follower-heartbeat, guest IO-wait and
+   pinned-policy provisioning detectors
    (index=netmon_metrics for Vault telemetry, index=host_metrics for guest
    pressure counters, index=os for the voter-health sweep line). Every
    threshold is a splunk_docker_openbao_* default in
@@ -125,6 +126,24 @@ alert.severity = 4
 alert.suppress = 1
 alert.suppress.period = 1h
 alert.suppress.fields = host
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
+
+[openbao_pinned_policy_needs_provisioning]
+{{ alert_delivery -}}
+description = An OpenBao reconcile run encountered a pinned RBAC policy write that needs a human-gated provisioning run.
+search = index=ansible sourcetype="ansible:converge:task" task="OpenBao pinned RBAC policies need a provisioning run" changed>0 earliest=-24h latest=now | stats latest(_time) as last_seen_epoch latest(playbook) as playbook | eval last_seen=strftime(last_seen_epoch, "%Y-%m-%d %H:%M:%S") | eval alert_text="OpenBao pinned RBAC policies need a human-gated provisioning run (reconcile cannot re-pin them). Last seen " . last_seen . ", playbook " . playbook . "."
+dispatch.earliest_time = -24h
+dispatch.latest_time = now
+cron_schedule = 0 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 4
+alert.suppress = 1
+alert.suppress.period = 24h
 alert.track = 1
 counttype = number of events
 relation = greater than

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Guard the five OpenBao latency, raft-commit, heartbeat and IO-wait detectors
+Guard the five OpenBao metric detectors and pinned-policy provisioning detector
 (savedsearches/14b-openbao-latency.j2).
 
 Renders the real template with the shipped defaults and checks each stanza's
@@ -30,6 +30,8 @@ ROOT = Path(__file__).parent.parent.parent
 TEMPLATES = ROOT / "roles/splunk_docker/templates"
 DEFAULTS = load_defaults(ROOT)
 NTFY = "https://ntfy.example.test/keystone"
+PINNED_POLICY_STANZA = "openbao_pinned_policy_needs_provisioning"
+PINNED_POLICY_TASK = "OpenBao pinned RBAC policies need a provisioning run"
 
 LATENCY_KEYS = (
     "splunk_docker_openbao_latency_tail_multiplier",
@@ -218,8 +220,43 @@ for name, spec in EXPECTED.items():
         continue
     check_stanza(name, body, spec, errors)
 
+pinned_policy = bodies.get(PINNED_POLICY_STANZA)
+if pinned_policy is None:
+    errors.append(f"FAIL: [{PINNED_POLICY_STANZA}] not rendered")
+else:
+    def need_pinned(ok, message):
+        if not ok:
+            errors.append(f"FAIL: [{PINNED_POLICY_STANZA}] {message}")
+
+    need_pinned(value(pinned_policy, "action.webhook") == "1", "has no alert_delivery webhook")
+    need_pinned("&tpl=yes&t=" in (value(pinned_policy, "action.webhook.param.url") or ""), "webhook lacks ntfy title/message templates")
+    need_pinned(value(pinned_policy, "dispatch.earliest_time") == "-24h", "does not search the last 24h")
+    need_pinned(value(pinned_policy, "dispatch.latest_time") == "now", "does not end its search at now")
+    need_pinned(value(pinned_policy, "cron_schedule") == "0 * * * *", "does not run hourly")
+    need_pinned(value(pinned_policy, "alert.suppress") == "1", "does not suppress repeats")
+    need_pinned(value(pinned_policy, "alert.suppress.period") == "24h", "does not suppress repeats for 24h")
+    for key, expected in COMMON_KEYS:
+        need_pinned(value(pinned_policy, key) == expected, f"{key} is not {expected!r}")
+
+    pinned_search = value(pinned_policy, "search") or ""
+    need_pinned(
+        pinned_search.startswith(
+            f'index=ansible sourcetype="ansible:converge:task" task="{PINNED_POLICY_TASK}" changed>0'
+        ),
+        "does not select the converge-task marker event",
+    )
+    need_pinned("earliest=-24h latest=now" in pinned_search, "search line is not bounded to the last 24h")
+    need_pinned("latest(_time) as last_seen_epoch" in pinned_search, "does not retain the latest marker time")
+    need_pinned("latest(playbook) as playbook" in pinned_search, "does not retain the playbook field")
+    need_pinned(
+        'eval alert_text="OpenBao pinned RBAC policies need a human-gated provisioning run '
+        '(reconcile cannot re-pin them). Last seen " . last_seen . ", playbook " . playbook . "."'
+        in pinned_search,
+        "alert_text does not carry the required human-gated message, time and playbook",
+    )
+
 for stanza, key, offending in check_welded(rendered):
-    if stanza in EXPECTED:
+    if stanza in EXPECTED or stanza == PINNED_POLICY_STANZA:
         errors.append(f"FAIL: [{stanza}] {key} has a comment welded into it: ...{offending[-80:]}")
 
 changed = stanza_bodies(render(splunk_docker_openbao_latency_tail_floor_ms=900))
@@ -233,6 +270,6 @@ if errors:
     print("\n".join(errors))
     sys.exit(1)
 print(
-    "PASS: five OpenBao latency, raft-commit, heartbeat and IO-wait stanzas carry webhook "
-    "delivery, schedule, suppression, thresholds and alert_text; a changed floor replaces the old one"
+    "PASS: five OpenBao metric stanzas and the pinned-policy provisioning detector carry webhook "
+    "delivery, schedule, suppression and alert_text; a changed floor replaces the old one"
 )
