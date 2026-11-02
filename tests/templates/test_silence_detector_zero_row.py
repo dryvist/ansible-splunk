@@ -74,7 +74,7 @@ SEARCH_RE = re.compile(r"^search = (.*)$", re.M)
 # instead of passing vacuously with zero detectors checked.
 EXPECTED_INCLUDED = {
     "os_silence_detector",
-    "macos_edge_silence_detector",
+    "mac_process_lifecycle_silence",
     "llm_pipeline_silence_detector",
     "llm_router_silence_detector",
     "index_gap_detector",
