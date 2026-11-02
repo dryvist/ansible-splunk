@@ -212,8 +212,8 @@ quantity = 0
 {# Expands each ws-monitor sample's top-5 CPU entries and keeps the WindowServer executable. Presence is counted over every sample in the window; the mean is taken over the samples where it appears. #}
 [mac_windowserver_sustained_cpu]
 {{ alert_delivery -}}
-description = Fires when, over the trailing 30 minutes, WindowServer appears in at least 80% of one host's ws-monitor samples' top-5 CPU lists and its mean CPU across those appearances is at least 120 (percent of one core).
-search = index=mac_perf sourcetype=ws-monitor host=jevans-mbp* | eventstats count AS samples BY host | eval procs = 'top_processes{}' | mvexpand procs | rex field=procs "^\s*\d+\s+(?<pcpu>[\d.]+)\s+\d+\s+(?<command>\S.*?)\s*$" | where match(command, "/WindowServer$") | eval pcpu = tonumber(pcpu) | stats count AS appearances avg(pcpu) AS mean_cpu max(samples) AS samples BY host | where appearances >= 0.8 * samples AND mean_cpu >= 120
+description = Fires when, over the trailing 30 minutes, WindowServer appears in at least 80% of one host's ws-monitor samples' top-5 CPU lists and its mean CPU across those appearances is at least 100 (percent of one core).
+search = index=mac_perf sourcetype=ws-monitor host=jevans-mbp* | eventstats count AS samples BY host | eval procs = 'top_processes{}' | mvexpand procs | rex field=procs "^\s*\d+\s+(?<pcpu>[\d.]+)\s+\d+\s+(?<command>\S.*?)\s*$" | where match(command, "/WindowServer$") | eval pcpu = tonumber(pcpu) | stats count AS appearances avg(pcpu) AS mean_cpu max(samples) AS samples BY host | where appearances >= 0.8 * samples AND mean_cpu >= 100
 dispatch.earliest_time = -30m
 dispatch.latest_time = now
 cron_schedule = */5 * * * *

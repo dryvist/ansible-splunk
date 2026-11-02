@@ -48,7 +48,7 @@ EXPECTED_SEARCH = (
     ' | where match(command, "/WindowServer$")'
     " | eval pcpu = tonumber(pcpu)"
     " | stats count AS appearances avg(pcpu) AS mean_cpu max(samples) AS samples BY host"
-    " | where appearances >= 0.8 * samples AND mean_cpu >= 120"
+    " | where appearances >= 0.8 * samples AND mean_cpu >= 100"
 )
 
 # Keys the stanza must carry verbatim, one per line.
