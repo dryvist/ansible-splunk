@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.111.0](https://github.com/dryvist/ansible-splunk/compare/v0.110.0...v0.111.0) (2026-11-02)
+
+
+### Features
+
+* **alerts:** alert on Hermes Slack delivery drops ([#804](https://github.com/dryvist/ansible-splunk/issues/804)) ([95a9c01](https://github.com/dryvist/ansible-splunk/commit/95a9c019b3d030a6209ac925693c5180b0dcd678))
+
 ## [0.110.0](https://github.com/dryvist/ansible-splunk/compare/v0.109.0...v0.110.0) (2026-11-02)
 
 
