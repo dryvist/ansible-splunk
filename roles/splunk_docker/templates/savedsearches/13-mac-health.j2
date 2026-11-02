@@ -188,3 +188,23 @@ alert.track = 1
 counttype = number of events
 relation = greater than
 quantity = 0
+
+{# Expands each ws-monitor sample's top-5 CPU entries, "<pid> <pcpu> <rss_kb> <command>", and keeps the NotificationCenter executable. Presence is counted over every sample in the window; the mean is taken over the samples where it appears. #}
+[mac_notificationcenter_runaway]
+{{ alert_delivery -}}
+description = Fires when, over the trailing 30 minutes, NotificationCenter appears in at least 50% of one host's ws-monitor samples' top-5 CPU lists and its mean CPU across those appearances is at least 40 (percent of one core).
+search = index=mac_perf sourcetype=ws-monitor host=jevans-mbp* | eventstats count AS samples BY host | eval procs = 'top_processes{}' | mvexpand procs | rex field=procs "^\s*\d+\s+(?<pcpu>[\d.]+)\s+\d+\s+(?<command>\S.*?)\s*$" | where match(command, "/NotificationCenter$") | eval pcpu = tonumber(pcpu) | stats count AS appearances avg(pcpu) AS mean_cpu max(samples) AS samples BY host | where appearances >= 0.5 * samples AND mean_cpu >= 40
+dispatch.earliest_time = -30m
+dispatch.latest_time = now
+cron_schedule = */5 * * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 4
+alert.suppress = 1
+alert.suppress.period = 6h
+alert.suppress.fields = host
+alert.track = 1
+counttype = number of events
+relation = greater than
+quantity = 0
