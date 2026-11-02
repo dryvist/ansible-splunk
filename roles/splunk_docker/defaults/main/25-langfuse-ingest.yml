@@ -1,0 +1,7 @@
+---
+# Langfuse ingestion failure signatures, counted per lookback window. Every signature is 0 while ingestion is healthy;
+# the thresholds sit under the lowest 15-minute count seen when ingestion stalled.
+splunk_docker_langfuse_ingest_lookback_minutes: 15
+splunk_docker_langfuse_ingest_lock_renew_failures: 1
+splunk_docker_langfuse_ingest_stack_overflows: 20
+splunk_docker_langfuse_ingest_redis_ping_timeouts: 5
