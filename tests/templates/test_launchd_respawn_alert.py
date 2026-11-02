@@ -88,9 +88,9 @@ exempt_search = search_of(
 if 'NOT in(label, "com.example.alpha", "com.example.beta")' not in exempt_search:
     errors.append("FAIL: a non-empty exemption list does not render as a NOT in() clause on label")
 
-# 3. Search shape: the base filter, both label sources, and the output fields.
+# 3. Search shape: the base filter with its XPC exclusion, both label sources, and the output fields.
 for needle in (
-    'index=os sourcetype=macos:unified_log process=launchd "Successfully spawned"',
+    'index=os sourcetype=macos:unified_log process=launchd "Successfully spawned" NOT "because xpc event"',
     "rex field=subsystem",
     "rex field=eventMessage",
     "table host label spawns first_seen last_seen",
