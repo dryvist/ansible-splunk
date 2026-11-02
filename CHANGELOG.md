@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.112.0](https://github.com/dryvist/ansible-splunk/compare/v0.111.2...v0.112.0) (2026-11-02)
+
+
+### Features
+
+* **alerts:** add Mac runaway process and WindowServer CPU alerts ([#810](https://github.com/dryvist/ansible-splunk/issues/810)) ([dc41848](https://github.com/dryvist/ansible-splunk/commit/dc41848a679862afcf437dc1072b53704d6afa33))
+
 ## [0.111.2](https://github.com/dryvist/ansible-splunk/compare/v0.111.1...v0.111.2) (2026-11-02)
 
 
