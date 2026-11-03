@@ -1,0 +1,21 @@
+---
+# Guest backup freshness: every non-template Proxmox guest needs a successful
+# vzdump in this window, except the names listed below.
+splunk_docker_guest_backup_max_age_hours: 48
+# Proxmox guest names (as the PVE exporter reports them) with no standing
+# backup requirement: the Splunk VM (archived to object storage), evaluation and
+# sandbox guests, stopped desktop guests and the media stack.
+splunk_docker_guest_backup_exempt_names:
+  - splunk-aio
+  - sim-eval-509002
+  - ai-sandbox-515100
+  - nginx-proxy-manager
+  - win10-vdi
+  - win11-vdi
+  - win25-vdi
+  - plex
+  - sonarr
+  - radarr
+  - seerr
+  - sortarr
+  - download-vpn
