@@ -28,7 +28,9 @@ description = Fires when a PVE node's latest swap usage exceeds 2 GiB.
 search = | mstats latest(node_memory_SwapTotal_bytes) as t latest(node_memory_SwapFree_bytes) as f WHERE index=host_metrics host=pve-* span=5m BY host \
   | stats latest(t) as t latest(f) as f by host \
   | eval used=t-f \
-  | where used > 2147483648
+  | where used > 2147483648 \
+  | eventstats values(host) as hosts \
+  | eval hosts=mvjoin(mvsort(hosts), ",")
 dispatch.earliest_time = -15m
 dispatch.latest_time = now
 cron_schedule = */5 * * * *

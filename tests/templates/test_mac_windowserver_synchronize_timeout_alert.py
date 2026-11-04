@@ -36,7 +36,7 @@ TEMPLATE = ansible_env(ROOT / "roles/splunk_docker/templates").get_template("sav
 
 EXPECTED_SEARCH = (
     'index=os sourcetype=macos:unified_log process=WindowServer "synchronize timed out"'
-    " | stats count by host"
+    " | stats count by host | eventstats values(host) as hosts | eval hosts=mvjoin(mvsort(hosts), \",\")"
 )
 
 # Keys the stanza must carry verbatim, one per line.

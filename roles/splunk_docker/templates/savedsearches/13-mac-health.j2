@@ -173,7 +173,7 @@ quantity = 0
 [mac_windowserver_synchronize_timeout]
 {{ alert_delivery -}}
 description = Fires when WindowServer logs a "synchronize timed out" line on one host within ten minutes.
-search = index=os sourcetype=macos:unified_log process=WindowServer "synchronize timed out" | stats count by host
+search = index=os sourcetype=macos:unified_log process=WindowServer "synchronize timed out" | stats count by host | eventstats values(host) as hosts | eval hosts=mvjoin(mvsort(hosts), ",")
 dispatch.earliest_time = -10m
 dispatch.latest_time = now
 cron_schedule = */5 * * * *
