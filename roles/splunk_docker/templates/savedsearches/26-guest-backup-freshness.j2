@@ -13,8 +13,10 @@
    exporter is not read as healthy. Its constant vmid "-" is its own throttle
    key: the sentinel notifies once, is suppressed for 24 hours, and notifies
    again every 24 hours for as long as the condition lasts.
+   Exempt names are rendered inside SPL double quotes with only the backslash
+   and the quote escaped, so every other character matches as written.
 --------------------------------------------------------------------------- #}
-{% set exempt = splunk_docker_guest_backup_exempt_names | map('tojson') | join(',') %}
+{% set exempt %}{% for name in splunk_docker_guest_backup_exempt_names %}"{{ name | replace('\\', '\\\\') | replace('"', '\\"') }}"{% if not loop.last %},{% endif %}{% endfor %}{% endset %}
 [guest_backup_missing]
 {{ alert_delivery -}}
 description = Notifies once per Proxmox guest (templates and the exempt names excluded) with no successful vzdump backup in the last {{ splunk_docker_guest_backup_max_age_hours }} hours, at most once per guest every 24 hours, and once every 24 hours while no guest is left to check (the PVE exporter reports none, or every reported guest is a template or exempt).

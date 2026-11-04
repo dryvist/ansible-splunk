@@ -65,6 +65,15 @@ else:
     if not (value("action.webhook.param.url") or "").startswith(NTFY):
         errors.append("FAIL: alert does not use the rendered notification destination")
 
+    # Exempt names render verbatim in SPL quotes; only backslash and quote are escaped.
+    odd_names = ["a<b&c'd", 'q"r', "x\\y"]
+    odd = ansible_env(TEMPLATES).get_template("savedsearches.conf.j2").render(
+        **{**render_values, "splunk_docker_guest_backup_exempt_names": odd_names}
+    )
+    odd_expected = 'search NOT name IN ("a<b&c\'d","q\\"r","x\\\\y")'
+    if odd_expected not in odd:
+        errors.append(f"FAIL: exempt names with special characters not rendered as {odd_expected!r}")
+
 if errors:
     print("\n".join(errors))
     sys.exit(1)
