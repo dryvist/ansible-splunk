@@ -50,7 +50,7 @@ else:
         f"search NOT name IN ({exempt})",
         f"index=os_proxmox earliest=-{hours}h",
         '"Finished Backup of VM"',
-        'name="(no guests reported)"',
+        'name="(no guests to check)"',
         "where isnull(last_backup)",
     ):
         if fragment not in search:
