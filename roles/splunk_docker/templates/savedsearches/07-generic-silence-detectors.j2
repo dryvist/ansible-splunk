@@ -55,7 +55,11 @@ disabled = {{ det.disabled | default(0) }}
 alert.severity = 3
 alert.suppress = 1
 alert.suppress.period = {{ det.suppress_minutes }}m
-{% if det.by_host | default(false) %}
+{% if det.digest | default(false) %}
+# One digest per suppress period: a single notification lists every silent
+# host, since silent_hosts stays on every row.
+alert.digest_mode = 1
+{% elif det.by_host | default(false) %}
 # One notification per silent host, suppressed per host: each host pages once
 # per suppress period. Keying a digest on the whole silent set re-paged every
 # host whenever any one host joined or left the set. silent_hosts stays on
@@ -192,11 +196,9 @@ is_visible = 1
 disabled = 0
 alert.severity = 3
 alert.suppress = 1
-alert.suppress.period = 60m
-# Scope suppression per index: without this, the first silent index
-# suppresses the alert globally and a second index going silent inside the
-# window goes unseen.
-alert.suppress.fields = index
+alert.suppress.period = 24h
+# One digest per day: a single notification lists every silent index.
+alert.digest_mode = 1
 alert.track = 1
 counttype = number of events
 relation = greater than

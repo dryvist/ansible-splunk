@@ -47,8 +47,8 @@ REQUIRED_LINES = (
     "cron_schedule = */5 * * * *",
     "alert.severity = 4",
     "alert.suppress = 1",
-    "alert.suppress.period = 60m",
-    "alert.suppress.fields = host",
+    "alert.suppress.period = 24h",
+    "alert.digest_mode = 1",
 )
 
 # Clauses owned by the neighbouring detectors; this search must not repeat them.
