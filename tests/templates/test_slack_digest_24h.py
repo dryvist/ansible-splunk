@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Guard the Slack digest on the saved searches that notify Slack.
+Guard the Slack digest on the listed saved searches that notify Slack.
 
 Each listed search sends at most one notification per 24 hours, and that
 notification lists every hit (digest_mode = 1). The suppression carries no
-per-key field, so the digest is not split per host, request or index.
+per-key field, so the digest is not split per host, request or index. Where a
+search has per-row values, its search also aggregates them onto every row.
 
 Asserts on the RENDERED savedsearches.conf, not the template source, so a
 variable that never reaches the template shows up here instead of at converge.
@@ -36,10 +37,36 @@ DIGESTED = (
     "pve_swap_active",
 )
 
+# The Slack webhook action sends only the first result row, so every row of a
+# digested search must carry the full list of its per-row values. Each entry is
+# (per-row field, list field): the search must hold eventstats values(<field>)
+# as <list field> and an mvjoin of that list.
+AGGREGATES = {
+    "os_silence_detector": (("host", "silent_hosts"),),
+    "index_gap_detector": (("index", "indexes"),),
+    "llm_pipeline_silence_detector": (("host", "hosts"),),
+    "offbox_sync_job_unhealthy": (("host", "hosts"), ("job", "jobs")),
+    "mac_windowserver_synchronize_timeout": (("host", "hosts"),),
+    "pve_swap_active": (("host", "hosts"),),
+}
+
+# llm_router_silence_detector has no per-row field: its search is one
+# fabric-wide row, so there is no list to carry.
+NO_LIST = ("llm_router_silence_detector",)
+
+if set(AGGREGATES) | set(NO_LIST) != set(DIGESTED):
+    sys.exit("AGGREGATES and NO_LIST must cover every DIGESTED search")
+
 
 def value(body, key):
     match = re.search(rf"^{re.escape(key)} = (.*)$", body, re.M)
     return match.group(1) if match else None
+
+
+def search_text(body):
+    # A search may continue onto following lines through a trailing backslash.
+    match = re.search(r"^search = ((?:.*\\\n)*.*)$", body, re.M)
+    return match.group(1) if match else ""
 
 
 def is_24h(period):
@@ -72,6 +99,16 @@ for name in DIGESTED:
     checks += 1
     if value(body, "alert.suppress.fields") is not None:
         errors.append(f"FAIL: [{name}] still sets alert.suppress.fields")
+    search = search_text(body)
+    for key, alias in AGGREGATES.get(name, ()):
+        aggregate = re.search(rf"eventstats\b[^|]*\bvalues\({key}\) as {alias}\b", search)
+        join = re.search(rf'\b{alias} ?= ?mvjoin\(mvsort\({alias}\), ?","\)', search)
+        checks += 1
+        if aggregate is None:
+            errors.append(f"FAIL: [{name}] search lacks eventstats values({key}) as {alias}")
+        checks += 1
+        if join is None or aggregate is None or join.start() < aggregate.start():
+            errors.append(f"FAIL: [{name}] search does not join {alias} with mvjoin(mvsort({alias}), \",\") after the eventstats")
 
 failed = len(errors)
 for err in errors:
@@ -79,4 +116,4 @@ for err in errors:
 print(f"{checks - failed} passed, {failed} failed, {checks} checks across {len(DIGESTED)} saved searches")
 if errors:
     sys.exit(1)
-print("PASS: every Slack-notifying saved search sends one digest per 24 hours")
+print("PASS: every listed saved search sends one digest per 24 hours and carries its per-row list")
