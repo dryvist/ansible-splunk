@@ -4,14 +4,16 @@
    The guest list comes from the PVE exporter (pve_guest_info, templates
    dropped). A backup counts when a node logs "Finished Backup of VM <id>",
    which vzdump writes only after a successful archive, for scheduled and
-   manual runs alike. One row per guest without one in the window; per-guest
-   suppression keeps a known gap to one notification a day. An empty guest
+   manual runs alike. One row per guest without one in the window. Each row
+   is its own notification (alert.digest_mode = 0) and is suppressed per vmid
+   for 24 hours, so a known gap costs one notification a day and a guest that
+   crosses the window later still notifies on the next run. An empty guest
    list fires one sentinel row, so a silent exporter is not read as healthy.
 --------------------------------------------------------------------------- #}
 {% set exempt = splunk_docker_guest_backup_exempt_names | map('tojson') | join(',') %}
 [guest_backup_missing]
 {{ alert_delivery -}}
-description = Fires once per Proxmox guest (templates and the exempt names excluded) with no successful vzdump backup in the last {{ splunk_docker_guest_backup_max_age_hours }} hours, and once when the PVE exporter reports no guests at all.
+description = Notifies once per Proxmox guest (templates and the exempt names excluded) with no successful vzdump backup in the last {{ splunk_docker_guest_backup_max_age_hours }} hours, at most once per guest every 24 hours, and once when the PVE exporter reports no guests at all.
 search = | mstats latest(_value) as info WHERE index=netmon_metrics metric_name=pve_guest_info earliest=-2h by id name node template | where template="0" | rex field=id "^(?<type>lxc|qemu)/(?<vmid>\d+)$" | search NOT name IN ({{ exempt }}) | join type=left vmid [ search index=os_proxmox earliest=-{{ splunk_docker_guest_backup_max_age_hours }}h "Finished Backup of VM" | rex "Finished Backup of VM (?<vmid>\d+)" | stats max(_time) as last_backup by vmid ] | appendpipe [ stats count as _rows | where _rows == 0 | eval vmid="-", name="(no guests reported)", node="-" | fields - _rows ] | where isnull(last_backup) | table node vmid name
 dispatch.earliest_time = -{{ splunk_docker_guest_backup_max_age_hours }}h
 dispatch.latest_time = now
@@ -20,6 +22,7 @@ enableSched = 1
 is_visible = 1
 disabled = 0
 alert.severity = 4
+alert.digest_mode = 0
 alert.suppress = 1
 alert.suppress.period = 24h
 alert.suppress.fields = vmid

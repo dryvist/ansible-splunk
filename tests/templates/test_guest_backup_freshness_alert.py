@@ -34,6 +34,7 @@ else:
         "dispatch.latest_time": "now",
         "cron_schedule": "17 * * * *",
         "disabled": "0",
+        "alert.digest_mode": "0",
         "alert.suppress": "1",
         "alert.suppress.period": "24h",
         "alert.suppress.fields": "vmid",
