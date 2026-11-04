@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.113.0](https://github.com/dryvist/ansible-splunk/compare/v0.112.2...v0.113.0) (2026-11-04)
+
+
+### Features
+
+* **splunk_docker:** alert on Proxmox guests without a backup in 48 hours ([#814](https://github.com/dryvist/ansible-splunk/issues/814)) ([f1fab3a](https://github.com/dryvist/ansible-splunk/commit/f1fab3a79f20e264d773d7da0916d201f5e3550b))
+
 ## [0.112.2](https://github.com/dryvist/ansible-splunk/compare/v0.112.1...v0.112.2) (2026-11-04)
 
 
