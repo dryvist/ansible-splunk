@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.114.0](https://github.com/dryvist/ansible-splunk/compare/v0.113.1...v0.114.0) (2026-11-05)
+
+
+### Features
+
+* **splunk:** aggregate host keys in alert digests ([#818](https://github.com/dryvist/ansible-splunk/issues/818)) ([6de4d12](https://github.com/dryvist/ansible-splunk/commit/6de4d1207e11c3449cab274901a0be299dc80504))
+
 ## [0.113.1](https://github.com/dryvist/ansible-splunk/compare/v0.113.0...v0.113.1) (2026-11-05)
 
 
