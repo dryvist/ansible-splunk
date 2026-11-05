@@ -16,11 +16,13 @@ Run from repo root:
 
 import re
 import sys
+import time
 from pathlib import Path
 
 from _defaults_loader import load_defaults
 
 from _render_env import ansible_env
+from _zero_row_simulator import run_eval_minutes_silent, run_where_threshold
 
 ROOT = Path(__file__).parent.parent.parent
 DEFAULTS = load_defaults(ROOT)
@@ -114,6 +116,21 @@ for name in DIGESTED:
         checks += 1
         if not re.search(r"tstats [^|]*\bby host\b", search):
             errors.append(f"FAIL: [{name}] takes last-seen across all hosts, so one active host hides a silent one")
+
+# The router takes last-seen per host over a 7-day lookback, so a host silent
+# for 3 days still reaches its daily digest. The dispatch window must match.
+router_body = stanzas.get("llm_router_silence_detector") or ""
+router_search = search_text(router_body)
+checks += 1
+if value(router_body, "dispatch.earliest_time") != "-7d" or "earliest=-7d" not in router_search:
+    errors.append("FAIL: [llm_router_silence_detector] does not look back 7 days per host")
+# A host last seen 3 days ago must be flagged; a host seen now must not.
+quiet = [{"host": "llm-router-quiet", "last_seen": time.time() - 3 * 86400}]
+fresh = [{"host": "llm-router-fresh", "last_seen": time.time()}]
+checks += 1
+fired = [row["host"] for row in run_where_threshold(run_eval_minutes_silent(quiet + fresh), router_search)]
+if fired != ["llm-router-quiet"]:
+    errors.append(f"FAIL: [llm_router_silence_detector] flagged {fired!r}, want only the host silent 3 days")
 
 failed = len(errors)
 for err in errors:
