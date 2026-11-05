@@ -28,8 +28,10 @@ description = Alerts when the LiteLLM router hosts stop emitting into index=os_a
 # appendpipe synthesizes the missing row: stats on the empty result set still
 # emits one row (an ungrouped aggregate always does), giving eval a row to
 # set last_seen = 0 on so the where clause below can fire. coalesce stays as
-# a second guard once that row exists.
-search = | tstats latest(_time) as last_seen WHERE index=os_ai host=llm-router-* | appendpipe [ stats count as _rows | where _rows == 0 | eval last_seen = 0 | fields - _rows ] | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > 15
+# a second guard once that row exists. Last-seen is kept per router host, so
+# one active router cannot hide a silent peer. eventstats puts the full silent
+# list on every row, so the digest's first row names every silent host.
+search = | tstats latest(_time) as last_seen WHERE index=os_ai host=llm-router-* by host | appendpipe [ stats count as _rows | where _rows == 0 | eval host = "(no router hosts reporting)", last_seen = 0 | fields - _rows ] | eval minutes_silent = (now() - coalesce(last_seen, 0)) / 60 | where minutes_silent > 15 | eventstats values(host) as silent_hosts | eval silent_hosts = mvjoin(mvsort(silent_hosts), ",")
 dispatch.earliest_time = -24h
 dispatch.latest_time = now
 cron_schedule = */5 * * * *

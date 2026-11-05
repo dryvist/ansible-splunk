@@ -48,14 +48,15 @@ AGGREGATES = {
     "offbox_sync_job_unhealthy": (("host", "hosts"), ("job", "jobs")),
     "mac_windowserver_synchronize_timeout": (("host", "hosts"),),
     "pve_swap_active": (("host", "hosts"),),
+    "llm_router_silence_detector": (("host", "silent_hosts"),),
 }
 
-# llm_router_silence_detector has no per-row field: its search is one
-# fabric-wide row, so there is no list to carry.
-NO_LIST = ("llm_router_silence_detector",)
+# The router takes last-seen per host, so one active router cannot hide a
+# silent peer. Every name here must group its tstats by host.
+PER_HOST = ("llm_router_silence_detector",)
 
-if set(AGGREGATES) | set(NO_LIST) != set(DIGESTED):
-    sys.exit("AGGREGATES and NO_LIST must cover every DIGESTED search")
+if set(AGGREGATES) != set(DIGESTED):
+    sys.exit("AGGREGATES must cover every DIGESTED search")
 
 
 def value(body, key):
@@ -109,6 +110,10 @@ for name in DIGESTED:
         checks += 1
         if join is None or aggregate is None or join.start() < aggregate.start():
             errors.append(f"FAIL: [{name}] search does not join {alias} with mvjoin(mvsort({alias}), \",\") after the eventstats")
+    if name in PER_HOST:
+        checks += 1
+        if not re.search(r"tstats [^|]*\bby host\b", search):
+            errors.append(f"FAIL: [{name}] takes last-seen across all hosts, so one active host hides a silent one")
 
 failed = len(errors)
 for err in errors:
