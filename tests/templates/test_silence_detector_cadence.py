@@ -195,15 +195,22 @@ for det in DETECTORS:
         errors.append(
             f"FAIL: [{name}] min_active_bins filter would drop the empty-index sentinel"
         )
-    # 6. One notification per silent host, suppressed per host, so a host
-    # joining or leaving the set does not re-page the others. Each row still
-    # carries the full set.
-    if (
-        'eventstats values(host) as silent_hosts' not in body
-        or not re.search(r"^alert\.digest_mode = 0$", body, re.M)
-        or not re.search(r"^alert\.suppress\.fields = host$", body, re.M)
-    ):
-        errors.append(f"FAIL: [{name}] does not page once per silent host")
+    # 6. Each row carries the full silent set. A digest entry sends one
+    # notification per period listing every silent host (no suppress.fields).
+    # Any other by_host entry notifies once per silent host, suppressed per
+    # host, so a host joining or leaving the set does not re-page the others.
+    if det.get("digest"):
+        pages_correctly = (
+            re.search(r"^alert\.digest_mode = 1$", body, re.M)
+            and not re.search(r"^alert\.suppress\.fields", body, re.M)
+        )
+    else:
+        pages_correctly = (
+            re.search(r"^alert\.digest_mode = 0$", body, re.M)
+            and re.search(r"^alert\.suppress\.fields = host$", body, re.M)
+        )
+    if 'eventstats values(host) as silent_hosts' not in body or not pages_correctly:
+        errors.append(f"FAIL: [{name}] does not page correctly for its silent-host set")
     # 5. An event-driven host (p95 gap above max_baseline_minutes) is skipped.
     if "max_baseline_minutes" in det and (
         f"coalesce(p95_gap_minutes, 0) <= {det['max_baseline_minutes']}" not in body

@@ -60,7 +60,8 @@ contracts = {
     },
     "pve_swap_active": {
         "severity": "4",
-        "fields": "host",
+        "period": "24h",
+        "digest": True,
         "search": (
             "latest(node_memory_SwapTotal_bytes) as t",
             "latest(node_memory_SwapFree_bytes) as f",
@@ -96,12 +97,17 @@ for name, contract in contracts.items():
         "disabled": "0",
         "alert.severity": contract["severity"],
         "alert.suppress": "1",
-        "alert.suppress.period": "6h",
-        "alert.suppress.fields": contract["fields"],
+        "alert.suppress.period": contract.get("period", "6h"),
         "counttype": "number of events",
         "relation": "greater than",
         "quantity": "0",
     }
+    if contract.get("digest"):
+        # One digest per period: no per-key suppression, so no suppress.fields.
+        expected["alert.digest_mode"] = "1"
+        expected["alert.suppress.fields"] = None
+    else:
+        expected["alert.suppress.fields"] = contract["fields"]
     for key, expected_value in expected.items():
         if value(body, key) != expected_value:
             errors.append(

@@ -55,7 +55,11 @@ disabled = {{ det.disabled | default(0) }}
 alert.severity = 3
 alert.suppress = 1
 alert.suppress.period = {{ det.suppress_minutes }}m
-{% if det.by_host | default(false) %}
+{% if det.digest | default(false) %}
+# One digest per suppress period: a single notification lists every silent
+# host, since silent_hosts stays on every row.
+alert.digest_mode = 1
+{% elif det.by_host | default(false) %}
 # One notification per silent host, suppressed per host: each host pages once
 # per suppress period. Keying a digest on the whole silent set re-paged every
 # host whenever any one host joined or left the set. silent_hosts stays on
@@ -182,7 +186,7 @@ quantity = 0
 [index_gap_detector]
 {{ alert_delivery -}}
 description = Alerts when any index has gone silent longer than its configured threshold (default 1440 minutes), using the index's own last-write time rather than event time so a clock-skewed or unparsed sourcetype cannot hide behind a false "recently updated" reading. Replaces the flat per-index silence detectors with one report over every index this role creates. An index flagged exempt (see 11b-silence-exemptions.yml) never fires here regardless of age -- see [index_gap_exempt_report] below for the non-paging visibility into that exempt set.
-search = | tstats max(_indextime) as last_indexed where index=* _index_earliest=-{{ gap_lookback_minutes }}m _index_latest=now by index | append [ | makeresults | eval index="{{ gap_expected_indexes | join(',') }}" | eval index=split(index, ",") | mvexpand index | eval last_indexed=0 ] | stats max(last_indexed) as last_indexed by index | eval age_min = round((now() - last_indexed) / 60) | eval threshold_minutes = case({% for det in flat_detectors %}index="{{ det.index }}", {{ det.threshold_minutes }}, {% endfor %}true(), 1440){% if exempt_detectors %} | eval exempt = if(in(index{% for det in exempt_detectors %}, "{{ det.index }}"{% endfor %}), 1, 0) | where exempt=0 AND age_min > threshold_minutes{% else %} | where age_min > threshold_minutes{% endif %}
+search = | tstats max(_indextime) as last_indexed where index=* _index_earliest=-{{ gap_lookback_minutes }}m _index_latest=now by index | append [ | makeresults | eval index="{{ gap_expected_indexes | join(',') }}" | eval index=split(index, ",") | mvexpand index | eval last_indexed=0 ] | stats max(last_indexed) as last_indexed by index | eval age_min = round((now() - last_indexed) / 60) | eval threshold_minutes = case({% for det in flat_detectors %}index="{{ det.index }}", {{ det.threshold_minutes }}, {% endfor %}true(), 1440){% if exempt_detectors %} | eval exempt = if(in(index{% for det in exempt_detectors %}, "{{ det.index }}"{% endfor %}), 1, 0) | where exempt=0 AND age_min > threshold_minutes{% else %} | where age_min > threshold_minutes{% endif %} | eventstats values(index) as indexes | eval indexes=mvjoin(mvsort(indexes), ",")
 
 dispatch.earliest_time = -{{ gap_lookback_minutes }}m
 dispatch.latest_time = now
@@ -192,11 +196,9 @@ is_visible = 1
 disabled = 0
 alert.severity = 3
 alert.suppress = 1
-alert.suppress.period = 60m
-# Scope suppression per index: without this, the first silent index
-# suppresses the alert globally and a second index going silent inside the
-# window goes unseen.
-alert.suppress.fields = index
+alert.suppress.period = 24h
+# One digest per day: a single notification lists every silent index.
+alert.digest_mode = 1
 alert.track = 1
 counttype = number of events
 relation = greater than
