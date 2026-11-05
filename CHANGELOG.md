@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.114.1](https://github.com/dryvist/ansible-splunk/compare/v0.114.0...v0.114.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **splunk:** check router silence over a 7-day lookback ([#822](https://github.com/dryvist/ansible-splunk/issues/822)) ([5d0ac31](https://github.com/dryvist/ansible-splunk/commit/5d0ac31b77cd5529eecb3b2c0a083da6b368da78))
+
 ## [0.114.0](https://github.com/dryvist/ansible-splunk/compare/v0.113.1...v0.114.0) (2026-11-05)
 
 
