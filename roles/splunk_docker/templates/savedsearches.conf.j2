@@ -39,6 +39,13 @@ action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/
 {% endif %}
 {% endset %}
 
+{% set report_delivery %}
+{% if splunk_docker_alert_ntfy_url %}
+action.webhook = 1
+action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/reports{{ splunk_docker_alert_ntfy_query | replace('priority=high', 'priority=default') }}
+{% endif %}
+{% endset %}
+
 {% include 'savedsearches/01-macos-edge.j2' %}
 
 {% include 'savedsearches/02-llm-pipeline.j2' %}
@@ -92,5 +99,7 @@ action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/
 {% include 'savedsearches/25-langfuse-ingest.j2' %}
 
 {% include 'savedsearches/26-guest-backup-freshness.j2' %}
+
+{% include 'savedsearches/27-gpu-real-work.j2' %}
 
 {% include 'savedsearches/19-unifi-wan.j2' %}

@@ -10,4 +10,6 @@ enable_allowlist = true
 allowlist.ntfy = ^{{ splunk_docker_alert_ntfy_url | regex_escape }}(\?.*)?$
 # The status topic on the same hub (status_delivery in savedsearches.conf.j2).
 allowlist.ntfy_status = ^{{ (splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] ~ '/status') | regex_escape }}(\?.*)?$
+# The reports topic on the same hub (report_delivery in savedsearches.conf.j2).
+allowlist.ntfy_reports = ^{{ (splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] ~ '/reports') | regex_escape }}(\?.*)?$
 {% endif %}
