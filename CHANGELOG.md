@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.114.3](https://github.com/dryvist/ansible-splunk/compare/v0.114.2...v0.114.3) (2026-11-07)
+
+
+### Bug Fixes
+
+* **ci:** run the AI merge gate reviews on the review runner ([#831](https://github.com/dryvist/ansible-splunk/issues/831)) ([2e55067](https://github.com/dryvist/ansible-splunk/commit/2e5506723a34eef84c09895508e19b4f0447454c))
+
 ## [0.114.2](https://github.com/dryvist/ansible-splunk/compare/v0.114.1...v0.114.2) (2026-11-07)
 
 
