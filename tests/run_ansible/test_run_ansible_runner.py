@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import textwrap
@@ -94,6 +95,12 @@ class RunAnsibleRunnerShim(unittest.TestCase):
         return json.loads(self.capture.read_text(encoding="utf-8"))
 
     def test_execs_pinned_runner_with_repo_defaults_and_all_arguments(self):
+        pinned_ref = re.search(
+            r"^HOMELAB_CONTRACTS_REF=(v\d+\.\d+\.\d+)$",
+            RUNNER.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(pinned_ref, "runner must pin a release version")
         args = ("playbooks/site.yml", "--limit", "splunk-vm", "--tags", "configure")
         result = self._run(args)
 
@@ -103,7 +110,7 @@ class RunAnsibleRunnerShim(unittest.TestCase):
             captured["argv"],
             [
                 "run",
-                "github:dryvist/homelab-contracts/v5.32.0#run-ansible",
+                f"github:dryvist/homelab-contracts/{pinned_ref[1]}#run-ansible",
                 "--",
                 *args,
             ],
