@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.114.2](https://github.com/dryvist/ansible-splunk/compare/v0.114.1...v0.114.2) (2026-11-07)
+
+
+### Bug Fixes
+
+* **ci:** require agent platform conformance ([3c1fa89](https://github.com/dryvist/ansible-splunk/commit/3c1fa89aa7c962a9c85309e70a16fd61f132c8bc))
+
 ## [0.114.1](https://github.com/dryvist/ansible-splunk/compare/v0.114.0...v0.114.1) (2026-11-05)
 
 
