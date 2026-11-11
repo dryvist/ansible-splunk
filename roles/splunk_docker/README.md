@@ -135,15 +135,17 @@ The Splunk MCP Server (app 7931) enables AI agents to query Splunk directly
 via the Model Context Protocol (MCP). The MCP JSON-RPC endpoint clients connect
 to is `<mgmt-base>/services/mcp` (for example,
 `SPLUNK_MCP_URL=https://<host>:8089/services/mcp`).
-Tokens are minted via the app's `/services/mcp_token` endpoint. Configure the MCP client in
-`~/git/nix-ai/main/modules/mcp/default.nix`.
+Managed users default to tokens minted via the app's `/services/mcp_token`
+endpoint. A user's `token_audience` can select the native Splunk token API for
+other consumers, with a probe against the matching API before publication.
+Configure the MCP client in `~/git/nix-ai/main/modules/mcp/default.nix`.
 
 When OpenBao publication is enabled, the role writes the shared connection as
 `SPLUNK_MCP_URL` and `SPLUNK_MCP_TOKEN` at `secret/ai/mcp/splunk`. The KV-v2
 write preserves sibling fields and uses metadata-based compare-and-set, including
 when the latest secret version was soft-deleted. The publishing token needs
 KV-v2 data read/write, metadata read, and undelete access for this exact path.
-Every converge validates the published JWT's subject, audience, validity window,
+Every converge validates the published token's subject, audience, validity window,
 and token ID against Splunk; inventory presence alone never suppresses repair of
 a missing or invalid canonical credential, and duplicate live tokens trigger
 replacement so a failed cleanup is recovered by the next default converge.

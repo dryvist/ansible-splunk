@@ -35,3 +35,16 @@ assert re.search(
 assert source.count("TODO: Restrict indexes") == 1
 
 print("PASS: open-llm grants only search and MCP execution with bounded quotas")
+
+search_user = next(user for user in inventory["splunk_docker_users"] if user["name"] == "svc-platform-search")
+assert search_user["roles"] == ["hermes_search"]
+assert search_user["token_audience"] == "platform-search"
+assert search_user["token_openbao_path"] == "platform/splunk/search"
+assert search_user["token_openbao_key"] == "SPLUNK_TOKEN"
+assert search_user["url_openbao_key"] == ""
+
+search_role = next(role for role in inventory["splunk_docker_roles"] if role["name"] == "hermes_search")
+assert "admin" not in search_role["capabilities"]
+assert "user" in search_role["imported_roles"]
+
+print("PASS: platform search uses the existing non-admin search role and its own token leaf")

@@ -1,5 +1,6 @@
 ---
 ansible_host: splunk.example.test
+splunk_docker_user_token_audience: mcp
 splunk_user:
   name: hermes
   roles: [admin]

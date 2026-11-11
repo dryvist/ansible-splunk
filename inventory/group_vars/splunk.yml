@@ -150,6 +150,13 @@ splunk_docker_users:
     token_openbao_path: "apps/llamaindex"
     token_openbao_key: "splunk_search_token"
     url_openbao_key: ""
+  - name: svc-platform-search
+    roles:
+      - hermes_search
+    token_audience: "platform-search"
+    token_openbao_path: "platform/splunk/search"
+    token_openbao_key: "SPLUNK_TOKEN"
+    url_openbao_key: ""
 
 # svc-mcp-rotator is NOT in splunk_docker_users above — see
 # defaults/main/03-users-tokens-mcp.yml for why. This turns on its separate
