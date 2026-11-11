@@ -1,11 +1,9 @@
 ---
 # Prove the replacement token before it displaces the published one.
 #
-# Claims come from Splunk's own token listing, not from decoding the token:
-# /services/mcp_token returns an opaque two-segment string, so there is nothing
-# to decode. Liveness comes from actually using it (probe_mcp_token.yml), which
-# is the only evidence that matters - a token that publishes but cannot
-# authenticate takes the MCP integration down until someone notices.
+# Claims come from Splunk's own token listing, not from decoding the token.
+# MCP app tokens are opaque; native tokens can be JWTs. Liveness comes from
+# actually using the token in probe_mcp_token.yml, before publication.
 
 - name: "Verify minted token identity for {{ splunk_user.name }}"
   ansible.builtin.assert:
@@ -14,10 +12,10 @@
       - splunk_docker_minted_id_count | int == 1
       - splunk_docker_new_token_id | length > 0
       - splunk_docker_minted_claims.get('sub', '') == splunk_user.name
-      - splunk_docker_minted_claims.get('aud', '') == splunk_docker_token_audience
-      - splunk_docker_mcp_probe_ok | bool
+      - splunk_docker_minted_claims.get('aud', '') == splunk_docker_user_token_audience
+      - splunk_docker_token_probe_ok | bool
     fail_msg: >-
       The minted Splunk token could not be confirmed - it is not exactly one new
-      token carrying the managed identity and authenticating against the MCP
-      endpoint. Nothing was published.
+      token carrying the managed identity and authenticating against its
+      audience endpoint. Nothing was published.
   no_log: true

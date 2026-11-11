@@ -1,10 +1,14 @@
 ---
-# Catch auth tokens that belong to nobody this role manages.
+# Catch auth tokens that belong to nobody this role manages, and tokens owned
+# by a managed user whose audience is neither its primary audience nor an
+# explicitly retained extra audience.
 #
 # Token reconciliation selects by `claims.sub == splunk_user.name` and iterates
 # `splunk_docker_users`. A token owned by anyone NOT in that list is therefore
 # in neither the eligible set nor the cleanup set: it is never evaluated, never
-# rotated and never removed. Nothing else in this role looks at it.
+# rotated and never removed. Tokens for a managed user still need the primary
+# audience or one of that user's declared extra audiences; otherwise an
+# old-audience credential would be hidden from the undeclared-owner gate.
 #
 # That is not hypothetical. Two tokens belonging to the built-in administrator
 # survived two months past the identity that superseded them, still valid,
@@ -37,30 +41,48 @@
   no_log: true
 
 # Expired tokens cannot authenticate, so they are not a finding — only clutter.
+# An expiry of zero means the token does not expire, matching reconciliation.
 # `now()` renders at evaluation time; the ansible_date_time fact freezes at
 # gather time, which on a long converge is the wrong "now" — same reasoning
 # as plan_token_reconciliation.yml.
-# Judging on the expiry CLAIM rather than the `status` field is deliberate: the
-# platform reports an expired token as "enabled", so a check reading status
-# counts credentials that cannot be used and misses none that can.
+# Status is the same liveness test cleanup uses: disabled tokens cannot
+# authenticate even when their expiry claim is still in the future. Expiry is
+# also checked because the platform can report expired tokens as "enabled".
 #
 # Written as a loop rather than a selectattr chain because `exp` comes back as
 # a JSON number on some platform versions and a quoted string on others, and
 # `selectattr(..., 'gt', ...)` compares the raw value -- a string against an
 # int raises, so the whole gate errors out instead of judging the token. The
 # cast has to happen per entry, which selectattr cannot express.
-- name: Select live tokens whose owner is not a declared user
+- name: Load every listed token for the liveness rule
+  ansible.builtin.set_fact:
+    splunk_docker_liveness_input: "{{ splunk_docker_all_tokens.json.entry | default([]) }}"
+  no_log: true
+
+- name: Apply the token liveness rule to every listed token
+  ansible.builtin.include_tasks: select_live_tokens.yml
+
+- name: Select live tokens with an undeclared owner or audience
   ansible.builtin.set_fact:
     splunk_docker_undeclared_tokens: >-
-      {%- set current_epoch = now(utc=true, fmt='%s') | int -%}
       {%- set managed = (splunk_docker_users | map(attribute='name') | list)
                         + splunk_docker_token_owner_exceptions -%}
+      {%- set managed_names = splunk_docker_users | map(attribute='name') | list -%}
       {%- set undeclared = [] -%}
-      {%- for entry in (splunk_docker_all_tokens.json.entry | default([])) -%}
+      {%- for entry in splunk_docker_live_tokens -%}
       {%-   set claims = (entry.content | default({})).claims | default({}) -%}
-      {%-   if claims.sub is defined and claims.exp is defined
-               and (claims.exp | int) > current_epoch
-               and claims.sub not in managed -%}
+      {%-   set managed_user = (splunk_docker_users
+                               | selectattr('name', 'equalto', claims.sub | default(''))
+                               | list | first | default({})) -%}
+      {%-   set declared_audience = managed_user.token_audience
+                                    | default(splunk_docker_token_audience) -%}
+      {%-   set extra_audiences = managed_user.token_extra_audiences | default([]) -%}
+      {%-   if claims.sub is defined
+               and (claims.sub not in managed
+                    or (claims.sub in managed_names
+                        and claims.sub not in splunk_docker_token_owner_exceptions
+                        and (claims.aud | default('')) != declared_audience
+                        and (claims.aud | default('')) not in extra_audiences)) -%}
       {%-     set _ = undeclared.append(entry) -%}
       {%-   endif -%}
       {%- endfor -%}
@@ -70,20 +92,22 @@
 # Owners only. The token id is not printed: it is not usable on its own, but
 # there is no reason to put credential-adjacent identifiers in a converge log
 # when the owner is what a reader needs in order to act.
-- name: Assert no live token belongs to an owner this role does not manage
+- name: Assert no live token has an undeclared owner or audience
   ansible.builtin.assert:
     that:
       - splunk_docker_undeclared_tokens | length == 0
     fail_msg: >-
       {{ splunk_docker_undeclared_tokens | length }} live auth token(s) belong
-      to owners this role does not manage:
+      to undeclared owners or use an undeclared audience:
       {{ splunk_docker_undeclared_tokens
          | map(attribute='content.claims.sub') | unique | sort | join(', ') }}.
-      Reconciliation only ever visits declared users, so these are never
-      rotated and never removed — they simply persist. Either revoke them, or
-      add the owner to splunk_docker_token_owner_exceptions with a comment
-      saying why it is deliberate. Do not silence this by declaring the
-      administrator as a managed user: that would put its tokens into the
-      rotation path rather than out of existence.
+      Reconciliation only visits each managed user's declared audience.
+      Revoke unintended off-audience tokens, declare a legitimate value in
+      token_extra_audiences, or add an unmanaged owner to
+      splunk_docker_token_owner_exceptions with a comment saying why it is
+      deliberate. Do not silence this by declaring the administrator as a
+      managed user: that would put its tokens into the rotation path rather
+      than out of existence.
     success_msg: >-
-      Every live auth token belongs to a declared user or a named exception.
+      Every live auth token belongs to a declared user for its declared audience
+      or to a named exception.

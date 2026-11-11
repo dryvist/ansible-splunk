@@ -14,10 +14,7 @@
     status_code: [200, 404]
   register: splunk_docker_user_lookup
   no_log: true
-  # Read-only existence check, and it has to run under --check as well. Skipped,
-  # the create task below evaluates an undefined status and the whole dry run
-  # dies here — so --check could never reach the tasks after this point, which
-  # is most of the role.
+  # Read-only; runs under --check so the dry run can reach the rest of the role.
   check_mode: false
 
 # Password is a fresh random string used ONLY at creation — the token is the
@@ -54,9 +51,8 @@
   when: splunk_docker_user_lookup.status == 200
   no_log: true
 
-# A Splunk auth-token JWT is returned exactly once, at creation. Mint only with
-# an OpenBao delivery path, validate that canonical credential every converge,
-# and never revoke its predecessor until a replacement is durably published.
+# A token is returned once, at creation: mint only with an OpenBao delivery
+# path, and never revoke the predecessor before the replacement is published.
 - name: "Ensure a live token for {{ splunk_user.name }}"
   when: splunk_docker_token_publish_openbao | bool
   block:
@@ -72,8 +68,7 @@
         validate_certs: false
         status_code: [200]
       register: splunk_docker_token_list
-      # Read-only lookup whose result gates later tasks. Must run under --check
-      # too, or the dry run dies on an undefined result before reaching them.
+      # Read-only gate input; runs under --check.
       check_mode: false
       no_log: true
 
@@ -90,8 +85,7 @@
         status_code: [200, 404]
       delegate_to: localhost
       register: splunk_docker_bao_current
-      # Read-only lookup whose result gates later tasks. Must run under --check
-      # too, or the dry run dies on an undefined result before reaching them.
+      # Read-only gate input; runs under --check.
       check_mode: false
       no_log: true
 
@@ -175,23 +169,40 @@
             splunk_docker_new_token_id: ""
           no_log: true
 
-        - name: "Mint authorization token for {{ splunk_user.name }}"
+        - name: "Mint {{ splunk_docker_user_token_audience }} token for {{ splunk_user.name }}"
           ansible.builtin.uri:
             url: >-
-              https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/mcp_token/tokens?username={{ splunk_user.name }}{{
-              ('&expires_on=' ~ (splunk_docker_token_expires_on | urlencode)) if (splunk_docker_token_expires_on | length > 0) else '' }}
+              {{ ('https://127.0.0.1:' ~ splunk_docker_mgmt_port ~ '/services/mcp_token/tokens?username=' ~
+                  (splunk_user.name | urlencode) ~
+                  (('&expires_on=' ~ (splunk_docker_token_expires_on | urlencode))
+                   if splunk_docker_token_expires_on | length > 0 else ''))
+                 if splunk_docker_user_token_audience == 'mcp'
+                 else 'https://127.0.0.1:' ~ splunk_docker_mgmt_port ~ '/services/authorization/tokens?output_mode=json' }}
             method: POST
             user: "{{ splunk_admin_user | default('admin') }}"
             password: "{{ splunk_docker_password }}"
             force_basic_auth: true
             validate_certs: false
+            body_format: form-urlencoded
+            body: >-
+              {{ {'name': splunk_user.name,
+                  'audience': splunk_docker_user_token_audience}
+                 | combine({'expires_on': splunk_docker_token_expires_on}
+                   if (splunk_docker_token_expires_on | length > 0) else {})
+                 if splunk_docker_user_token_audience != 'mcp' else omit }}
             status_code: [200, 201]
           register: splunk_docker_token_mint
           no_log: true
 
-        # Must come BEFORE identity is recorded: the mint response has no id,
-        # so the new token is identified by diffing this listing against the
-        # one taken before the mint.
+        - name: "Extract {{ splunk_docker_user_token_audience }} token for {{ splunk_user.name }}"
+          ansible.builtin.set_fact:
+            splunk_docker_token_mint_value: >-
+              {{ splunk_docker_token_mint.json.token
+                 if splunk_docker_user_token_audience == 'mcp'
+                 else splunk_docker_token_mint.json.entry[0].content.token }}
+          no_log: true
+
+        # Post-mint listing diff: a concurrent token is never taken as this one.
         - name: "Re-list tokens after minting for {{ splunk_user.name }}"
           ansible.builtin.uri:
             url: >-
@@ -211,7 +222,7 @@
 
         - name: "Probe minted token for {{ splunk_user.name }}"
           vars:
-            splunk_docker_token_to_probe: "{{ splunk_docker_token_mint.json.token }}"
+            splunk_docker_token_to_probe: "{{ splunk_docker_token_mint_value }}"
           ansible.builtin.include_tasks: probe_mcp_token.yml
 
         - name: "Verify minted token identity for {{ splunk_user.name }}"
@@ -230,7 +241,7 @@
             body:
               data: >-
                 {{ splunk_docker_bao_source_data | combine({
-                       splunk_docker_user_token_openbao_key: splunk_docker_token_mint.json.token
+                       splunk_docker_user_token_openbao_key: splunk_docker_token_mint_value
                      }) | combine(
                        ({splunk_docker_user_url_openbao_key: splunk_docker_mcp_url}
                         if splunk_docker_user_url_openbao_key | length > 0 else {})
@@ -242,9 +253,8 @@
           delegate_to: localhost
           no_log: true
       rescue:
-        # The id goes in the query string. Splunk answers 200 either way, but a
-        # request that does not name a real id simply deletes nothing - a
-        # revocation that silently no-ops is worse than one that errors.
+        # The id goes in the query string: Splunk answers 200 even when no id
+        # matches, so a wrong shape would silently revoke nothing.
         - name: "Remove unpublished replacement token for {{ splunk_user.name }}"
           ansible.builtin.uri:
             url: >-
@@ -294,7 +304,7 @@
       ansible.builtin.include_tasks: plan_token_cleanup.yml
       when: splunk_docker_token_mint_required
 
-    - name: "Revoke noncanonical eligible tokens for {{ splunk_user.name }} / {{ splunk_docker_token_audience }}"
+    - name: "Revoke noncanonical eligible tokens for {{ splunk_user.name }} / {{ splunk_docker_user_token_audience }}"
       ansible.builtin.uri:
         url: >-
           https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authorization/tokens/{{

@@ -126,6 +126,14 @@ splunk_docker_roles:
     capabilities:
       - mcp_tool_execute
       - search
+  # Platform search is a native authorization-token identity, not an MCP
+  # client. It gets search only over the declared non-internal indexes.
+  - name: platform_search
+    imported_roles: []
+    srch_indexes_allowed: "{{ splunk_docker_indexes | map(attribute='name') | list }}"
+    srch_indexes_default: "{{ splunk_docker_indexes | map(attribute='name') | list }}"
+    capabilities:
+      - search
   # Grants ONLY the capability to mint/manage tokens for other users — no
   # imported_roles, no index access. Held by svc-mcp-rotator (below), never by
   # hermes: minting is a separate identity from searching.
@@ -147,8 +155,16 @@ splunk_docker_users:
   - name: svc-llamaindex-search
     roles:
       - agent_session_search
+    token_extra_audiences: ["llamaindex-agent-sessions"]
     token_openbao_path: "apps/llamaindex"
     token_openbao_key: "splunk_search_token"
+    url_openbao_key: ""
+  - name: svc-platform-search
+    roles:
+      - platform_search
+    token_audience: "platform-search"
+    token_openbao_path: "platform/splunk/search"
+    token_openbao_key: "SPLUNK_TOKEN"
     url_openbao_key: ""
 
 # svc-mcp-rotator is NOT in splunk_docker_users above — see

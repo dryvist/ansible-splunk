@@ -1,21 +1,23 @@
 ---
 # Decide whether the token published in OpenBao is still the one good token.
 #
-# This used to decode the published string as a JWT and compare its claims.
-# /services/mcp_token does not return a JWT - it returns an opaque two-segment
-# token - so the decode could never succeed, the token was judged invalid on
-# every run, and the role reminted on every converge. See probe_mcp_token.yml.
+# Do not decode the published string as a JWT: MCP app tokens are opaque, while
+# native tokens have a different representation. See the server's token listing
+# for identity and probe_mcp_token.yml for liveness.
 #
 # Identity comes from the server instead, and needs no decoding. The eligible
-# list is already filtered server-side on sub, aud, status, exp and nbr. So if
-# exactly one token is eligible for this user and audience, and the published
-# string authenticates against that audience's endpoint, the published string
-# IS that token - nothing else could have authenticated.
+# list is filtered on sub, status, exp and nbr across every audience the user
+# owns, so the one eligible token must also carry the declared audience. If it
+# does, and the published string authenticates against that audience's
+# endpoint, the published string IS that token. A lone token on an old audience
+# can pass a probe that ignores aud, so it is not canonical and gets replaced.
 
 - name: "Evaluate the published token for {{ splunk_user.name }}"
   ansible.builtin.set_fact:
     splunk_docker_bao_token_valid: >-
       {{ (splunk_docker_bao_published_token | default('', true) | length > 0)
-         and (splunk_docker_mcp_probe_ok | bool)
-         and (splunk_docker_eligible_tokens | length == 1) }}
+         and (splunk_docker_token_probe_ok | bool)
+         and (splunk_docker_eligible_tokens | length == 1)
+         and ((splunk_docker_eligible_tokens | first).content.claims.aud | default('')
+              == splunk_docker_user_token_audience) }}
   no_log: true

@@ -14,7 +14,7 @@
 - name: Evaluate a published token that probes live
   vars:
     splunk_docker_bao_published_token: "{{ opaque_published_token }}"
-    splunk_docker_mcp_probe_ok: true
+    splunk_docker_token_probe_ok: true
     splunk_docker_eligible_tokens: "{{ sole_eligible_token }}"
   ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/evaluate_canonical_token.yml
 
@@ -27,7 +27,7 @@
 - name: Evaluate a published token that fails its probe
   vars:
     splunk_docker_bao_published_token: "{{ opaque_published_token }}"
-    splunk_docker_mcp_probe_ok: false
+    splunk_docker_token_probe_ok: false
     splunk_docker_eligible_tokens: "{{ sole_eligible_token }}"
   ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/evaluate_canonical_token.yml
 
@@ -38,7 +38,7 @@
 - name: Evaluate an empty published token
   vars:
     splunk_docker_bao_published_token: ""
-    splunk_docker_mcp_probe_ok: true
+    splunk_docker_token_probe_ok: true
     splunk_docker_eligible_tokens: "{{ sole_eligible_token }}"
   ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/evaluate_canonical_token.yml
 
@@ -51,7 +51,7 @@
 - name: Evaluate with more than one eligible token
   vars:
     splunk_docker_bao_published_token: "{{ opaque_published_token }}"
-    splunk_docker_mcp_probe_ok: true
+    splunk_docker_token_probe_ok: true
     splunk_docker_eligible_tokens: "{{ duplicate_eligible_tokens }}"
   ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/evaluate_canonical_token.yml
 

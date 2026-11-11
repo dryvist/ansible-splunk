@@ -1,0 +1,146 @@
+---
+- name: Load the native platform-search fixture
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/fixtures/platform_search_vars.yml"
+    name: platform_search_scenario_fixture
+
+- name: Set platform-search scenario inputs from the native fixture
+  ansible.builtin.set_fact:
+    splunk_docker_mgmt_port: "{{ platform_search_scenario_fixture.splunk_docker_mgmt_port }}"
+    splunk_docker_user_token_audience: "{{ platform_search_scenario_fixture.splunk_docker_user_token_audience }}"
+    splunk_docker_token_expires_on: "{{ platform_search_scenario_fixture.splunk_docker_token_expires_on }}"
+    splunk_docker_token_to_probe: ""
+    splunk_user: "{{ platform_search_scenario_fixture.splunk_user }}"
+    splunk_docker_token_list: >-
+      {{ platform_search_scenario_fixture.splunk_docker_token_list
+         | combine({'json': {'entry':
+             platform_search_scenario_fixture.splunk_docker_token_list.json.entry
+             | rejectattr('name', 'equalto', platform_search_scenario_fixture.splunk_docker_new_token_id)
+             | list}}) }}
+    splunk_docker_token_list_after_mint: "{{ platform_search_scenario_fixture.splunk_docker_token_list }}"
+
+- name: Exercise the real platform-search probe flow without making an HTTP request
+  ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/probe_mcp_token.yml
+
+- name: Verify platform-search defaults to the search probe
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_user_token_probe == 'search'
+    fail_msg: >-
+      A platform-search audience without token_probe must default to the search
+      endpoint probe.
+
+- name: Simulate a successful platform-search token probe
+  ansible.builtin.set_fact:
+    splunk_docker_token_probe:
+      status: 200
+      content: '{"sid":"native-search-result"}'
+
+- name: Record the successful native probe result
+  ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/record_token_probe_outcome.yml
+
+- name: Save the successful native probe result
+  ansible.builtin.set_fact:
+    platform_search_probe_200_accepted: "{{ splunk_docker_token_probe_ok | bool }}"
+
+- name: Record the minted platform-search identity from the listing diff
+  ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/record_minted_identity.yml
+
+- name: Verify the minted platform-search identity
+  ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/verify_minted_identity.yml
+
+- name: Save the accepted platform-search identity
+  ansible.builtin.set_fact:
+    platform_search_minted_id: "{{ splunk_docker_new_token_id }}"
+    platform_search_minted_claims: "{{ splunk_docker_minted_claims }}"
+
+- name: Exercise rejection of a platform-search probe returning 401
+  block:
+    - name: Simulate an unauthorized platform-search token probe
+      ansible.builtin.set_fact:
+        splunk_docker_token_probe:
+          status: 401
+          content: ""
+
+    - name: Record the unauthorized native probe result
+      ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/record_token_probe_outcome.yml
+
+    - name: Save the unauthorized native probe result
+      ansible.builtin.set_fact:
+        platform_search_probe_401_ok: "{{ splunk_docker_token_probe_ok | bool }}"
+
+    - name: Verify the minted identity with the failed native probe
+      ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/verify_minted_identity.yml
+  rescue:
+    - name: Record rejection of a platform-search probe returning 401
+      ansible.builtin.set_fact:
+        platform_search_probe_401_rejected: "{{ not (platform_search_probe_401_ok | default(true) | bool) }}"
+
+- name: Restore the correct native listing diff before audience rejection
+  ansible.builtin.set_fact:
+    splunk_docker_token_list_after_mint: "{{ platform_search_scenario_fixture.splunk_docker_token_list }}"
+    splunk_docker_token_probe_ok: true
+
+- name: Exercise rejection when the minted platform-search token has aud=mcp
+  block:
+    - name: Simulate a newly minted token with the wrong audience
+      ansible.builtin.set_fact:
+        splunk_docker_token_list_after_mint:
+          json:
+            entry:
+              - name: old-mcp-token
+                content:
+                  status: enabled
+                  claims: {sub: svc-platform-search, aud: mcp, nbr: 0, exp: 0}
+              - name: "{{ platform_search_scenario_fixture.splunk_docker_new_token_id }}"
+                content:
+                  status: enabled
+                  claims: {sub: svc-platform-search, aud: mcp, nbr: 0, exp: 0}
+
+    - name: Record the wrong-audience identity from the listing diff
+      ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/record_minted_identity.yml
+
+    - name: Confirm the wrong-audience listing diff is the intended rejection case
+      ansible.builtin.set_fact:
+        platform_search_wrong_audience_identity_recorded: >-
+          {{ splunk_docker_minted_id_count | int == 1
+             and splunk_docker_new_token_id == platform_search_scenario_fixture.splunk_docker_new_token_id
+             and splunk_docker_minted_claims.get('sub', '') == 'svc-platform-search'
+             and splunk_docker_minted_claims.get('aud', '') == 'mcp' }}
+
+    - name: Assert the wrong-audience case reached minted-identity verification
+      ansible.builtin.assert:
+        that:
+          - platform_search_wrong_audience_identity_recorded | bool
+
+    - name: Verify minted identity with the wrong audience
+      ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/verify_minted_identity.yml
+  rescue:
+    - name: Record rejection of the wrong platform-search audience
+      ansible.builtin.set_fact:
+        platform_search_wrong_audience_rejected: "{{ platform_search_wrong_audience_identity_recorded | default(false) | bool }}"
+
+- name: Exercise rejection of an unsupported token probe
+  block:
+    - name: Set the unsupported token probe scenario input
+      ansible.builtin.set_fact:
+        splunk_user: >-
+          {{ platform_search_scenario_fixture.splunk_user
+             | combine({'token_probe': 'unsupported'}) }}
+
+    - name: Validate the unsupported probe value
+      ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/probe_mcp_token.yml
+
+    - name: Fail if the unsupported probe value was accepted
+      ansible.builtin.fail:
+        msg: The unsupported token_probe value was accepted.
+  rescue:
+    - name: Confirm rejection reports the supported probe values
+      ansible.builtin.assert:
+        that:
+          - "'token_probe for user' in ansible_failed_result.msg"
+          - "'mcp' in ansible_failed_result.msg"
+          - "'search' in ansible_failed_result.msg"
+        fail_msg: >-
+          The unsupported token_probe value did not fail with the expected
+          supported-values message.

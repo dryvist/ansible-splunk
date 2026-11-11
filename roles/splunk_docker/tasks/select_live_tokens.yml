@@ -1,0 +1,31 @@
+---
+# The one token liveness rule: enabled, numeric exp and nbr, exp 0 (never
+# expires) or in the future, and nbr not in the future. Input:
+# splunk_docker_liveness_input (token listing entries). Output:
+# splunk_docker_live_tokens.
+- name: Select live tokens
+  ansible.builtin.set_fact:
+    splunk_docker_live_tokens: >-
+      {%- set live = [] -%}
+      {# Live-rendered, not the ansible_date_time fact -- that fact is
+         gathered once near play start and is stale by the time this task
+         runs deep in a long converge. A token minted moments ago carries an
+         nbr stamped with the SERVER's real mint time, which is already past
+         the stale snapshot, so it fails "not yet valid" and gets excluded
+         from its own eligible list. now() evaluates at render time. #}
+      {%- set current_epoch = now(utc=true, fmt='%s') | int -%}
+      {%- for token in splunk_docker_liveness_input | default([]) -%}
+        {%- set content = token.content | default({}) -%}
+        {%- set claims = content.claims | default({}) -%}
+        {%- set expires_text = claims.exp | default('') | string -%}
+        {%- set not_before_text = claims.nbr | default('') | string -%}
+        {%- if content.status | default('') == 'enabled'
+               and expires_text is match('^[0-9]+$')
+               and not_before_text is match('^[0-9]+$')
+               and (expires_text | int == 0 or expires_text | int > current_epoch)
+               and not_before_text | int <= current_epoch -%}
+          {%- set _ = live.append(token) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ live }}
+  no_log: true
