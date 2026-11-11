@@ -60,7 +60,23 @@ if "where (sensitive=1 AND claude_recent=0) OR claude_session=0" not in full:
 if 'like(\'request.path\', "github-enterprise-owner/%")' not in full:
     errors.append("FAIL: owner-token reads are not treated as sensitive")
 
+# The audit record carries no caller, so the path set is the condition's key:
+# the same unaccounted-for set pages once per 24 hours, a new path pages at
+# once, and paths stays on the result row for Splunk to key on.
+def setting(key):
+    found = re.search(rf"^{re.escape(key)} = (.*)$", stanza, re.M)
+    return found.group(1) if found else None
+
+
+period = re.fullmatch(r"24h", setting("alert.suppress.period") or "")
+if setting("alert.suppress") != "1" or not period:
+    errors.append("FAIL: alert suppression must be on for exactly 24h")
+if setting("alert.suppress.fields") != "paths":
+    errors.append("FAIL: alert does not throttle on the request-path set")
+if "paths" not in full.rsplit("| table ", 1)[-1].split():
+    errors.append("FAIL: paths is not kept in the alert's result table")
+
 if errors:
     print("\n".join(errors))
     sys.exit(1)
-print("PASS: openbao_window_non_claude_use correlates window use with Claude Code transcripts")
+print("PASS: openbao_window_non_claude_use correlates window use with Claude Code transcripts and throttles 24h per path set")

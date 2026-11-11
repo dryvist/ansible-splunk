@@ -33,10 +33,9 @@
 #   cron              — BY_HOST ONLY. Schedule (keep period well below the
 #                       threshold).
 #   suppress_minutes  — BY_HOST ONLY. alert.suppress.period; throttles
-#                       re-fires.
-#   digest            — BY_HOST ONLY, optional, default false. One notification
-#                       per suppress period listing every silent host, instead
-#                       of one notification per host.
+#                       re-fires. Suppression is per host: each host notifies
+#                       once per period, and a host that newly goes silent
+#                       notifies at once.
 #   by_host           — optional, default false. Detect per host using its own
 #                       cadence so a healthy emitter cannot mask a dead one.
 #                       A never-seen host needs expected_roster.
@@ -145,7 +144,6 @@ splunk_docker_silence_detectors:
     lookback_minutes: 30000
     cron: "*/5 * * * *"
     suppress_minutes: 1440
-    digest: true
     by_host: true
     expected_roster: true
     # iac-platform: the computed baseline (p95 gap between active 10-minute
