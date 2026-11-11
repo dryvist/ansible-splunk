@@ -1,15 +1,24 @@
 ---
-# Include every audience for the managed owner. If the declared audience
-# changes, its old token remains a cleanup candidate until replacement publish.
+# Include every audience for the managed owner except audiences deliberately
+# held for another consumer. If the declared audience changes, its old token
+# remains a cleanup candidate until replacement publish.
 - name: "Snapshot tokens owned by {{ splunk_user.name }}"
   ansible.builtin.set_fact:
     splunk_docker_matching_tokens: >-
-      {{ (splunk_docker_token_list.json.entry | default([]))
-         | selectattr('name', 'defined')
-         | selectattr('content.claims', 'defined')
-         | selectattr('content.claims.sub', 'defined')
-         | selectattr('content.claims.sub', 'equalto', splunk_user.name)
-         | list }}
+      {%- set owner_tokens = (splunk_docker_token_list.json.entry | default([]))
+                             | selectattr('name', 'defined')
+                             | selectattr('content.claims', 'defined')
+                             | selectattr('content.claims.sub', 'defined')
+                             | selectattr('content.claims.sub', 'equalto', splunk_user.name)
+                             | list -%}
+      {%- set extra_audiences = splunk_user.token_extra_audiences | default([]) -%}
+      {%- set matching = [] -%}
+      {%- for token in owner_tokens -%}
+      {%-   if (token.content.claims.aud | default('')) not in extra_audiences -%}
+      {%-     set _ = matching.append(token) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ matching }}
   no_log: true
 
 - name: "Select eligible live tokens for {{ splunk_user.name }}"

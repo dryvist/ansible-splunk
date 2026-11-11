@@ -155,6 +155,7 @@ splunk_docker_users:
   - name: svc-llamaindex-search
     roles:
       - agent_session_search
+    token_extra_audiences: ["llamaindex-agent-sessions"]
     token_openbao_path: "apps/llamaindex"
     token_openbao_key: "splunk_search_token"
     url_openbao_key: ""

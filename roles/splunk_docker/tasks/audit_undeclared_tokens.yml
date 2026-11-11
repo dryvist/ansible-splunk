@@ -1,13 +1,14 @@
 ---
 # Catch auth tokens that belong to nobody this role manages, and tokens owned
-# by a managed user whose audience is no longer declared for that identity.
+# by a managed user whose audience is neither its primary audience nor an
+# explicitly retained extra audience.
 #
 # Token reconciliation selects by `claims.sub == splunk_user.name` and iterates
 # `splunk_docker_users`. A token owned by anyone NOT in that list is therefore
 # in neither the eligible set nor the cleanup set: it is never evaluated, never
-# rotated and never removed. Tokens for a managed user still need the audience
-# declared for that user; otherwise an old-audience credential would be hidden
-# from the undeclared-owner gate.
+# rotated and never removed. Tokens for a managed user still need the primary
+# audience or one of that user's declared extra audiences; otherwise an
+# old-audience credential would be hidden from the undeclared-owner gate.
 #
 # That is not hypothetical. Two tokens belonging to the built-in administrator
 # survived two months past the identity that superseded them, still valid,
@@ -43,9 +44,9 @@
 # `now()` renders at evaluation time; the ansible_date_time fact freezes at
 # gather time, which on a long converge is the wrong "now" — same reasoning
 # as plan_token_reconciliation.yml.
-# Judging on the expiry CLAIM rather than the `status` field is deliberate: the
-# platform reports an expired token as "enabled", so a check reading status
-# counts credentials that cannot be used and misses none that can.
+# Status is the same liveness test cleanup uses: disabled tokens cannot
+# authenticate even when their expiry claim is still in the future. Expiry is
+# also checked because the platform can report expired tokens as "enabled".
 #
 # Written as a loop rather than a selectattr chain because `exp` comes back as
 # a JSON number on some platform versions and a quoted string on others, and
@@ -67,12 +68,15 @@
                                | list | first | default({})) -%}
       {%-   set declared_audience = managed_user.token_audience
                                     | default(splunk_docker_token_audience) -%}
+      {%-   set extra_audiences = managed_user.token_extra_audiences | default([]) -%}
       {%-   if claims.sub is defined and claims.exp is defined
+               and (entry.content | default({})).status | default('') == 'enabled'
                and (claims.exp | int) > current_epoch
                and (claims.sub not in managed
                     or (claims.sub in managed_names
                         and claims.sub not in splunk_docker_token_owner_exceptions
-                        and (claims.aud | default('')) != declared_audience)) -%}
+                        and (claims.aud | default('')) != declared_audience
+                        and (claims.aud | default('')) not in extra_audiences)) -%}
       {%-     set _ = undeclared.append(entry) -%}
       {%-   endif -%}
       {%- endfor -%}
@@ -91,8 +95,9 @@
       to undeclared owners or use an undeclared audience:
       {{ splunk_docker_undeclared_tokens
          | map(attribute='content.claims.sub') | unique | sort | join(', ') }}.
-      Reconciliation only visits each managed user's declared audience. Revoke
-      off-audience tokens, or add an unmanaged owner to
+      Reconciliation only visits each managed user's declared audience.
+      Revoke unintended off-audience tokens, declare a legitimate value in
+      token_extra_audiences, or add an unmanaged owner to
       splunk_docker_token_owner_exceptions with a comment saying why it is
       deliberate. Do not silence this by declaring the administrator as a
       managed user: that would put its tokens into the rotation path rather

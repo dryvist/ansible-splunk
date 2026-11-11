@@ -7,10 +7,13 @@
 splunk_docker_manage_users: false
 
 # List of managed users. Each: { name, roles: [..] }, with optional per-user
-# token_audience, token_openbao_path, token_openbao_key, and url_openbao_key
-# overrides.
+# token_audience, token_extra_audiences, token_openbao_path, token_openbao_key,
+# and url_openbao_key overrides.
 #   name  - Splunk username (also the token owner / audience owner).
 #   roles - Splunk roles granted (e.g. [admin], [user], [power]).
+#   token_extra_audiences - audiences this user may hold for other consumers;
+#                           these tokens are excluded from cleanup (default: []).
+#   token_audience - the audience this role mints and reconciles.
 # The user's password is randomly generated once at creation and never rotated
 # here — the minted token is the credential that clients actually use.
 splunk_docker_users: []

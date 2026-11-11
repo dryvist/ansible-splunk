@@ -138,6 +138,9 @@ to is `<mgmt-base>/services/mcp` (for example,
 Managed users default to tokens minted via the app's `/services/mcp_token`
 endpoint. A user's `token_audience` can select the native Splunk token API for
 other consumers, with a probe against the matching API before publication.
+Use `token_extra_audiences` for additional audiences that another consumer
+legitimately mints for the same managed user. Those tokens pass the undeclared
+audience audit and stay out of this role's cleanup candidates.
 Configure the MCP client in `~/git/nix-ai/main/modules/mcp/default.nix`.
 
 When OpenBao publication is enabled, the role writes the shared connection as

@@ -2,14 +2,25 @@
 # set_fact, not block vars: earlier scenarios set these as facts, which outrank block vars.
 - name: Load the audience-change scenario
   ansible.builtin.set_fact:
-    splunk_user: "{{ platform_search_mint_fixture.splunk_user }}"
+    splunk_user: >-
+      {{ platform_search_mint_fixture.splunk_user
+         | combine({'token_extra_audiences': ['llamaindex-agent-sessions']}) }}
     splunk_docker_user_token_audience: "{{ platform_search_mint_fixture.splunk_docker_user_token_audience }}"
     splunk_docker_new_token_id: "{{ platform_search_mint_fixture.splunk_docker_new_token_id }}"
-    splunk_docker_token_list: "{{ platform_search_mint_fixture.splunk_docker_token_list }}"
+    splunk_docker_token_list:
+      json:
+        entry: >-
+          {{ platform_search_mint_fixture.splunk_docker_token_list.json.entry
+             + [{'name': 'llamaindex-agent-token',
+                 'content': {'status': 'enabled',
+                             'claims': {'sub': 'svc-platform-search',
+                                        'aud': 'llamaindex-agent-sessions',
+                                        'nbr': 0,
+                                        'exp': 0}}}] }}
 
-- name: Exercise reconciliation and cleanup after a token audience change
+- name: Exercise audience-change cleanup while preserving an extra audience
   block:
-    - name: Include all owner tokens in the post-publication cleanup plan
+    - name: Include cleanup candidates and exclude the user's extra audience
       ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/plan_token_reconciliation.yml
 
     - name: Select old-audience tokens for post-publication cleanup
@@ -21,7 +32,7 @@
         audience_change_eligible_ids: "{{ splunk_docker_eligible_tokens | map(attribute='name') | list }}"
         audience_change_cleanup_ids: "{{ splunk_docker_noncanonical_eligible_tokens | map(attribute='name') | list }}"
 
-- name: Assert old-audience token is in cleanup after replacement is published
+- name: Assert only the old declared-audience token is in cleanup
   ansible.builtin.assert:
     that:
       - audience_change_matching_ids == ['old-mcp-token', 'platform-minted-id']

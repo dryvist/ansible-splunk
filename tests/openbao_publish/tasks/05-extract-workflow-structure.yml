@@ -30,6 +30,7 @@
     mint_publish_names: "{{ mint_publish_owner.block | map(attribute='name') | list }}"
     mint_publish_rescue_names: "{{ mint_publish_owner.rescue | map(attribute='name') | list }}"
     token_publish_task: "{{ mint_publish_owner.block | selectattr('name', 'search', '^Publish ') | first }}"
+    token_mint_value_task: "{{ mint_publish_owner.block | selectattr('name', 'search', '^Extract .* token for') | first }}"
     token_mint_task: "{{ mint_publish_owner.block | selectattr('name', 'search', '^Mint .* token for') | first }}"
     token_post_mint_list_task: "{{ mint_publish_owner.block | selectattr('name', 'search', '^Re-list tokens after minting') | first }}"
     token_cleanup_task: "{{ mint_publish_owner.rescue | selectattr('name', 'search', '^Remove unpublished replacement') | first }}"
@@ -79,6 +80,11 @@
 - name: Extract native authorization-token mint URL expression
   ansible.builtin.set_fact:
     platform_search_mint_url_expression: "{{ token_mint_task['ansible.builtin.uri'].url }}"
+    platform_search_mint_body_expression: "{{ token_mint_task['ansible.builtin.uri'].body }}"
+    platform_search_token_value_expression: "{{ token_mint_value_task['ansible.builtin.set_fact'].splunk_docker_token_mint_value }}"
+    platform_search_probe_url_expression: "{{ probe_request['ansible.builtin.uri'].url }}"
+    platform_search_probe_body_format_expression: "{{ probe_request['ansible.builtin.uri'].body_format }}"
+    platform_search_probe_body_expression: "{{ probe_request['ansible.builtin.uri'].body }}"
 
 - name: Create a temporary template for the native mint URL
   ansible.builtin.tempfile:
@@ -103,6 +109,142 @@
   ansible.builtin.assert:
     that:
       - platform_search_mint_url == 'https://127.0.0.1:8089/services/authorization/tokens?output_mode=json'
+
+- name: Extract the MCP fixture for body-omission assertions
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/fixtures/base_vars.yml"
+    name: mcp_mint_fixture
+
+- name: Render the native mint request body with the platform-search fixture
+  ansible.builtin.copy:
+    content: "{{ platform_search_mint_body_expression }}"
+    dest: "{{ platform_search_mint_template_file.path }}"
+    mode: "0600"
+  changed_when: false
+
+- name: Render the native mint body expression
+  ansible.builtin.set_fact:
+    platform_search_mint_body: >-
+      {{ lookup('ansible.builtin.template', platform_search_mint_template_file.path,
+                template_vars=platform_search_mint_fixture) | from_yaml }}
+
+- name: Assert native mint request body fields
+  ansible.builtin.assert:
+    that:
+      - platform_search_mint_body.name == 'svc-platform-search'
+      - platform_search_mint_body.audience == 'platform-search'
+      - platform_search_mint_body.expires_on == '+47d'
+
+- name: Render the MCP mint request body
+  ansible.builtin.copy:
+    content: "{{ platform_search_mint_body_expression }}"
+    dest: "{{ platform_search_mint_template_file.path }}"
+    mode: "0600"
+  changed_when: false
+
+- name: Save the rendered MCP mint body
+  ansible.builtin.set_fact:
+    # A key whose value renders to omit is dropped, so compare inside the expression.
+    mcp_mint_body_omitted: >-
+      {{ lookup('ansible.builtin.template', platform_search_mint_template_file.path,
+                template_vars=mcp_mint_fixture) == omit }}
+
+- name: Assert MCP mint omits the request body
+  ansible.builtin.assert:
+    that:
+      - mcp_mint_body_omitted | bool
+
+- name: Assert native and MCP token extraction expressions
+  ansible.builtin.assert:
+    that:
+      - "'splunk_docker_token_mint.json.entry[0].content.token' in platform_search_token_value_expression"
+      - "'splunk_docker_token_mint.json.token' in platform_search_token_value_expression"
+
+- name: Render the native token extraction expression
+  ansible.builtin.copy:
+    content: "{{ platform_search_token_value_expression }}"
+    dest: "{{ platform_search_mint_template_file.path }}"
+    mode: "0600"
+  changed_when: false
+
+- name: Save the native token extraction result
+  ansible.builtin.set_fact:
+    platform_search_minted_value: >-
+      {{ lookup('ansible.builtin.template', platform_search_mint_template_file.path,
+                template_vars=platform_search_mint_fixture
+                | combine({'splunk_docker_token_mint':
+                           {'json': {'entry': [{'content': {'token': 'native-token'}}]}}})) }}
+
+- name: Assert native token extraction reads the authorization-token response
+  ansible.builtin.assert:
+    that:
+      - platform_search_minted_value == 'native-token'
+
+- name: Render the MCP token extraction expression
+  ansible.builtin.copy:
+    content: "{{ platform_search_token_value_expression }}"
+    dest: "{{ platform_search_mint_template_file.path }}"
+    mode: "0600"
+  changed_when: false
+
+- name: Save the MCP token extraction result
+  ansible.builtin.set_fact:
+    mcp_minted_value: >-
+      {{ lookup('ansible.builtin.template', platform_search_mint_template_file.path,
+                template_vars=mcp_mint_fixture
+                | combine({'splunk_docker_token_mint':
+                           {'json': {'token': 'mcp-token'}}})) }}
+
+- name: Assert MCP token extraction reads the MCP response
+  ansible.builtin.assert:
+    that:
+      - mcp_minted_value == 'mcp-token'
+
+- name: Render the native search-probe URL
+  ansible.builtin.copy:
+    content: "{{ platform_search_probe_url_expression }}"
+    dest: "{{ platform_search_mint_template_file.path }}"
+    mode: "0600"
+  changed_when: false
+
+- name: Save native search-probe URL
+  ansible.builtin.set_fact:
+    platform_search_probe_url: >-
+      {{ lookup('ansible.builtin.template', platform_search_mint_template_file.path,
+                template_vars=platform_search_mint_fixture) }}
+
+- name: Render the native search-probe body format
+  ansible.builtin.copy:
+    content: "{{ platform_search_probe_body_format_expression }}"
+    dest: "{{ platform_search_mint_template_file.path }}"
+    mode: "0600"
+  changed_when: false
+
+- name: Save native search-probe body format
+  ansible.builtin.set_fact:
+    platform_search_probe_body_format: >-
+      {{ lookup('ansible.builtin.template', platform_search_mint_template_file.path,
+                template_vars=platform_search_mint_fixture) }}
+
+- name: Render the native search-probe body
+  ansible.builtin.copy:
+    content: "{{ platform_search_probe_body_expression }}"
+    dest: "{{ platform_search_mint_template_file.path }}"
+    mode: "0600"
+  changed_when: false
+
+- name: Save native search-probe body
+  ansible.builtin.set_fact:
+    platform_search_probe_body: >-
+      {{ lookup('ansible.builtin.template', platform_search_mint_template_file.path,
+                template_vars=platform_search_mint_fixture) | from_yaml }}
+
+- name: Assert native audience probes the search endpoint
+  ansible.builtin.assert:
+    that:
+      - platform_search_probe_url == 'https://127.0.0.1:8089/services/search/v2/jobs/export?output_mode=json'
+      - platform_search_probe_body_format == 'form-urlencoded'
+      - platform_search_probe_body.search == '| makeresults count=1'
 
 - name: Remove the temporary native mint URL template
   ansible.builtin.file:
