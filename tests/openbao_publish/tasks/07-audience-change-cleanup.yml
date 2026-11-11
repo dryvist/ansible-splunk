@@ -38,3 +38,38 @@
       - audience_change_matching_ids == ['old-mcp-token', 'platform-minted-id']
       - audience_change_eligible_ids == ['old-mcp-token', 'platform-minted-id']
       - audience_change_cleanup_ids == ['old-mcp-token']
+
+- name: Load a native-to-native audience change with a lone old-audience token
+  ansible.builtin.set_fact:
+    splunk_docker_user_token_audience: platform-search
+    splunk_docker_bao_published_token: published-old-audience-token
+    splunk_docker_token_probe_ok: true
+    splunk_docker_eligible_tokens:
+      - name: old-native-token
+        content:
+          status: enabled
+          claims: {sub: svc-platform-search, aud: platform-search-old, nbr: 0, exp: 0}
+
+- name: Evaluate the lone old-audience token
+  ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/evaluate_canonical_token.yml
+
+- name: Assert a lone old-audience token is not canonical
+  ansible.builtin.assert:
+    that:
+      - not (splunk_docker_bao_token_valid | bool)
+
+- name: Load the same token on the declared audience
+  ansible.builtin.set_fact:
+    splunk_docker_eligible_tokens:
+      - name: current-native-token
+        content:
+          status: enabled
+          claims: {sub: svc-platform-search, aud: platform-search, nbr: 0, exp: 0}
+
+- name: Evaluate the declared-audience token
+  ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/evaluate_canonical_token.yml
+
+- name: Assert a lone declared-audience token is canonical
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_bao_token_valid | bool
