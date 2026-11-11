@@ -30,7 +30,7 @@
     mint_publish_names: "{{ mint_publish_owner.block | map(attribute='name') | list }}"
     mint_publish_rescue_names: "{{ mint_publish_owner.rescue | map(attribute='name') | list }}"
     token_publish_task: "{{ mint_publish_owner.block | selectattr('name', 'search', '^Publish ') | first }}"
-    token_mint_task: "{{ mint_publish_owner.block | selectattr('name', 'search', '^Mint authorization token') | first }}"
+    token_mint_task: "{{ mint_publish_owner.block | selectattr('name', 'search', '^Mint .* token for') | first }}"
     token_post_mint_list_task: "{{ mint_publish_owner.block | selectattr('name', 'search', '^Re-list tokens after minting') | first }}"
     token_cleanup_task: "{{ mint_publish_owner.rescue | selectattr('name', 'search', '^Remove unpublished replacement') | first }}"
 
@@ -40,7 +40,7 @@
 
 - name: Extract the probe request
   ansible.builtin.set_fact:
-    probe_request: "{{ probe_tasks | selectattr('name', 'search', '^Probe the MCP endpoint') | first }}"
+    probe_request: "{{ probe_tasks | selectattr('name', 'search', '^Probe the .* endpoint') | first }}"
 
 - name: Extract ordered top-level names
   ansible.builtin.set_fact:
@@ -62,7 +62,7 @@
 
 - name: Extract ordered mint-publication names
   ansible.builtin.set_fact:
-    token_mint_name: "{{ mint_publish_names | select('search', '^Mint authorization token') | first }}"
+    token_mint_name: "{{ mint_publish_names | select('search', '^Mint .* token for') | first }}"
     token_post_mint_list_name: "{{ mint_publish_names | select('search', '^Re-list tokens after minting') | first }}"
     minted_record_name: "{{ mint_publish_names | select('search', '^Record minted token identity') | first }}"
     minted_probe_name: "{{ mint_publish_names | select('search', '^Probe minted token') | first }}"
@@ -70,3 +70,42 @@
     token_publish_name: "{{ mint_publish_names | select('search', '^Publish ') | first }}"
     token_cleanup_name: "{{ mint_publish_rescue_names | select('search', '^Remove unpublished replacement') | first }}"
     token_failure_name: "{{ mint_publish_rescue_names | select('search', '^Fail replacement publication') | first }}"
+
+- name: Load native authorization-token mint fixture
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/fixtures/platform_search_vars.yml"
+    name: platform_search_mint_fixture
+
+- name: Extract native authorization-token mint URL expression
+  ansible.builtin.set_fact:
+    platform_search_mint_url_expression: "{{ token_mint_task['ansible.builtin.uri'].url }}"
+
+- name: Create a temporary template for the native mint URL
+  ansible.builtin.tempfile:
+    suffix: .j2
+  register: platform_search_mint_template_file
+  changed_when: false
+
+- name: Write the mint URL expression to the temporary template
+  ansible.builtin.copy:
+    content: "{{ platform_search_mint_url_expression }}"
+    dest: "{{ platform_search_mint_template_file.path }}"
+    mode: "0600"
+  changed_when: false
+
+- name: Render the native mint URL with the platform-search fixture
+  ansible.builtin.set_fact:
+    platform_search_mint_url: >-
+      {{ lookup('ansible.builtin.template', platform_search_mint_template_file.path,
+                template_vars=platform_search_mint_fixture) }}
+
+- name: Assert the non-MCP fixture selects the authorization-token mint endpoint
+  ansible.builtin.assert:
+    that:
+      - platform_search_mint_url == 'https://127.0.0.1:8089/services/authorization/tokens?output_mode=json'
+
+- name: Remove the temporary native mint URL template
+  ansible.builtin.file:
+    path: "{{ platform_search_mint_template_file.path }}"
+    state: absent
+  changed_when: false

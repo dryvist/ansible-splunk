@@ -3,8 +3,8 @@
   ansible.builtin.assert:
     that:
       - matching_ids == ['live-future-expiry', 'live-no-expiry', 'live-now', 'future-not-before',
-        'expired', 'disabled', 'missing-not-before', 'invalid-not-before']
-      - eligible_ids == ['live-future-expiry', 'live-no-expiry', 'live-now']
+        'expired', 'disabled', 'missing-not-before', 'invalid-not-before', 'different-audience']
+      - eligible_ids == ['live-future-expiry', 'live-no-expiry', 'live-now', 'different-audience']
       - valid_canonical_token
       - not dead_probe_token
       - not empty_published_token

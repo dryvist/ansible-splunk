@@ -15,12 +15,13 @@
   vars:
     repo_root: "{{ playbook_dir }}/../.."
     audit_tasks_file: "{{ repo_root }}/roles/splunk_docker/tasks/audit_undeclared_tokens.yml"
-    select_task_name: Select live tokens whose owner is not a declared user
+    select_task_name: Select live tokens with an undeclared owner or audience
 
     # One owner the role manages, one it deliberately excuses. Everything else
     # is undeclared by construction.
     splunk_docker_users:
       - name: hermes
+    splunk_docker_token_audience: mcp
     splunk_docker_token_owner_exceptions:
       - deliberate_exception
 
@@ -42,8 +43,14 @@
       - name: a declared user's live token is not flagged
         entries:
           - name: "hermes01"
-            content: {claims: {sub: hermes, exp: "{{ live_epoch }}"}}
+            content: {claims: {sub: hermes, aud: mcp, exp: "{{ live_epoch }}"}}
         expect: []
+
+      - name: a managed user's live off-audience token is flagged
+        entries:
+          - name: "hermes-search01"
+            content: {claims: {sub: hermes, aud: platform-search, exp: "{{ live_epoch }}"}}
+        expect: ["hermes-search01"]
 
       # Judged on the expiry CLAIM, not the status field: the platform reports
       # an expired token as "enabled".
@@ -70,7 +77,7 @@
       - name: the live administrator tokens are still found among healthy ones
         entries:
           - name: "hermes01"
-            content: {claims: {sub: hermes, exp: "{{ live_epoch }}"}}
+            content: {claims: {sub: hermes, aud: mcp, exp: "{{ live_epoch }}"}}
           - name: "0a251db5d9"
             content: {claims: {sub: admin, exp: "{{ live_epoch }}"}}
           - name: "expired01"
