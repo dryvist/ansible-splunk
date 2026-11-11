@@ -156,6 +156,31 @@ if f"dispatch.earliest_time = -{expected_lookback}m" not in body:
         f"derived threshold window ({expected_lookback}m)"
     )
 
+# --- per-index notification throttle ----------------------------------------
+# One notification per silent index, suppressed per index: a standing gap
+# pages once per 24 hours and a newly silent index pages at once. Digest
+# mode must stay 0 -- a digest keys the suppression on the whole silent set,
+# so any index joining or leaving the set re-pages every index in it. The
+# `index` field stays on every result row for Splunk to key on.
+def value(body, key):
+    found = re.search(rf"^{re.escape(key)} = (.*)$", body, re.M)
+    return found.group(1) if found else None
+
+
+for key, want in (
+    ("alert.suppress", "1"),
+    ("alert.suppress.period", "24h"),
+    ("alert.digest_mode", "0"),
+    ("alert.suppress.fields", "index"),
+):
+    got = value(body, key)
+    if got != want:
+        errors.append(f"FAIL: index_gap_detector {key} is {got!r}, want {want!r}")
+if "| stats max(last_indexed) as last_indexed by index" not in search:
+    errors.append(
+        "FAIL: index_gap_detector does not keep the index field on its result rows"
+    )
+
 # --- covers every declared index, not just ones with a detector entry -----
 all_indexes = {
     idx["name"]

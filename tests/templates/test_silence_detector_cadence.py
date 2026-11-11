@@ -195,20 +195,20 @@ for det in DETECTORS:
         errors.append(
             f"FAIL: [{name}] min_active_bins filter would drop the empty-index sentinel"
         )
-    # 6. Each row carries the full silent set. A digest entry sends one
-    # notification per period listing every silent host (no suppress.fields).
-    # Any other by_host entry notifies once per silent host, suppressed per
-    # host, so a host joining or leaving the set does not re-page the others.
+    # 6. One notification per silent host, suppressed per host: each host
+    # pages once per suppress period, and a newly silent host pages at once,
+    # so a host joining or leaving the set does not re-page the others.
+    # silent_hosts stays on every row so each notification still names the
+    # full set.
     if det.get("digest"):
-        pages_correctly = (
-            re.search(r"^alert\.digest_mode = 1$", body, re.M)
-            and not re.search(r"^alert\.suppress\.fields", body, re.M)
+        errors.append(
+            f"FAIL: [{name}] sets digest on its defaults entry, which the "
+            "template no longer reads -- per-host suppression owns the paging"
         )
-    else:
-        pages_correctly = (
-            re.search(r"^alert\.digest_mode = 0$", body, re.M)
-            and re.search(r"^alert\.suppress\.fields = host$", body, re.M)
-        )
+    pages_correctly = (
+        re.search(r"^alert\.digest_mode = 0$", body, re.M)
+        and re.search(r"^alert\.suppress\.fields = host$", body, re.M)
+    )
     if 'eventstats values(host) as silent_hosts' not in body or not pages_correctly:
         errors.append(f"FAIL: [{name}] does not page correctly for its silent-host set")
     # 5. An event-driven host (p95 gap above max_baseline_minutes) is skipped.

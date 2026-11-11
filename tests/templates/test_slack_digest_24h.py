@@ -30,8 +30,7 @@ STANZA_RE = re.compile(r"^\[(\S+)\]$(.*?)(?=^\[|\Z)", re.M | re.S)
 TEMPLATE = ansible_env(ROOT / "roles/splunk_docker/templates").get_template("savedsearches.conf.j2")
 
 DIGESTED = (
-    "os_silence_detector",
-    "index_gap_detector",
+    "openbao_window_privileged_use_digest",
     "llm_pipeline_silence_detector",
     "llm_router_silence_detector",
     "offbox_sync_job_unhealthy",
@@ -44,8 +43,7 @@ DIGESTED = (
 # (per-row field, list field): the search must hold eventstats values(<field>)
 # as <list field> and an mvjoin of that list.
 AGGREGATES = {
-    "os_silence_detector": (("host", "silent_hosts"),),
-    "index_gap_detector": (("index", "indexes"),),
+    "openbao_window_privileged_use_digest": (("caller", "callers"), ("'request.path'", "paths")),
     "llm_pipeline_silence_detector": (("host", "hosts"),),
     "offbox_sync_job_unhealthy": (("host", "hosts"), ("job", "jobs")),
     "mac_windowserver_synchronize_timeout": (("host", "hosts"),),
@@ -73,7 +71,7 @@ def search_text(body):
 
 
 def is_24h(period):
-    # os_silence_detector renders its period from minutes, so 1440m is the same 24 hours.
+    # Generated stanzas render their period from minutes, so 1440m is the same 24 hours.
     return period in ("24h", "1440m")
 
 
