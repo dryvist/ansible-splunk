@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.114.4](https://github.com/dryvist/ansible-splunk/compare/v0.114.3...v0.114.4) (2026-11-11)
+
+
+### Bug Fixes
+
+* **splunk:** key saved-search notifications per real key for 24 hours ([#840](https://github.com/dryvist/ansible-splunk/issues/840)) ([64a4424](https://github.com/dryvist/ansible-splunk/commit/64a4424dbf3f7a1af76afcb7f3948fc7e48f50df))
+
 ## [0.114.3](https://github.com/dryvist/ansible-splunk/compare/v0.114.2...v0.114.3) (2026-11-07)
 
 
