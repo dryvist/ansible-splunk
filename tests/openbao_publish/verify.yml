@@ -45,6 +45,9 @@
     - name: Extract the managed-user workflow task structure
       ansible.builtin.include_tasks: tasks/05-extract-workflow-structure.yml
 
+    - name: Exercise native platform-search probe and mint verification
+      ansible.builtin.include_tasks: tasks/08-platform-search-native-path.yml
+
     - name: Exercise audience-change token cleanup
       ansible.builtin.include_tasks: tasks/07-audience-change-cleanup.yml
 

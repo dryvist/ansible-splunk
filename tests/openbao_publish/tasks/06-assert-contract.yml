@@ -17,6 +17,14 @@
       - derived_minted_count | int == 1
       - derived_minted_claims.sub == 'hermes'
       - derived_minted_claims.aud == 'mcp'
+      # Native authorization tokens must pass both probe liveness and the
+      # listing-derived identity check before they can be published.
+      - platform_search_probe_200_accepted | bool
+      - platform_search_probe_401_rejected | default(false) | bool
+      - platform_search_minted_id == 'platform-minted-id'
+      - platform_search_minted_claims.sub == 'svc-platform-search'
+      - platform_search_minted_claims.aud == 'platform-search'
+      - platform_search_wrong_audience_rejected | default(false) | bool
       - minted_dead_probe_rejected | default(false)
       - minted_ambiguous_rejected | default(false)
       - missing_published_token_rejected | default(false)

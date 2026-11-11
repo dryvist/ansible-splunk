@@ -45,12 +45,5 @@
   check_mode: false
   no_log: true
 
-- name: "Record token probe outcome for {{ splunk_user.name }}"
-  ansible.builtin.set_fact:
-    splunk_docker_token_probe_ok: >-
-      {{ (splunk_docker_token_probe.status | default(0) | int == 200)
-         and ((splunk_docker_user_token_audience != 'mcp')
-              or ((splunk_docker_token_probe.json | default({}, true)).get('result', none) is not none))
-         and ((splunk_docker_user_token_audience == 'mcp')
-              or (splunk_docker_token_probe.content | default('', true) | length > 0)) }}
-  no_log: true
+- name: Record token probe outcome
+  ansible.builtin.include_tasks: record_token_probe_outcome.yml
