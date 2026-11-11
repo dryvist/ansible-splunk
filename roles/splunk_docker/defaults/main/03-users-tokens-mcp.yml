@@ -14,6 +14,8 @@ splunk_docker_manage_users: false
 #   token_extra_audiences - audiences this user may hold for other consumers;
 #                           these tokens are excluded from cleanup (default: []).
 #   token_audience - the audience this role mints and reconciles.
+#   token_probe - probe endpoint used to verify the token: "mcp" or "search";
+#                 defaults to "mcp" for audience "mcp", otherwise "search".
 # The user's password is randomly generated once at creation and never rotated
 # here — the minted token is the credential that clients actually use.
 splunk_docker_users: []

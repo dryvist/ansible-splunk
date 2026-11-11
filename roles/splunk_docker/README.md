@@ -137,7 +137,10 @@ to is `<mgmt-base>/services/mcp` (for example,
 `SPLUNK_MCP_URL=https://<host>:8089/services/mcp`).
 Managed users default to tokens minted via the app's `/services/mcp_token`
 endpoint. A user's `token_audience` can select the native Splunk token API for
-other consumers, with a probe against the matching API before publication.
+other consumers, with a probe against the selected API before publication. Set
+the optional per-user `token_probe` to `mcp` or `search` to choose the probe
+endpoint. It defaults to `mcp` for an `mcp` audience and `search` for other
+audiences.
 Use `token_extra_audiences` for additional audiences that another consumer
 legitimately mints for the same managed user. Those tokens pass the undeclared
 audience audit and stay out of this role's cleanup candidates.

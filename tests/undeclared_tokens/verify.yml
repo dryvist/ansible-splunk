@@ -41,6 +41,12 @@
             content: {status: enabled, claims: {sub: admin, exp: "{{ live_epoch }}"}}
         expect: ["0a251db5d9", "43be52db0e"]
 
+      - name: an enabled non-expiring token with an unmanaged owner is flagged
+        entries:
+          - name: "admin-no-expiry"
+            content: {status: enabled, claims: {sub: admin, exp: 0}}
+        expect: ["admin-no-expiry"]
+
       - name: a declared user's live token is not flagged
         entries:
           - name: "hermes01"
@@ -52,6 +58,12 @@
           - name: "hermes-search01"
             content: {status: enabled, claims: {sub: hermes, aud: platform-search, exp: "{{ live_epoch }}"}}
         expect: ["hermes-search01"]
+
+      - name: a managed user's enabled non-expiring off-audience token is flagged
+        entries:
+          - name: "hermes-search-no-expiry"
+            content: {status: enabled, claims: {sub: hermes, aud: platform-search, exp: 0}}
+        expect: ["hermes-search-no-expiry"]
 
       - name: a managed user's declared extra audience is accepted
         entries:

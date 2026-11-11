@@ -41,6 +41,7 @@
   no_log: true
 
 # Expired tokens cannot authenticate, so they are not a finding — only clutter.
+# An expiry of zero means the token does not expire, matching reconciliation.
 # `now()` renders at evaluation time; the ansible_date_time fact freezes at
 # gather time, which on a long converge is the wrong "now" — same reasoning
 # as plan_token_reconciliation.yml.
@@ -69,9 +70,11 @@
       {%-   set declared_audience = managed_user.token_audience
                                     | default(splunk_docker_token_audience) -%}
       {%-   set extra_audiences = managed_user.token_extra_audiences | default([]) -%}
+      {%-   set expires_text = claims.exp | default('') | string -%}
       {%-   if claims.sub is defined and claims.exp is defined
                and (entry.content | default({})).status | default('') == 'enabled'
-               and (claims.exp | int) > current_epoch
+               and expires_text is match('^[0-9]+$')
+               and (expires_text | int == 0 or expires_text | int > current_epoch)
                and (claims.sub not in managed
                     or (claims.sub in managed_names
                         and claims.sub not in splunk_docker_token_owner_exceptions

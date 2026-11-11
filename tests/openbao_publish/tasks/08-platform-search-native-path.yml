@@ -22,6 +22,14 @@
 - name: Exercise the real platform-search probe flow without making an HTTP request
   ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/probe_mcp_token.yml
 
+- name: Verify platform-search defaults to the search probe
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_user_token_probe == 'search'
+    fail_msg: >-
+      A platform-search audience without token_probe must default to the search
+      endpoint probe.
+
 - name: Simulate a successful platform-search token probe
   ansible.builtin.set_fact:
     splunk_docker_token_probe:
@@ -111,3 +119,28 @@
     - name: Record rejection of the wrong platform-search audience
       ansible.builtin.set_fact:
         platform_search_wrong_audience_rejected: "{{ platform_search_wrong_audience_identity_recorded | default(false) | bool }}"
+
+- name: Exercise rejection of an unsupported token probe
+  block:
+    - name: Set the unsupported token probe scenario input
+      ansible.builtin.set_fact:
+        splunk_user: >-
+          {{ platform_search_scenario_fixture.splunk_user
+             | combine({'token_probe': 'unsupported'}) }}
+
+    - name: Validate the unsupported probe value
+      ansible.builtin.include_tasks: ../../../roles/splunk_docker/tasks/probe_mcp_token.yml
+
+    - name: Fail if the unsupported probe value was accepted
+      ansible.builtin.fail:
+        msg: The unsupported token_probe value was accepted.
+  rescue:
+    - name: Confirm rejection reports the supported probe values
+      ansible.builtin.assert:
+        that:
+          - "'token_probe for user' in ansible_failed_result.msg"
+          - "'mcp' in ansible_failed_result.msg"
+          - "'search' in ansible_failed_result.msg"
+        fail_msg: >-
+          The unsupported token_probe value did not fail with the expected
+          supported-values message.

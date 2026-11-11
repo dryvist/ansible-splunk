@@ -2,6 +2,7 @@
 # Native authorization-token mint scenario, paired with fixtures/base_vars.yml's MCP scenario.
 splunk_docker_mgmt_port: 8089
 splunk_docker_user_token_audience: platform-search
+splunk_docker_user_token_probe: search
 splunk_docker_token_expires_on: "+47d"
 splunk_user:
   name: svc-platform-search
