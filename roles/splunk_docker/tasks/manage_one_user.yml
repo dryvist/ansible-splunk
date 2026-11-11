@@ -14,10 +14,7 @@
     status_code: [200, 404]
   register: splunk_docker_user_lookup
   no_log: true
-  # Read-only existence check, and it has to run under --check as well. Skipped,
-  # the create task below evaluates an undefined status and the whole dry run
-  # dies here — so --check could never reach the tasks after this point, which
-  # is most of the role.
+  # Read-only; runs under --check so the dry run can reach the rest of the role.
   check_mode: false
 
 # Password is a fresh random string used ONLY at creation — the token is the
@@ -54,9 +51,8 @@
   when: splunk_docker_user_lookup.status == 200
   no_log: true
 
-# A Splunk auth token is returned exactly once, at creation. Mint only with an
-# OpenBao delivery path, validate the canonical credential every converge, and
-# never revoke its predecessor until a replacement is durably published.
+# A token is returned once, at creation: mint only with an OpenBao delivery
+# path, and never revoke the predecessor before the replacement is published.
 - name: "Ensure a live token for {{ splunk_user.name }}"
   when: splunk_docker_token_publish_openbao | bool
   block:
@@ -72,8 +68,7 @@
         validate_certs: false
         status_code: [200]
       register: splunk_docker_token_list
-      # Read-only lookup whose result gates later tasks. Must run under --check
-      # too, or the dry run dies on an undefined result before reaching them.
+      # Read-only gate input; runs under --check.
       check_mode: false
       no_log: true
 
@@ -90,8 +85,7 @@
         status_code: [200, 404]
       delegate_to: localhost
       register: splunk_docker_bao_current
-      # Read-only lookup whose result gates later tasks. Must run under --check
-      # too, or the dry run dies on an undefined result before reaching them.
+      # Read-only gate input; runs under --check.
       check_mode: false
       no_log: true
 
@@ -208,8 +202,7 @@
                  else splunk_docker_token_mint.json.entry[0].content.token }}
           no_log: true
 
-        # Use the post-mint listing diff for both issuers so a concurrent token
-        # cannot be mistaken for this replacement.
+        # Post-mint listing diff: a concurrent token is never taken as this one.
         - name: "Re-list tokens after minting for {{ splunk_user.name }}"
           ansible.builtin.uri:
             url: >-
@@ -260,9 +253,8 @@
           delegate_to: localhost
           no_log: true
       rescue:
-        # The id goes in the query string. Splunk answers 200 either way, but a
-        # request that does not name a real id simply deletes nothing - a
-        # revocation that silently no-ops is worse than one that errors.
+        # The id goes in the query string: Splunk answers 200 even when no id
+        # matches, so a wrong shape would silently revoke nothing.
         - name: "Remove unpublished replacement token for {{ splunk_user.name }}"
           ansible.builtin.uri:
             url: >-
