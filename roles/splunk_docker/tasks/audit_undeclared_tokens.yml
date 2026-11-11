@@ -54,15 +54,22 @@
 # `selectattr(..., 'gt', ...)` compares the raw value -- a string against an
 # int raises, so the whole gate errors out instead of judging the token. The
 # cast has to happen per entry, which selectattr cannot express.
+- name: Load every listed token for the liveness rule
+  ansible.builtin.set_fact:
+    splunk_docker_liveness_input: "{{ splunk_docker_all_tokens.json.entry | default([]) }}"
+  no_log: true
+
+- name: Apply the token liveness rule to every listed token
+  ansible.builtin.include_tasks: select_live_tokens.yml
+
 - name: Select live tokens with an undeclared owner or audience
   ansible.builtin.set_fact:
     splunk_docker_undeclared_tokens: >-
-      {%- set current_epoch = now(utc=true, fmt='%s') | int -%}
       {%- set managed = (splunk_docker_users | map(attribute='name') | list)
                         + splunk_docker_token_owner_exceptions -%}
       {%- set managed_names = splunk_docker_users | map(attribute='name') | list -%}
       {%- set undeclared = [] -%}
-      {%- for entry in (splunk_docker_all_tokens.json.entry | default([])) -%}
+      {%- for entry in splunk_docker_live_tokens -%}
       {%-   set claims = (entry.content | default({})).claims | default({}) -%}
       {%-   set managed_user = (splunk_docker_users
                                | selectattr('name', 'equalto', claims.sub | default(''))
@@ -70,11 +77,7 @@
       {%-   set declared_audience = managed_user.token_audience
                                     | default(splunk_docker_token_audience) -%}
       {%-   set extra_audiences = managed_user.token_extra_audiences | default([]) -%}
-      {%-   set expires_text = claims.exp | default('') | string -%}
-      {%-   if claims.sub is defined and claims.exp is defined
-               and (entry.content | default({})).status | default('') == 'enabled'
-               and expires_text is match('^[0-9]+$')
-               and (expires_text | int == 0 or expires_text | int > current_epoch)
+      {%-   if claims.sub is defined
                and (claims.sub not in managed
                     or (claims.sub in managed_names
                         and claims.sub not in splunk_docker_token_owner_exceptions

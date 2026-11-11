@@ -15,6 +15,7 @@
   vars:
     repo_root: "{{ playbook_dir }}/../.."
     audit_tasks_file: "{{ repo_root }}/roles/splunk_docker/tasks/audit_undeclared_tokens.yml"
+    liveness_tasks_file: "{{ repo_root }}/roles/splunk_docker/tasks/select_live_tokens.yml"
     select_task_name: Select live tokens with an undeclared owner or audience
 
     # One owner the role manages, one it deliberately excuses. Everything else
@@ -36,51 +37,57 @@
       - name: two live administrator tokens are flagged
         entries:
           - name: "0a251db5d9"
-            content: {status: enabled, claims: {sub: admin, exp: "{{ live_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: admin, exp: "{{ live_epoch }}"}}
           - name: "43be52db0e"
-            content: {status: enabled, claims: {sub: admin, exp: "{{ live_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: admin, exp: "{{ live_epoch }}"}}
         expect: ["0a251db5d9", "43be52db0e"]
 
       - name: an enabled non-expiring token with an unmanaged owner is flagged
         entries:
           - name: "admin-no-expiry"
-            content: {status: enabled, claims: {sub: admin, exp: 0}}
+            content: {status: enabled, claims: {nbr: 0, sub: admin, exp: 0}}
         expect: ["admin-no-expiry"]
 
       - name: a declared user's live token is not flagged
         entries:
           - name: "hermes01"
-            content: {status: enabled, claims: {sub: hermes, aud: mcp, exp: "{{ live_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: hermes, aud: mcp, exp: "{{ live_epoch }}"}}
+        expect: []
+
+      - name: an off-audience token that is not valid yet is not flagged
+        entries:
+          - name: "hermes-future01"
+            content: {status: enabled, claims: {nbr: "{{ live_epoch }}", sub: hermes, aud: platform-search, exp: 0}}
         expect: []
 
       - name: a managed user's live off-audience token is flagged
         entries:
           - name: "hermes-search01"
-            content: {status: enabled, claims: {sub: hermes, aud: platform-search, exp: "{{ live_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: hermes, aud: platform-search, exp: "{{ live_epoch }}"}}
         expect: ["hermes-search01"]
 
       - name: a managed user's enabled non-expiring off-audience token is flagged
         entries:
           - name: "hermes-search-no-expiry"
-            content: {status: enabled, claims: {sub: hermes, aud: platform-search, exp: 0}}
+            content: {status: enabled, claims: {nbr: 0, sub: hermes, aud: platform-search, exp: 0}}
         expect: ["hermes-search-no-expiry"]
 
       - name: a managed user's declared extra audience is accepted
         entries:
           - name: "hermes-llamaindex01"
-            content: {status: enabled, claims: {sub: hermes, aud: llamaindex-agent-sessions, exp: "{{ live_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: hermes, aud: llamaindex-agent-sessions, exp: "{{ live_epoch }}"}}
         expect: []
 
       - name: a disabled off-audience token is not live
         entries:
           - name: "hermes-disabled-search01"
-            content: {status: disabled, claims: {sub: hermes, aud: platform-search, exp: "{{ live_epoch }}"}}
+            content: {status: disabled, claims: {nbr: 0, sub: hermes, aud: platform-search, exp: "{{ live_epoch }}"}}
         expect: []
 
       - name: an enabled off-audience token remains a finding
         entries:
           - name: "hermes-enabled-search01"
-            content: {status: enabled, claims: {sub: hermes, aud: platform-search, exp: "{{ live_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: hermes, aud: platform-search, exp: "{{ live_epoch }}"}}
         expect: ["hermes-enabled-search01"]
 
       # Expiry must still be checked because the platform reports expired
@@ -88,13 +95,13 @@
       - name: an expired token cannot authenticate, so it is not a finding
         entries:
           - name: "expired01"
-            content: {status: enabled, claims: {sub: admin, exp: "{{ dead_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: admin, exp: "{{ dead_epoch }}"}}
         expect: []
 
       - name: a named exception is not flagged
         entries:
           - name: "except01"
-            content: {status: enabled, claims: {sub: deliberate_exception, exp: "{{ live_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: deliberate_exception, exp: "{{ live_epoch }}"}}
         expect: []
 
       - name: an entry carrying no claims is skipped, not an error
@@ -108,13 +115,13 @@
       - name: the live administrator tokens are still found among healthy ones
         entries:
           - name: "hermes01"
-            content: {status: enabled, claims: {sub: hermes, aud: mcp, exp: "{{ live_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: hermes, aud: mcp, exp: "{{ live_epoch }}"}}
           - name: "0a251db5d9"
-            content: {status: enabled, claims: {sub: admin, exp: "{{ live_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: admin, exp: "{{ live_epoch }}"}}
           - name: "expired01"
-            content: {status: enabled, claims: {sub: admin, exp: "{{ dead_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: admin, exp: "{{ dead_epoch }}"}}
           - name: "43be52db0e"
-            content: {status: enabled, claims: {sub: admin, exp: "{{ live_epoch }}"}}
+            content: {status: enabled, claims: {nbr: 0, sub: admin, exp: "{{ live_epoch }}"}}
         expect: ["0a251db5d9", "43be52db0e"]
 
       - name: an empty listing is not a finding
@@ -127,9 +134,9 @@
       - name: a string-typed expiry is compared, not fatal
         entries:
           - name: "strexp_live"
-            content: {status: enabled, claims: {sub: admin, exp: "4102444800"}}
+            content: {status: enabled, claims: {nbr: 0, sub: admin, exp: "4102444800"}}
           - name: "strexp_dead"
-            content: {status: enabled, claims: {sub: admin, exp: "1000000000"}}
+            content: {status: enabled, claims: {nbr: 0, sub: admin, exp: "1000000000"}}
         expect: ["strexp_live"]
 
   tasks:
@@ -143,6 +150,25 @@
              | first | default({}, true))['ansible.builtin.set_fact']
              | default({}, true))['splunk_docker_undeclared_tokens']
              | default('', true) }}
+
+    - name: Read the shared liveness expression out of the role
+      ansible.builtin.set_fact:
+        liveness_expression: >-
+          {{ (((lookup('ansible.builtin.file', liveness_tasks_file) | from_yaml)
+               | first)['ansible.builtin.set_fact'])['splunk_docker_live_tokens'] }}
+
+    - name: Materialise the liveness expression
+      ansible.builtin.tempfile:
+        suffix: .j2
+      register: liveness_template
+      changed_when: false
+
+    - name: Write the liveness expression to it
+      ansible.builtin.copy:
+        content: "{{ liveness_expression }}"
+        dest: "{{ liveness_template.path }}"
+        mode: "0600"
+      changed_when: false
 
     - name: Fail loudly if the role no longer contains that task
       ansible.builtin.assert:
@@ -179,10 +205,16 @@
       vars:
         # A template lookup returns a rendered string once the expression
         # contains statement blocks, so parse it back before comparing.
+        live_rendered: >-
+          {{ lookup('ansible.builtin.template', liveness_template.path,
+                    template_vars={'splunk_docker_liveness_input': scenario.entries}) }}
         rendered: >-
           {{ lookup('ansible.builtin.template', select_template.path,
                     template_vars={'splunk_docker_all_tokens':
-                                   {'json': {'entry': scenario.entries}}}) }}
+                                   {'json': {'entry': scenario.entries}},
+                                   'splunk_docker_live_tokens':
+                                   ((live_rendered | from_yaml)
+                                    if (live_rendered is string) else live_rendered)}) }}
         selected: >-
           {{ ((rendered | from_yaml) if (rendered is string) else rendered)
              | map(attribute='name') | list }}
@@ -191,10 +223,13 @@
         loop_var: scenario
         label: "{{ scenario.name }}"
 
-    - name: Remove the materialised expression
+    - name: Remove the materialised expressions
       ansible.builtin.file:
-        path: "{{ select_template.path }}"
+        path: "{{ item }}"
         state: absent
+      loop:
+        - "{{ select_template.path }}"
+        - "{{ liveness_template.path }}"
       changed_when: false
 
     # A check that cannot fail looks exactly like a check that passed, so the
@@ -207,7 +242,7 @@
               - splunk_docker_undeclared_tokens | length == 0
           vars:
             splunk_docker_undeclared_tokens:
-              - content: {claims: {sub: admin}}
+              - content: {claims: {nbr: 0, sub: admin}}
 
         - name: Reaching here means the gate does not fail closed
           ansible.builtin.fail:
