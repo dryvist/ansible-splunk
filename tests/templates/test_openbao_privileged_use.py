@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Guard the split of OpenBao privileged use between paging and daily digest.
+Guard OpenBao privileged-use paging and its daily digest.
 
 Audit _time is the record's own time, so a replayed backlog lands hours in
 the past. Both privileged-use stanzas classify on index time: the base
@@ -12,9 +12,8 @@ Privileged use inside the open admin window by the window's own identity
 keeps only privileged use under any other identity, throttled by caller and
 policies for 24h (one page per identity and policy set per day), and
 openbao_window_privileged_use_digest records the in-window events once a day
-on the status topic. Both stanza searches render one shared selection
-pipeline, so paging and digest coverage can neither overlap nor skip an
-event.
+on the status topic. The paging and digest stanzas render one shared selection
+pipeline, so their coverage can neither overlap nor skip an event.
 
 Run from repo root:
   python3 tests/templates/test_openbao_privileged_use.py
@@ -22,36 +21,10 @@ Run from repo root:
 
 import re
 import sys
-from pathlib import Path
 
-from _defaults_loader import load_defaults
+from _openbao_privileged_use import render_savedsearches, search_text, setting
 
-from _render_env import ansible_env
-
-ROOT = Path(__file__).parent.parent.parent
-DEFAULTS = load_defaults(ROOT)
-
-render_values = {
-    "splunk_docker_ansible_converge_host_count": DEFAULTS["splunk_docker_ansible_converge_host_count"],
-    "splunk_docker_silence_detectors": DEFAULTS["splunk_docker_silence_detectors"],
-    "splunk_docker_silence_lookback_multiplier": DEFAULTS["splunk_docker_silence_lookback_multiplier"],
-    "splunk_docker_llm_freshness_indexes": DEFAULTS["splunk_docker_llm_freshness_indexes"],
-    "splunk_docker_indexes_core": DEFAULTS["splunk_docker_indexes_core"],
-    "splunk_docker_indexes_extra": DEFAULTS["splunk_docker_indexes_extra"],
-    "splunk_docker_openbao_raft_expected_voters": DEFAULTS["splunk_docker_openbao_raft_expected_voters"],
-    "splunk_docker_openbao_latency_tail_multiplier": DEFAULTS["splunk_docker_openbao_latency_tail_multiplier"],
-    "splunk_docker_openbao_latency_tail_floor_ms": DEFAULTS["splunk_docker_openbao_latency_tail_floor_ms"],
-    "splunk_docker_openbao_latency_tail_min_minutes": DEFAULTS["splunk_docker_openbao_latency_tail_min_minutes"],
-    "splunk_docker_openbao_raft_commit_sustained_ms": DEFAULTS["splunk_docker_openbao_raft_commit_sustained_ms"],
-    "splunk_docker_openbao_raft_commit_spike_ms": DEFAULTS["splunk_docker_openbao_raft_commit_spike_ms"],
-    "splunk_docker_openbao_follower_heartbeat_ms": DEFAULTS["splunk_docker_openbao_follower_heartbeat_ms"],
-    "splunk_docker_openbao_leader_io_wait_s": DEFAULTS["splunk_docker_openbao_leader_io_wait_s"],
-    "splunk_docker_openbao_voter_io_wait_s": DEFAULTS["splunk_docker_openbao_voter_io_wait_s"],
-    "splunk_docker_alert_ntfy_url": None,
-}
-rendered = ansible_env(ROOT / "roles/splunk_docker/templates").get_template(
-    "savedsearches.conf.j2"
-).render(**render_values)
+rendered = render_savedsearches()
 
 WINDOW_ROLE = "ai-admin-session"
 SELECTED_CLAUSE = f"| where 'auth.metadata.role_name'=\"{WINDOW_ROLE}\""
@@ -62,17 +35,11 @@ dm = re.search(r"^\[openbao_window_privileged_use_digest\]$(.*?)(?=^\[|\Z)", ren
 
 errors = []
 if not m:
-    print("FAIL: [openbao_privileged_use] not found in rendered output")
-    sys.exit(1)
+    errors.append("FAIL: [openbao_privileged_use] not found in rendered output")
 if not dm:
     errors.append("FAIL: [openbao_window_privileged_use_digest] not found in rendered output")
 
-stanza = m.group(1)
-
-
-def setting(body, key):
-    found = re.search(rf"^{re.escape(key)} = (.*)$", body, re.M)
-    return found.group(1) if found else None
+stanza = m.group(1) if m else ""
 
 
 def shared_pipeline(search_text):
@@ -80,11 +47,6 @@ def shared_pipeline(search_text):
     base search's index-time bound and the stanza's own window branch."""
     _, _, tail = search_text.partition("_index_latest=now ")
     return tail.split(EXCLUDED_CLAUSE, 1)[0].split(SELECTED_CLAUSE, 1)[0]
-
-
-def search_text(body):
-    found = re.search(r"^search = (.*)$", body, re.M)
-    return found.group(1) if found else ""
 
 
 search = search_text(stanza)
@@ -260,15 +222,7 @@ if dm:
 # The digest must not ride the paging delivery: render with a hub URL and
 # check the paging stanza keeps the alert topic while the digest lands on the
 # status topic.
-delivered = ansible_env(ROOT / "roles/splunk_docker/templates").get_template(
-    "savedsearches.conf.j2"
-).render(
-    **{
-        **render_values,
-        "splunk_docker_alert_ntfy_url": "https://ntfy.example.test/keystone",
-        "splunk_docker_alert_ntfy_query": DEFAULTS["splunk_docker_alert_ntfy_query"],
-    },
-)
+delivered = render_savedsearches(alert_ntfy_url="https://ntfy.example.test/keystone")
 delivered_stanzas = {
     name: body
     for name, body in (
