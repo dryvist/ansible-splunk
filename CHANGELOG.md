@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.118.0](https://github.com/dryvist/ansible-splunk/compare/v0.117.0...v0.118.0) (2026-11-12)
+
+
+### Features
+
+* **validate:** show failure lines from earlier container starts ([#851](https://github.com/dryvist/ansible-splunk/issues/851)) ([68faf1d](https://github.com/dryvist/ansible-splunk/commit/68faf1d7dd3b71e23b052df9ca2761b82da57f03))
+
 ## [0.117.0](https://github.com/dryvist/ansible-splunk/compare/v0.116.0...v0.117.0) (2026-11-12)
 
 
