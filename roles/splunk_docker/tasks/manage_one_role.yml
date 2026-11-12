@@ -85,6 +85,7 @@
   changed_when: false
   check_mode: false
   no_log: true
+  when: not (ansible_check_mode and splunk_docker_role_lookup.status == 404)
 
 - name: "Assert Splunk role {{ splunk_role.name }} matches its declared scope and grants"
   vars:
@@ -125,3 +126,4 @@
       {{ _live.srchDiskQuota | default(100) }}.
       An identity holding this role would authenticate and then be unable to do
       its work, which reads as a credential fault and is not one.
+  when: not (ansible_check_mode and splunk_docker_role_lookup.status == 404)
