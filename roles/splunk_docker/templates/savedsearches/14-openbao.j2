@@ -93,6 +93,8 @@ is_visible = 1
 disabled = 0
 alert.severity = 4
 alert.suppress = 1
+# Per-result alerting so the per-path suppression applies to each path separately.
+alert.digest_mode = 0
 # Suppression keys on request.path: writes to each path page at most once per hour.
 alert.suppress.period = 1h
 alert.suppress.fields = request.path

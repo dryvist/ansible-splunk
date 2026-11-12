@@ -297,6 +297,8 @@ if setting(write_stanza, "cron_schedule") != "*/5 * * * *":
     errors.append("FAIL: RBAC write detector is not scheduled every five minutes")
 if setting(write_stanza, "alert.suppress") != "1":
     errors.append("FAIL: RBAC write alert suppression is not enabled")
+if setting(write_stanza, "alert.digest_mode") != "0":
+    errors.append("FAIL: RBAC write alert is not per-result, so per-path suppression would not apply")
 if setting(write_stanza, "alert.suppress.period") != "1h":
     errors.append("FAIL: RBAC write alert suppression is not one hour")
 if setting(write_stanza, "alert.suppress.fields") != "request.path":
