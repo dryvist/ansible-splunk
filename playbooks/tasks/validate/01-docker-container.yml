@@ -49,7 +49,7 @@
 
 - name: Read the tail of the Splunk container log
   ansible.builtin.command:
-    argv: [docker, logs, --tail, "120", splunk]
+    argv: [docker, logs, --tail, "3000", splunk]
   register: splunk_container_log
   changed_when: false
   failed_when: false
@@ -60,9 +60,20 @@
 # The pattern is deliberately broad: a dropped line costs less than a leaked secret.
 - name: Show the Splunk container log tail without secret-bearing lines
   ansible.builtin.debug:
-    msg: >-
-      {{ ((splunk_container_log.stdout_lines | default([])) + (splunk_container_log.stderr_lines | default([])))
-         | reject('search', _splunk_log_redact, ignorecase=true) | list }}
+    msg:
+      # A restart loop puts the cause in an earlier start, above the newest lines.
+      failure_lines: >-
+        {{ ((_splunk_stdout_safe + _splunk_stderr_safe)
+            | select('search', _splunk_log_failure, ignorecase=true) | list)[-80:] }}
+      stdout_tail: "{{ _splunk_stdout_safe[-60:] }}"
+      stderr_tail: "{{ _splunk_stderr_safe[-20:] }}"
   vars:
     _splunk_log_redact: 'passw|secret|token|pass4symmkey|api_?key|auth|bearer|SPLUNK_[A-Z0-9_]+=|-----BEGIN'
+    _splunk_log_failure: 'fatal|failed|error|unable|cannot|denied|no space|recap|exit|stopp|migrat|licen'
+    _splunk_stdout_safe: >-
+      {{ splunk_container_log.stdout_lines | default([])
+         | reject('search', _splunk_log_redact, ignorecase=true) | list }}
+    _splunk_stderr_safe: >-
+      {{ splunk_container_log.stderr_lines | default([])
+         | reject('search', _splunk_log_redact, ignorecase=true) | list }}
   when: splunk_container.exists | default(false)

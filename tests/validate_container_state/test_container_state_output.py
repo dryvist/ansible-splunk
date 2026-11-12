@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 
 import yaml
-from jinja2 import Environment
+from jinja2.nativetypes import NativeEnvironment
 
 TASK_FILE = Path(__file__).parent.parent.parent / "playbooks/tasks/validate/01-docker-container.yml"
 TASKS = {t["name"]: t for t in yaml.safe_load(TASK_FILE.read_text())}
@@ -31,7 +31,7 @@ for task in (state, show):
 assert read["no_log"] is True and read["check_mode"] is False and read["changed_when"] is False
 assert read["ansible.builtin.command"]["argv"][:2] == ["docker", "logs"]
 
-env = Environment()
+env = NativeEnvironment()
 env.tests["search"] = lambda value, pattern, ignorecase=False: bool(
     re.search(pattern, value, re.IGNORECASE if ignorecase else 0)
 )
@@ -46,13 +46,22 @@ SECRET_LINES = [
     "api_key=" + "example",
 ]
 PLAIN_LINES = ["PLAY RECAP ***", "fatal: [localhost]: FAILED! => migration failed", "splunkd is not running"]
-rendered = env.from_string(show["ansible.builtin.debug"]["msg"]).render(
-    splunk_container_log={"stdout_lines": SECRET_LINES[:4] + PLAIN_LINES, "stderr_lines": SECRET_LINES[4:]},
-    _splunk_log_redact=show["vars"]["_splunk_log_redact"],
-)
+log = {"stdout_lines": SECRET_LINES[:4] + PLAIN_LINES, "stderr_lines": SECRET_LINES[4:] + ["plain stderr line"]}
+ctx = {
+    "splunk_container_log": log,
+    "_splunk_log_redact": show["vars"]["_splunk_log_redact"],
+    "_splunk_log_failure": show["vars"]["_splunk_log_failure"],
+}
+for name in ("_splunk_stdout_safe", "_splunk_stderr_safe"):
+    ctx[name] = env.from_string(show["vars"][name]).render(**ctx)
+out = {key: env.from_string(expr).render(**ctx) for key, expr in show["ansible.builtin.debug"]["msg"].items()}
+
+printed = out["failure_lines"] + out["stdout_tail"] + out["stderr_tail"]
 for line in SECRET_LINES:
-    assert line not in rendered, line
-for line in PLAIN_LINES:
-    assert line in rendered, line
+    assert line not in printed, line
+assert out["stdout_tail"] == PLAIN_LINES
+assert out["stderr_tail"] == ["plain stderr line"]
+# Recap and failure lines surface even when they are not the newest lines.
+assert out["failure_lines"] == PLAIN_LINES[:2]
 
 print("ok")
