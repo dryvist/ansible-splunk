@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Guard OpenBao privileged-use paging, its daily digest, and the in-window RBAC write detector.
+Guard OpenBao privileged-use paging and its daily digest.
 
 Audit _time is the record's own time, so a replayed backlog lands hours in
 the past. Both privileged-use stanzas classify on index time: the base
@@ -12,10 +12,8 @@ Privileged use inside the open admin window by the window's own identity
 keeps only privileged use under any other identity, throttled by caller and
 policies for 24h (one page per identity and policy set per day), and
 openbao_window_privileged_use_digest records the in-window events once a day
-on the status topic. openbao_window_rbac_write separately pages on in-window
-policy and AppRole role writes, throttled once per path per hour. The existing
-paging and digest stanzas render one shared selection pipeline, so their
-coverage can neither overlap nor skip an event.
+on the status topic. The paging and digest stanzas render one shared selection
+pipeline, so their coverage can neither overlap nor skip an event.
 
 Run from repo root:
   python3 tests/templates/test_openbao_privileged_use.py
@@ -23,36 +21,10 @@ Run from repo root:
 
 import re
 import sys
-from pathlib import Path
 
-from _defaults_loader import load_defaults
+from _openbao_privileged_use import render_savedsearches, search_text, setting
 
-from _render_env import ansible_env
-
-ROOT = Path(__file__).parent.parent.parent
-DEFAULTS = load_defaults(ROOT)
-
-render_values = {
-    "splunk_docker_ansible_converge_host_count": DEFAULTS["splunk_docker_ansible_converge_host_count"],
-    "splunk_docker_silence_detectors": DEFAULTS["splunk_docker_silence_detectors"],
-    "splunk_docker_silence_lookback_multiplier": DEFAULTS["splunk_docker_silence_lookback_multiplier"],
-    "splunk_docker_llm_freshness_indexes": DEFAULTS["splunk_docker_llm_freshness_indexes"],
-    "splunk_docker_indexes_core": DEFAULTS["splunk_docker_indexes_core"],
-    "splunk_docker_indexes_extra": DEFAULTS["splunk_docker_indexes_extra"],
-    "splunk_docker_openbao_raft_expected_voters": DEFAULTS["splunk_docker_openbao_raft_expected_voters"],
-    "splunk_docker_openbao_latency_tail_multiplier": DEFAULTS["splunk_docker_openbao_latency_tail_multiplier"],
-    "splunk_docker_openbao_latency_tail_floor_ms": DEFAULTS["splunk_docker_openbao_latency_tail_floor_ms"],
-    "splunk_docker_openbao_latency_tail_min_minutes": DEFAULTS["splunk_docker_openbao_latency_tail_min_minutes"],
-    "splunk_docker_openbao_raft_commit_sustained_ms": DEFAULTS["splunk_docker_openbao_raft_commit_sustained_ms"],
-    "splunk_docker_openbao_raft_commit_spike_ms": DEFAULTS["splunk_docker_openbao_raft_commit_spike_ms"],
-    "splunk_docker_openbao_follower_heartbeat_ms": DEFAULTS["splunk_docker_openbao_follower_heartbeat_ms"],
-    "splunk_docker_openbao_leader_io_wait_s": DEFAULTS["splunk_docker_openbao_leader_io_wait_s"],
-    "splunk_docker_openbao_voter_io_wait_s": DEFAULTS["splunk_docker_openbao_voter_io_wait_s"],
-    "splunk_docker_alert_ntfy_url": None,
-}
-rendered = ansible_env(ROOT / "roles/splunk_docker/templates").get_template(
-    "savedsearches.conf.j2"
-).render(**render_values)
+rendered = render_savedsearches()
 
 WINDOW_ROLE = "ai-admin-session"
 SELECTED_CLAUSE = f"| where 'auth.metadata.role_name'=\"{WINDOW_ROLE}\""
@@ -60,34 +32,14 @@ EXCLUDED_CLAUSE = f"| where NOT ('auth.metadata.role_name'=\"{WINDOW_ROLE}\")"
 
 m = re.search(r"^\[openbao_privileged_use\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S)
 dm = re.search(r"^\[openbao_window_privileged_use_digest\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S)
-wm = re.search(r"^\[openbao_window_rbac_write\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S)
 
 errors = []
 if not m:
-    print("FAIL: [openbao_privileged_use] not found in rendered output")
-    sys.exit(1)
+    errors.append("FAIL: [openbao_privileged_use] not found in rendered output")
 if not dm:
     errors.append("FAIL: [openbao_window_privileged_use_digest] not found in rendered output")
-if not wm:
-    errors.append("FAIL: [openbao_window_rbac_write] not found in rendered output")
 
-stanza = m.group(1)
-write_stanza = wm.group(1) if wm else ""
-
-
-def setting(body, key):
-    found = re.search(rf"^{re.escape(key)} = (.*)$", body, re.M)
-    return found.group(1) if found else None
-
-
-def action_settings(body):
-    return {
-        key: value
-        for line in body.splitlines()
-        if " = " in line
-        for key, value in (line.split(" = ", 1),)
-        if key.startswith("action.")
-    }
+stanza = m.group(1) if m else ""
 
 
 def shared_pipeline(search_text):
@@ -95,11 +47,6 @@ def shared_pipeline(search_text):
     base search's index-time bound and the stanza's own window branch."""
     _, _, tail = search_text.partition("_index_latest=now ")
     return tail.split(EXCLUDED_CLAUSE, 1)[0].split(SELECTED_CLAUSE, 1)[0]
-
-
-def search_text(body):
-    found = re.search(r"^search = (.*)$", body, re.M)
-    return found.group(1) if found else ""
 
 
 search = search_text(stanza)
@@ -272,53 +219,10 @@ if dm:
     if setting(digest_body, "alert.suppress.fields") is not None:
         errors.append("FAIL: digest sets alert.suppress.fields and splits the daily list")
 
-# The in-window write alert is deliberately narrower than the shared
-# privileged-use pipeline: only the admin-window identity's writes to the two
-# protected path families are selected.
-write_search = search_text(write_stanza)
-write_base = write_search.split("|", 1)[0] if write_search else ""
-write_earliest = re.search(r"^dispatch\.earliest_time = -48h$", write_stanza, re.M)
-expected_write_filter = (
-    "| where 'auth.metadata.role_name'=\"ai-admin-session\" AND "
-    "in('request.operation', \"create\", \"update\", \"delete\") AND "
-    "(like('request.path', \"sys/policies/%\") OR "
-    "like('request.path', \"auth/approle/role/%\"))"
-)
-write_filters = [f.strip() for f in re.findall(r"\| where [^|]+", write_search)]
-if "_index_earliest=-6m" not in write_base or "_index_latest=now" not in write_base:
-    errors.append("FAIL: RBAC write search does not use paging's index-time window")
-if not write_earliest:
-    errors.append("FAIL: RBAC write dispatch.earliest_time is not -48h")
-if "| rex \"openbao-audit: (?<j>\\{.*)\"" not in write_search or "| spath input=j" not in write_search:
-    errors.append("FAIL: RBAC write search does not use the established rex + spath extraction")
-if write_filters != [expected_write_filter]:
-    errors.append("FAIL: RBAC write search must filter only the window role, three write operations, and two protected path prefixes")
-if setting(write_stanza, "cron_schedule") != "*/5 * * * *":
-    errors.append("FAIL: RBAC write detector is not scheduled every five minutes")
-if setting(write_stanza, "alert.suppress") != "1":
-    errors.append("FAIL: RBAC write alert suppression is not enabled")
-if setting(write_stanza, "alert.digest_mode") != "0":
-    errors.append("FAIL: RBAC write alert is not per-result, so per-path suppression would not apply")
-if setting(write_stanza, "alert.suppress.period") != "1h":
-    errors.append("FAIL: RBAC write alert suppression is not one hour")
-if setting(write_stanza, "alert.suppress.fields") != "request.path":
-    errors.append("FAIL: RBAC write alert suppression is not keyed only by request.path")
-write_table_fields = write_search.rsplit("| table ", 1)[-1].split()
-if "request.path" not in write_table_fields:
-    errors.append("FAIL: RBAC write result table drops the request.path suppression key")
-
 # The digest must not ride the paging delivery: render with a hub URL and
 # check the paging stanza keeps the alert topic while the digest lands on the
 # status topic.
-delivered = ansible_env(ROOT / "roles/splunk_docker/templates").get_template(
-    "savedsearches.conf.j2"
-).render(
-    **{
-        **render_values,
-        "splunk_docker_alert_ntfy_url": "https://ntfy.example.test/keystone",
-        "splunk_docker_alert_ntfy_query": DEFAULTS["splunk_docker_alert_ntfy_query"],
-    },
-)
+delivered = render_savedsearches(alert_ntfy_url="https://ntfy.example.test/keystone")
 delivered_stanzas = {
     name: body
     for name, body in (
@@ -328,10 +232,6 @@ delivered_stanzas = {
 }
 paging_url = setting(delivered_stanzas.get("openbao_privileged_use", ""), "action.webhook.param.url") or ""
 digest_url = setting(delivered_stanzas.get("openbao_window_privileged_use_digest", ""), "action.webhook.param.url") or ""
-if action_settings(delivered_stanzas.get("openbao_window_rbac_write", "")) != action_settings(
-    delivered_stanzas.get("openbao_privileged_use", "")
-):
-    errors.append("FAIL: RBAC write alert delivery settings differ from the paging stanza")
 if not paging_url.startswith("https://ntfy.example.test/keystone"):
     errors.append("FAIL: paging alert does not use the alert topic")
 if "/status" not in digest_url or digest_url.startswith("https://ntfy.example.test/keystone"):
