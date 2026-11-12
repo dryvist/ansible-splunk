@@ -1,0 +1,46 @@
+---
+# Diagnostics for the Splunk container: show WHY it is not serving. Validate is
+# the one declared read, so these print on every run and never change a check
+# result. The registered docker_container_info result embeds the admin password
+# in the container's environment list, so the state print below is a strict
+# allow-list: only the named fields are rendered, never the whole result or any
+# whole sub-dict of it.
+- name: Show Splunk container state (explicit field allow-list)
+  ansible.builtin.debug:
+    msg: |
+      Splunk container state:
+        Status: {{ splunk_container.container.State.Status | default('unknown') }}
+        Running: {{ splunk_container.container.State.Running | default('unknown') }}
+        Restarting: {{ splunk_container.container.State.Restarting | default('unknown') }}
+        OOMKilled: {{ splunk_container.container.State.OOMKilled | default('unknown') }}
+        ExitCode: {{ splunk_container.container.State.ExitCode | default('unknown') }}
+        Error: {{ splunk_container.container.State.Error | default('none') }}
+        StartedAt: {{ splunk_container.container.State.StartedAt | default('unknown') }}
+        FinishedAt: {{ splunk_container.container.State.FinishedAt | default('unknown') }}
+        Health: {{ splunk_container.container.State.Health.Status | default('no health check defined') }}
+        RestartCount: {{ splunk_container.container.RestartCount | default('unknown') }}
+        Image: {{ splunk_container.container.Config.Image | default('unknown') }}
+
+- name: Read last 120 lines of the Splunk container log
+  ansible.builtin.command:
+    cmd: docker logs --tail 120 splunk
+  changed_when: false
+  check_mode: false
+  # Read-only diagnostic: a missing container or daemon error must surface in
+  # the state print above, not abort the validation play.
+  failed_when: false
+  register: splunk_container_log
+  no_log: true
+
+- name: Show Splunk container log tail with secret-like lines dropped
+  vars:
+    # Deliberately broad: any line matching a secret-like term is dropped whole.
+    splunk_log_secret_terms: >-
+      password|passwd|secret|token|pass4symmkey|hec_token|api_key|apikey|authorization|bearer|-----BEGIN
+  ansible.builtin.debug:
+    msg: |
+      Last 120 Splunk container log lines (secret-like lines dropped):
+      {% for line in splunk_container_log.stdout_lines | default([])
+        | reject('search', splunk_log_secret_terms, 'ignorecase') %}
+      {{ line }}
+      {% endfor %}

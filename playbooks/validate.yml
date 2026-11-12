@@ -18,15 +18,19 @@
     validation_results: []
 
   # Split across playbooks/tasks/validate/ (one file per validation area:
-  # setup, docker/container, ports+HEC, config files+addons, MCP+Java,
-  # disk+freeze-path, summary) rather than one flat tasks: list — an agent
-  # debugging one check should not have to read every other check to find it.
+  # setup, docker/container, container diagnostics, ports+HEC, config
+  # files+addons, MCP+Java, disk+freeze-path, summary) rather than one flat
+  # tasks: list — an agent debugging one check should not have to read every
+  # other check to find it.
   tasks:
     - name: Load defaults and derive HEC token values
       ansible.builtin.include_tasks: tasks/validate/00-setup.yml
 
     - name: Validate Docker service and Splunk container
       ansible.builtin.include_tasks: tasks/validate/01-docker-container.yml
+
+    - name: Show why the Splunk container is not serving (state and redacted log tail)
+      ansible.builtin.include_tasks: tasks/validate/01-docker-container-diagnostics.yml
 
     - name: Validate listening ports and HEC ingestion
       ansible.builtin.include_tasks: tasks/validate/02-ports-and-hec.yml
