@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.119.0](https://github.com/dryvist/ansible-splunk/compare/v0.118.1...v0.119.0) (2026-11-12)
+
+
+### Features
+
+* **alerts:** page on OpenBao admin-window RBAC writes ([#855](https://github.com/dryvist/ansible-splunk/issues/855)) ([da8728d](https://github.com/dryvist/ansible-splunk/commit/da8728d05a538251580632a128decea72e7bce21))
+
 ## [0.118.1](https://github.com/dryvist/ansible-splunk/compare/v0.118.0...v0.118.1) (2026-11-12)
 
 
