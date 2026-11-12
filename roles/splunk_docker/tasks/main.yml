@@ -62,6 +62,13 @@
     state: started
     enabled: true
 
+- name: Prune unused Docker images on request
+  ansible.builtin.include_tasks:
+    file: prune_unused_images.yml
+    apply:
+      tags: [never, splunk_docker_prune_images]
+  tags: [never, splunk_docker_prune_images]
+
 - name: Install Java runtime for DB Connect
   ansible.builtin.include_tasks: java.yml
   when: splunk_docker_java_enabled

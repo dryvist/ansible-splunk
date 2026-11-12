@@ -1,0 +1,48 @@
+---
+- name: Preview unused Docker images that pruning removes
+  community.docker.docker_host_info:
+    images: true
+    containers: true
+    containers_all: true
+    verbose_output: true
+  register: splunk_docker_prune_host_info
+
+- name: Find Docker images not referenced by any container
+  ansible.builtin.set_fact:
+    splunk_docker_prune_unused_images: >-
+      {{
+        splunk_docker_prune_host_info.images
+        | rejectattr(
+            'Id',
+            'in',
+            splunk_docker_prune_host_info.containers | map(attribute='ImageID') | list
+          )
+        | list
+      }}
+
+- name: Report the Docker image prune preview
+  ansible.builtin.debug:
+    msg: >-
+      Unused Docker images (repository tags=size bytes):
+      {% for image in splunk_docker_prune_unused_images %}
+      {{ image.RepoTags | default(['<untagged>'], true) | join(',') }}={{ image.Size }} bytes{% if not loop.last %}; {% endif %}
+      {% else %}none{% endfor %};
+      total: {{ splunk_docker_prune_unused_images | sum(attribute='Size') }} bytes
+
+- name: Prune unused Docker images
+  community.docker.docker_prune:
+    images: true
+    images_filters:
+      dangling: false
+    containers: false
+    networks: false
+    volumes: false
+    builder_cache: false
+  register: splunk_docker_prune_result
+
+- name: Report removed images and reclaimed space
+  ansible.builtin.debug:
+    msg: >-
+      Removed images: {{ splunk_docker_prune_result.images | default([]) | length }};
+      reclaimed space: {{ splunk_docker_prune_result.images_space_reclaimed | default(0) }} bytes
+  when: not (splunk_docker_prune_result.skipped | default(false))

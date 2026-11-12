@@ -73,6 +73,9 @@ splunk_docker_addons:
         splunk_docker_hec_token: "{{ lookup('env', 'SPLUNK_HEC_TOKEN') }}"
 ```
 
+Use `--tags splunk_docker_prune_images` to preview and explicitly prune unused Docker images. In `--check` mode, the read-only preview
+runs and pruning is skipped because the prune module has no check-mode support.
+
 ## Dependencies
 
 - community.docker collection
