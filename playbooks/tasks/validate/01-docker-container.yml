@@ -27,3 +27,42 @@
 - name: Record docker-compose.yml status
   ansible.builtin.set_fact:
     validation_results: "{{ validation_results + [{'check': 'docker-compose.yml exists', 'passed': compose_file.stat.exists}] }}"
+
+# Container state and start log, for a splunkd that listens but does not serve.
+# Named fields only: the registered info also holds Config.Env (admin password).
+- name: Show Splunk container state
+  ansible.builtin.debug:
+    msg:
+      image: "{{ (splunk_container.container.Config | default({})).Image | default('unknown') }}"
+      status: "{{ _splunk_state.Status | default('unknown') }}"
+      health: "{{ (_splunk_state.Health | default({})).Status | default('none') }}"
+      restart_count: "{{ splunk_container.container.RestartCount | default('unknown') }}"
+      restarting: "{{ _splunk_state.Restarting | default('unknown') }}"
+      oom_killed: "{{ _splunk_state.OOMKilled | default('unknown') }}"
+      exit_code: "{{ _splunk_state.ExitCode | default('unknown') }}"
+      error: "{{ _splunk_state.Error | default('') }}"
+      started_at: "{{ _splunk_state.StartedAt | default('unknown') }}"
+      finished_at: "{{ _splunk_state.FinishedAt | default('unknown') }}"
+  vars:
+    _splunk_state: "{{ (splunk_container.container | default({}, true)).State | default({}) }}"
+  when: splunk_container.exists | default(false)
+
+- name: Read the tail of the Splunk container log
+  ansible.builtin.command:
+    argv: [docker, logs, --tail, "120", splunk]
+  register: splunk_container_log
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+  when: splunk_container.exists | default(false)
+
+# The pattern is deliberately broad: a dropped line costs less than a leaked secret.
+- name: Show the Splunk container log tail without secret-bearing lines
+  ansible.builtin.debug:
+    msg: >-
+      {{ ((splunk_container_log.stdout_lines | default([])) + (splunk_container_log.stderr_lines | default([])))
+         | reject('search', _splunk_log_redact, ignorecase=true) | list }}
+  vars:
+    _splunk_log_redact: 'passw|secret|token|pass4symmkey|api_?key|auth|bearer|SPLUNK_[A-Z0-9_]+=|-----BEGIN'
+  when: splunk_container.exists | default(false)
