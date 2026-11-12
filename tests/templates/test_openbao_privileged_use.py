@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Guard the split of OpenBao privileged use between paging and daily digest.
+Guard OpenBao privileged-use paging, its daily digest, and the in-window RBAC write detector.
 
 Audit _time is the record's own time, so a replayed backlog lands hours in
 the past. Both privileged-use stanzas classify on index time: the base
@@ -12,9 +12,10 @@ Privileged use inside the open admin window by the window's own identity
 keeps only privileged use under any other identity, throttled by caller and
 policies for 24h (one page per identity and policy set per day), and
 openbao_window_privileged_use_digest records the in-window events once a day
-on the status topic. Both stanza searches render one shared selection
-pipeline, so paging and digest coverage can neither overlap nor skip an
-event.
+on the status topic. openbao_window_rbac_write separately pages on in-window
+policy and AppRole role writes, throttled once per path per hour. The existing
+paging and digest stanzas render one shared selection pipeline, so their
+coverage can neither overlap nor skip an event.
 
 Run from repo root:
   python3 tests/templates/test_openbao_privileged_use.py
@@ -59,6 +60,7 @@ EXCLUDED_CLAUSE = f"| where NOT ('auth.metadata.role_name'=\"{WINDOW_ROLE}\")"
 
 m = re.search(r"^\[openbao_privileged_use\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S)
 dm = re.search(r"^\[openbao_window_privileged_use_digest\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S)
+wm = re.search(r"^\[openbao_window_rbac_write\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S)
 
 errors = []
 if not m:
@@ -66,13 +68,26 @@ if not m:
     sys.exit(1)
 if not dm:
     errors.append("FAIL: [openbao_window_privileged_use_digest] not found in rendered output")
+if not wm:
+    errors.append("FAIL: [openbao_window_rbac_write] not found in rendered output")
 
 stanza = m.group(1)
+write_stanza = wm.group(1) if wm else ""
 
 
 def setting(body, key):
     found = re.search(rf"^{re.escape(key)} = (.*)$", body, re.M)
     return found.group(1) if found else None
+
+
+def action_settings(body):
+    return {
+        key: value
+        for line in body.splitlines()
+        if " = " in line
+        for key, value in (line.split(" = ", 1),)
+        if key.startswith("action.")
+    }
 
 
 def shared_pipeline(search_text):
@@ -257,6 +272,39 @@ if dm:
     if setting(digest_body, "alert.suppress.fields") is not None:
         errors.append("FAIL: digest sets alert.suppress.fields and splits the daily list")
 
+# The in-window write alert is deliberately narrower than the shared
+# privileged-use pipeline: only the admin-window identity's writes to the two
+# protected path families are selected.
+write_search = search_text(write_stanza)
+write_base = write_search.split("|", 1)[0] if write_search else ""
+write_earliest = re.search(r"^dispatch\.earliest_time = -48h$", write_stanza, re.M)
+expected_write_filter = (
+    "| where 'auth.metadata.role_name'=\"ai-admin-session\" AND "
+    "in('request.operation', \"create\", \"update\", \"delete\") AND "
+    "(like('request.path', \"sys/policies/%\") OR "
+    "like('request.path', \"auth/approle/role/%\"))"
+)
+write_filters = [f.strip() for f in re.findall(r"\| where [^|]+", write_search)]
+if "_index_earliest=-6m" not in write_base or "_index_latest=now" not in write_base:
+    errors.append("FAIL: RBAC write search does not use paging's index-time window")
+if not write_earliest:
+    errors.append("FAIL: RBAC write dispatch.earliest_time is not -48h")
+if "| rex \"openbao-audit: (?<j>\\{.*)\"" not in write_search or "| spath input=j" not in write_search:
+    errors.append("FAIL: RBAC write search does not use the established rex + spath extraction")
+if write_filters != [expected_write_filter]:
+    errors.append("FAIL: RBAC write search must filter only the window role, three write operations, and two protected path prefixes")
+if setting(write_stanza, "cron_schedule") != "*/5 * * * *":
+    errors.append("FAIL: RBAC write detector is not scheduled every five minutes")
+if setting(write_stanza, "alert.suppress") != "1":
+    errors.append("FAIL: RBAC write alert suppression is not enabled")
+if setting(write_stanza, "alert.suppress.period") != "1h":
+    errors.append("FAIL: RBAC write alert suppression is not one hour")
+if setting(write_stanza, "alert.suppress.fields") != "request.path":
+    errors.append("FAIL: RBAC write alert suppression is not keyed only by request.path")
+write_table_fields = write_search.rsplit("| table ", 1)[-1].split()
+if "request.path" not in write_table_fields:
+    errors.append("FAIL: RBAC write result table drops the request.path suppression key")
+
 # The digest must not ride the paging delivery: render with a hub URL and
 # check the paging stanza keeps the alert topic while the digest lands on the
 # status topic.
@@ -278,6 +326,10 @@ delivered_stanzas = {
 }
 paging_url = setting(delivered_stanzas.get("openbao_privileged_use", ""), "action.webhook.param.url") or ""
 digest_url = setting(delivered_stanzas.get("openbao_window_privileged_use_digest", ""), "action.webhook.param.url") or ""
+if action_settings(delivered_stanzas.get("openbao_window_rbac_write", "")) != action_settings(
+    delivered_stanzas.get("openbao_privileged_use", "")
+):
+    errors.append("FAIL: RBAC write alert delivery settings differ from the paging stanza")
 if not paging_url.startswith("https://ntfy.example.test/keystone"):
     errors.append("FAIL: paging alert does not use the alert topic")
 if "/status" not in digest_url or digest_url.startswith("https://ntfy.example.test/keystone"):
