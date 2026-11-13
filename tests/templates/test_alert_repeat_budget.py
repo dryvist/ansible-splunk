@@ -20,6 +20,9 @@ REPEAT_EXCEPTIONS = {
     "openbao_raft_quorum": "A changed quorum-state key pages each state transition.",
     "unifi_wan_down": "A four-hour repeat is documented while a WAN remains down.",
 }
+# Raw-row results: per-result delivery is unverified for these, so they keep
+# their digest mode (see test_openbao_privileged_use.py).
+DIGEST_EXCEPTIONS = {"openbao_privileged_use"}
 
 render_values = dict(DEFAULTS)
 render_values["splunk_docker_alert_ntfy_url"] = NTFY
@@ -47,6 +50,18 @@ def seconds(period):
 errors = []
 high_priority_rules = set()
 for name, body in stanzas.items():
+    if value(body, "enableSched") == "1" and value(body, "disabled") == "0":
+        suppress_fields = value(body, "alert.suppress.fields") or ""
+        if (
+            name not in DIGEST_EXCEPTIONS
+            and suppress_fields.strip()
+            and value(body, "alert.digest_mode") != "0"
+        ):
+            errors.append(
+                f"FAIL: [{name}] has alert.suppress.fields but alert.digest_mode is "
+                f"{value(body, 'alert.digest_mode')!r}, want '0'"
+            )
+
     if value(body, "enableSched") != "1" or value(body, "disabled") != "0":
         continue
     if value(body, "action.webhook") != "1":

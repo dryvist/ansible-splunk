@@ -124,6 +124,7 @@ alert.suppress = 1
 # Suppression keys on alert_key: sensitive and unaccounted requests are
 # independently suppressed for 24 hours.
 alert.suppress.period = 24h
+alert.digest_mode = 0
 alert.suppress.fields = alert_key
 alert.track = 1
 counttype = number of events
@@ -178,6 +179,7 @@ alert.suppress = 1
 # Suppression keys on quorum_state: a standing deficit pages every 4h, and a
 # change in the voter count (or a stop in sampling) pages at once.
 alert.suppress.period = 4h
+alert.digest_mode = 0
 alert.suppress.fields = quorum_state
 alert.track = 1
 counttype = number of events
