@@ -97,7 +97,7 @@ for name, contract in contracts.items():
         "disabled": "0",
         "alert.severity": contract["severity"],
         "alert.suppress": "1",
-        "alert.suppress.period": contract.get("period", "6h"),
+        "alert.suppress.period": contract.get("period", "24h"),
         "counttype": "number of events",
         "relation": "greater than",
         "quantity": "0",

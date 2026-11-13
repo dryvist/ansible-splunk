@@ -36,7 +36,7 @@ else:
         "disabled": "0",
         "alert.severity": "4",
         "alert.suppress": "1",
-        "alert.suppress.period": "60m",
+        "alert.suppress.period": "24h",
         "action.webhook": "1",
     }
     for key, expected_value in expected.items():

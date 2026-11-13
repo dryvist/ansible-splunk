@@ -35,7 +35,7 @@ else:
         "disabled": "0",
         "alert.severity": "4",
         "alert.suppress": "1",
-        "alert.suppress.period": "60m",
+        "alert.suppress.period": "24h",
         "alert.suppress.fields": "host,source",
         "action.webhook": "1",
     }

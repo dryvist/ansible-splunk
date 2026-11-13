@@ -47,7 +47,7 @@ REQUIRED_LINES = (
     "allow_skew = 0",
     "alert.severity = 5",
     "alert.suppress = 1",
-    "alert.suppress.period = 15m",
+    "alert.suppress.period = 24h",
     "alert.suppress.fields = host",
 )
 

@@ -171,7 +171,7 @@ splunk_docker_silence_detectors:
     index: hardware
     threshold_minutes: 60
     cron: "*/15 * * * *"
-    suppress_minutes: 360
+    suppress_minutes: 1440
     by_host: true
     # Only a scheduled, sustained emitter has a baseline here: the nodes'
     # periodic disk/snapshot telemetry. Guests only relay occasional host

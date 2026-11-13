@@ -95,8 +95,8 @@ alert.severity = 4
 alert.suppress = 1
 # Per-result alerting so the per-path suppression applies to each path separately.
 alert.digest_mode = 0
-# Suppression keys on request.path: writes to each path page at most once per hour.
-alert.suppress.period = 1h
+# Suppression keys on request.path: writes to each path page at most once per day.
+alert.suppress.period = 24h
 alert.suppress.fields = request.path
 alert.track = 1
 counttype = number of events
@@ -112,7 +112,7 @@ quantity = 0
 [openbao_window_non_claude_use]
 {{ alert_delivery -}}
 description = Alerts when the OpenBao admin window (AppRole ai-admin-session) serves requests that no Claude Code session accounts for: any request with no Claude Code transcript referencing the window in the last 4h, or a github-enterprise-owner read or identity, auth or policy write with no reference in the last 20m.
-search = index=openbao_audit sourcetype=openbao:audit _index_earliest=-6m _index_latest=now "ai-admin-session" | rex "openbao-audit: (?<j>\{.*)" | spath input=j | where 'auth.metadata.role_name'="ai-admin-session" AND type="request" | eval sensitive=if(like('request.path', "github-enterprise-owner/%") OR (in('request.operation', "create", "update", "delete") AND (like('request.path', "sys/policies/%") OR like('request.path', "sys/auth%") OR like('request.path', "auth/%"))), 1, 0) | stats count as requests max(sensitive) as sensitive values(request.path) as paths | eval claude_recent=[ search index=claude sourcetype=claude:code _index_earliest=-20m ("openbao-window-env" OR "proxy.sock" OR "BAO_AGENT_ADDR") | stats count | return $count ], claude_session=[ search index=claude sourcetype=claude:code _index_earliest=-4h ("openbao-window-env" OR "proxy.sock" OR "BAO_AGENT_ADDR") | stats count | return $count ] | where (sensitive=1 AND claude_recent=0) OR claude_session=0 | table requests sensitive claude_recent claude_session paths
+search = index=openbao_audit sourcetype=openbao:audit _index_earliest=-6m _index_latest=now "ai-admin-session" | rex "openbao-audit: (?<j>\{.*)" | spath input=j | where 'auth.metadata.role_name'="ai-admin-session" AND type="request" | eval sensitive=if(like('request.path', "github-enterprise-owner/%") OR (in('request.operation', "create", "update", "delete") AND (like('request.path', "sys/policies/%") OR like('request.path', "sys/auth%") OR like('request.path', "auth/%"))), 1, 0) | stats count as requests max(sensitive) as sensitive values(request.path) as paths | eval claude_recent=[ search index=claude sourcetype=claude:code _index_earliest=-20m ("openbao-window-env" OR "proxy.sock" OR "BAO_AGENT_ADDR") | stats count | return $count ], claude_session=[ search index=claude sourcetype=claude:code _index_earliest=-4h ("openbao-window-env" OR "proxy.sock" OR "BAO_AGENT_ADDR") | stats count | return $count ] | where (sensitive=1 AND claude_recent=0) OR claude_session=0 | eval alert_key=if(sensitive=1, "sensitive", "unaccounted") | table requests sensitive claude_recent claude_session paths alert_key
 dispatch.earliest_time = -48h
 dispatch.latest_time = now
 cron_schedule = */5 * * * *
@@ -121,10 +121,10 @@ is_visible = 1
 disabled = 0
 alert.severity = 5
 alert.suppress = 1
-# Suppression keys on the request-path set: the same unaccounted-for set
-# pages once per 24 hours, and a new path joining the set pages at once.
+# Suppression keys on alert_key: sensitive and unaccounted requests are
+# independently suppressed for 24 hours.
 alert.suppress.period = 24h
-alert.suppress.fields = paths
+alert.suppress.fields = alert_key
 alert.track = 1
 counttype = number of events
 relation = greater than
@@ -199,7 +199,7 @@ is_visible = 1
 disabled = 0
 alert.severity = 4
 alert.suppress = 1
-alert.suppress.period = 15m
+alert.suppress.period = 24h
 alert.track = 1
 counttype = number of events
 relation = greater than

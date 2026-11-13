@@ -157,7 +157,7 @@ def check_stanza(name, body, spec, errors):
     need("&tpl=yes&t=" in (value(body, "action.webhook.param.url") or ""), "hub URL lacks the ntfy title/message templates")
     need(value(body, "cron_schedule") == "*/5 * * * *", "cron_schedule is not */5 * * * *")
     need(value(body, "alert.suppress") == "1", "alert.suppress is not 1")
-    need(value(body, "alert.suppress.period") == "1h", "alert.suppress.period is not 1h")
+    need(value(body, "alert.suppress.period") == "24h", "alert.suppress.period is not 24h")
     need(
         value(body, "alert.suppress.fields") == spec["suppress_fields"],
         f"alert.suppress.fields is not {spec['suppress_fields']}",

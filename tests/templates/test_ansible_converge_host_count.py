@@ -43,7 +43,7 @@ else:
         "disabled": "0",
         "alert.severity": "4",
         "alert.suppress": "1",
-        "alert.suppress.period": "1h",
+        "alert.suppress.period": "24h",
         "alert.suppress.fields": "playbook",
         "alert.track": "1",
         "counttype": "number of events",

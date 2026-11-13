@@ -38,7 +38,7 @@ else:
         "cron_schedule": "*/5 * * * *",
         "disabled": "0",
         "alert.suppress": "1",
-        "alert.suppress.period": "60m",
+        "alert.suppress.period": "24h",
         "alert.suppress.fields": "host,source",
         "action.webhook": "1",
     }
@@ -71,7 +71,7 @@ else:
         "dispatch.earliest_time": "-75m",
         "cron_schedule": "*/15 * * * *",
         "disabled": "0",
-        "alert.suppress.period": "60m",
+        "alert.suppress.period": "24h",
         "action.webhook.param.url": NTFY + DEFAULTS["splunk_docker_alert_ntfy_query"],
     }.items():
         if tvalue(key) != expected_value:

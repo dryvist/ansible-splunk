@@ -39,7 +39,7 @@ REQUIRED_LINES = (
     "cron_schedule = */5 * * * *",
     "alert.severity = 5",
     "alert.suppress = 1",
-    "alert.suppress.period = 60m",
+    "alert.suppress.period = 24h",
     "alert.suppress.fields = host,label",
 )
 

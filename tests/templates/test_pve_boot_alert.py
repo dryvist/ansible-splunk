@@ -59,7 +59,7 @@ else:
         "disabled": "0",
         "alert.severity": "4",
         "alert.suppress": "1",
-        "alert.suppress.period": "6h",
+        "alert.suppress.period": "24h",
         "alert.suppress.fields": "host",
         "alert.track": "1",
         "counttype": "number of events",
