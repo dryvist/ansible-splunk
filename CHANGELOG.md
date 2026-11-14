@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.119.5](https://github.com/dryvist/ansible-splunk/compare/v0.119.4...v0.119.5) (2026-11-14)
+
+
+### Bug Fixes
+
+* **splunk_docker:** reconcile a role right after creating it ([#868](https://github.com/dryvist/ansible-splunk/issues/868)) ([e02f7f6](https://github.com/dryvist/ansible-splunk/commit/e02f7f63972de05704a6c8bcd1811543c7ece2ff))
+
 ## [0.119.4](https://github.com/dryvist/ansible-splunk/compare/v0.119.3...v0.119.4) (2026-11-14)
 
 
