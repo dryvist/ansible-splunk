@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.119.4](https://github.com/dryvist/ansible-splunk/compare/v0.119.3...v0.119.4) (2026-11-14)
+
+
+### Bug Fixes
+
+* **splunk_docker:** skip every post-mint step in check mode ([#866](https://github.com/dryvist/ansible-splunk/issues/866)) ([45c4564](https://github.com/dryvist/ansible-splunk/commit/45c45642041d2cfd8ab0a6a60de7508da3cb979d))
+
 ## [0.119.3](https://github.com/dryvist/ansible-splunk/compare/v0.119.2...v0.119.3) (2026-11-14)
 
 
