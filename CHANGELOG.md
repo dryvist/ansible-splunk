@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.119.2](https://github.com/dryvist/ansible-splunk/compare/v0.119.1...v0.119.2) (2026-11-14)
+
+
+### Bug Fixes
+
+* **splunk:** remove the sandbox-agent Splunk user and open-llm role ([#858](https://github.com/dryvist/ansible-splunk/issues/858)) ([ed51b86](https://github.com/dryvist/ansible-splunk/commit/ed51b86349fe04b4f2ef1d9a2a6737b19599d077))
+
 ## [0.119.1](https://github.com/dryvist/ansible-splunk/compare/v0.119.0...v0.119.1) (2026-11-14)
 
 
