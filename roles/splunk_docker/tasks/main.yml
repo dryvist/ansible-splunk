@@ -1,20 +1,4 @@
 ---
-- name: Assert retired Splunk identities are not declared
-  ansible.builtin.assert:
-    that:
-      - >-
-        (splunk_docker_retired_users | default([])
-        | intersect(splunk_docker_users | default([]) | map(attribute='name') | list)
-        | length) == 0
-      - >-
-        (splunk_docker_retired_roles | default([])
-        | intersect(splunk_docker_roles | default([]) | map(attribute='name') | list)
-        | length) == 0
-    fail_msg: A Splunk identity cannot be both declared and retired.
-  when: >-
-    (splunk_docker_retired_users | default([]) | length > 0)
-    or (splunk_docker_retired_roles | default([]) | length > 0)
-
 - name: Assert alerting is configured for real delivery, on real indexes
   ansible.builtin.include_tasks: assert_alerting_gates.yml
   tags: [alerting]
@@ -391,9 +375,7 @@
 
 - name: Remove retired Splunk identities
   ansible.builtin.include_tasks: teardown_retired_identities.yml
-  when: >-
-    (splunk_docker_retired_users | default([]) | length > 0)
-    or (splunk_docker_retired_roles | default([]) | length > 0)
+  when: (splunk_docker_retired_users + splunk_docker_retired_roles) | length > 0
 
 - name: Audit for auth tokens outside the managed set
   # After manage_users.yml, so the declared set has been reconciled and any

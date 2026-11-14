@@ -45,12 +45,10 @@ inventory_names = {
     "splunk_docker_roles": inventory["splunk_docker_roles"],
 }
 
-guard = main[0]
+# The guard is the first teardown task, so it runs before any lookup or delete.
+guard = load_tasks(TASKS / "teardown_retired_identities.yml")[0]
 assert guard["name"] == "Assert retired Splunk identities are not declared"
-guard_when = guard["when"]
 empty = {"splunk_docker_retired_users": [], "splunk_docker_retired_roles": []}
-assert not expression_result(guard_when, empty)
-assert expression_result(guard_when, inventory_names)
 guard_conditions = guard["ansible.builtin.assert"]["that"]
 assert all(expression_result(condition, inventory_names) for condition in guard_conditions)
 overlapping_user = {**inventory_names, "splunk_docker_users": [{"name": "sandbox-agent"}]}
