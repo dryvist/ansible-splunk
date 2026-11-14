@@ -1,0 +1,104 @@
+---
+- name: Find retired Splunk role {{ splunk_retired_role }} in the shared role list
+  ansible.builtin.set_fact:
+    splunk_docker_retired_role_exists: >-
+      {{
+        splunk_docker_retired_role_roles_lookup.json.entry
+        | selectattr('name', 'equalto', splunk_retired_role)
+        | list
+        | length > 0
+      }}
+  no_log: true
+
+- name: Find users assigned to retired Splunk role {{ splunk_retired_role }}
+  ansible.builtin.set_fact:
+    splunk_docker_retired_role_users: >-
+      {%- set remaining = [] -%}
+      {%- for user in splunk_docker_retired_users_lookup.json.entry -%}
+      {%-   if user is not mapping -%}
+      {%-     set _ = remaining.append('unknown') -%}
+      {%-   else -%}
+      {%-     set username = user.name | default('') -%}
+      {%-     if not username or username is not string -%}
+      {%-       set _ = remaining.append('unknown') -%}
+      {%-     elif username not in splunk_docker_retired_users -%}
+      {%-       set content = user.content | default(none) -%}
+      {%-       if content is not mapping -%}
+      {%-         set _ = remaining.append(username) -%}
+      {%-       else -%}
+      {%-         set raw_roles = content.roles | default(none) -%}
+      {%-         if raw_roles is string -%}
+      {%-           if raw_roles == splunk_retired_role -%}
+      {%-             set _ = remaining.append(username) -%}
+      {%-           endif -%}
+      {%-         elif raw_roles is sequence and raw_roles is not mapping -%}
+      {%-           if raw_roles | select('string') | list | length != raw_roles | length -%}
+      {%-             set _ = remaining.append(username) -%}
+      {%-           elif '' in raw_roles -%}
+      {%-             set _ = remaining.append(username) -%}
+      {%-           elif splunk_retired_role in raw_roles -%}
+      {%-             set _ = remaining.append(username) -%}
+      {%-           endif -%}
+      {%-         else -%}
+      {%-           set _ = remaining.append(username) -%}
+      {%-         endif -%}
+      {%-       endif -%}
+      {%-     endif -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ remaining }}
+  when: splunk_docker_retired_role_exists
+  no_log: true
+
+- name: Assert no remaining user holds retired Splunk role {{ splunk_retired_role }}
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_retired_role_users | length == 0
+    fail_msg: >-
+      Cannot delete retired role {{ splunk_retired_role }} while a remaining user is assigned to it
+      or user assignments cannot be verified.
+  when: splunk_docker_retired_role_exists
+
+- name: Find role importers of retired Splunk role {{ splunk_retired_role }}
+  ansible.builtin.set_fact:
+    splunk_docker_retired_role_importers: >-
+      {%- set importers = [] -%}
+      {%- for role in splunk_docker_retired_role_roles_lookup.json.entry -%}
+      {%-   if role is not mapping -%}
+      {%-     set _ = importers.append('unknown') -%}
+      {%-   else -%}
+      {%-     set role_name = role.name | default('') -%}
+      {%-     if not role_name -%}
+      {%-       set _ = importers.append('unknown') -%}
+      {%-     else -%}
+      {%-       set content = role.content | default(none) -%}
+      {%-       if content is not mapping -%}
+      {%-         set _ = importers.append(role_name) -%}
+      {%-       else -%}
+      {%-         set imported_roles = content.imported_roles | default(none) -%}
+      {%-         if imported_roles is not sequence
+                  or imported_roles is string
+                  or imported_roles is mapping
+                  or imported_roles | select('string') | list | length != imported_roles | length
+                  or '' in imported_roles -%}
+      {%-           set _ = importers.append(role_name) -%}
+      {%-         elif role_name not in splunk_docker_retired_roles
+                    and splunk_retired_role in imported_roles -%}
+      {%-           set _ = importers.append(role_name) -%}
+      {%-         endif -%}
+      {%-       endif -%}
+      {%-     endif -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ importers }}
+  when: splunk_docker_retired_role_exists
+  no_log: true
+
+- name: Assert no remaining role imports retired Splunk role {{ splunk_retired_role }}
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_retired_role_importers | length == 0
+    fail_msg: >-
+      Cannot delete retired role {{ splunk_retired_role }} while another role imports it or role imports
+      cannot be verified.
+  when: splunk_docker_retired_role_exists

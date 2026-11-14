@@ -1,4 +1,128 @@
 ---
+- name: List users before validating retired Splunk identities
+  ansible.builtin.uri:
+    url: >-
+      https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authentication/users?output_mode=json&count=0
+    method: GET
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200]
+  register: splunk_docker_retired_users_lookup
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: List roles before validating retired Splunk identities
+  ansible.builtin.uri:
+    url: >-
+      https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authorization/roles?output_mode=json&count=0
+    method: GET
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200]
+  register: splunk_docker_retired_role_roles_lookup
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: Assert Splunk returned its user list before retiring identities
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_retired_users_lookup.json.entry is defined
+      - splunk_docker_retired_users_lookup.json.entry is sequence
+      - splunk_docker_retired_users_lookup.json.entry is not string
+      - splunk_docker_retired_users_lookup.json.entry is not mapping
+    fail_msg: Splunk did not return a user list, so retired identities cannot be safely removed.
+
+- name: Assert Splunk returned its role list before retiring identities
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_retired_role_roles_lookup.json.entry is defined
+      - splunk_docker_retired_role_roles_lookup.json.entry is sequence
+      - splunk_docker_retired_role_roles_lookup.json.entry is not string
+      - splunk_docker_retired_role_roles_lookup.json.entry is not mapping
+    fail_msg: Splunk did not return a role list, so retired identities cannot be safely removed.
+
+- name: Assert retired role entries can be parsed before checking dependencies
+  ansible.builtin.assert:
+    that:
+      - >-
+        item is mapping
+        and item.name is defined
+        and item.name is string
+        and item.name | length > 0
+    fail_msg: Splunk returned an unparseable role entry, so retired roles cannot be safely removed.
+  loop: "{{ splunk_docker_retired_role_roles_lookup.json.entry }}"
+  loop_control:
+    label: retired role entry
+  when: splunk_docker_retired_roles | length > 0
+  no_log: true
+
+- name: Check dependencies for every retired Splunk role before deletion
+  ansible.builtin.include_tasks: teardown_check_one_role.yml
+  loop: "{{ splunk_docker_retired_roles }}"
+  loop_control:
+    loop_var: splunk_retired_role
+    label: "{{ splunk_retired_role }}"
+
+- name: Order existing retired roles so importers are deleted first
+  ansible.builtin.set_fact:
+    splunk_docker_retired_roles_in_delete_order: >-
+      {%- set graph = namespace(remaining=[], ordered=[]) -%}
+      {%- if splunk_docker_retired_roles | length > 0 -%}
+      {%- for role in splunk_docker_retired_role_roles_lookup.json.entry -%}
+      {%-   if role.name in splunk_docker_retired_roles -%}
+      {%-     set _ = graph.remaining.append(role.name) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {%- endif -%}
+      {%- set passes = graph.remaining | length -%}
+      {%- for _ in range(passes) -%}
+      {%-   set ready = namespace(names=[]) -%}
+      {%-   for candidate in graph.remaining -%}
+      {%-     set imported_by_remaining = namespace(value=false) -%}
+      {%-     for importer in splunk_docker_retired_role_roles_lookup.json.entry -%}
+      {%-       if importer.name in graph.remaining
+                and candidate in importer.content.imported_roles -%}
+      {%-         set imported_by_remaining.value = true -%}
+      {%-       endif -%}
+      {%-     endfor -%}
+      {%-     if not imported_by_remaining.value -%}
+      {%-       set _ = ready.names.append(candidate) -%}
+      {%-     endif -%}
+      {%-   endfor -%}
+      {%-   for role_name in ready.names -%}
+      {%-     set _ = graph.ordered.append(role_name) -%}
+      {%-   endfor -%}
+      {%-   set remaining = namespace(names=[]) -%}
+      {%-   for candidate in graph.remaining -%}
+      {%-     if candidate not in ready.names -%}
+      {%-       set _ = remaining.names.append(candidate) -%}
+      {%-     endif -%}
+      {%-   endfor -%}
+      {%-   set graph.remaining = remaining.names -%}
+      {%- endfor -%}
+      {{ graph.ordered }}
+  no_log: true
+
+- name: Assert retired role dependencies can be deleted in order
+  ansible.builtin.assert:
+    that:
+      - >-
+        splunk_docker_retired_roles_in_delete_order | length
+        == (
+          splunk_docker_retired_role_roles_lookup.json.entry
+          | selectattr('name', 'in', splunk_docker_retired_roles)
+          | list
+          | length
+        )
+    fail_msg: Retired role imports contain a cycle, so no roles can be safely removed.
+  when: splunk_docker_retired_roles | length > 0
+
 - name: Delete auth tokens and retired Splunk users
   ansible.builtin.include_tasks: teardown_one_user.yml
   loop: "{{ splunk_docker_retired_users }}"
@@ -8,7 +132,7 @@
 
 - name: Delete retired Splunk roles after their users are gone
   ansible.builtin.include_tasks: teardown_one_role.yml
-  loop: "{{ splunk_docker_retired_roles }}"
+  loop: "{{ splunk_docker_retired_roles_in_delete_order }}"
   loop_control:
     loop_var: splunk_retired_role
     label: "{{ splunk_retired_role }}"
