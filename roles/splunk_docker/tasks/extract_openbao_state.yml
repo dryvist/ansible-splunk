@@ -8,15 +8,15 @@
          ) | int }}
   ansible.builtin.set_fact:
     splunk_docker_bao_cas_version: "{{ metadata_version }}"
+    # One expression, so the result stays a mapping; a literal `{}` in a
+    # template branch renders as a string.
     splunk_docker_bao_source_data: >-
-      {%- if splunk_docker_bao_current.status | default(0) | int == 200 -%}
-        {{ (splunk_docker_bao_current.json | default({}, true)).get('data', {}).get('data', {}) }}
-      {%- elif metadata_version | int > 0
-                and splunk_docker_bao_recovered.status | default(0) | int == 200 -%}
-        {{ (splunk_docker_bao_recovered.json | default({}, true)).get('data', {}).get('data', {}) }}
-      {%- else -%}
-        {}
-      {%- endif -%}
+      {{ (splunk_docker_bao_current.json | default({}, true)).get('data', {}).get('data', {})
+         if splunk_docker_bao_current.status | default(0) | int == 200
+         else ((splunk_docker_bao_recovered.json | default({}, true)).get('data', {}).get('data', {})
+               if metadata_version | int > 0
+                  and splunk_docker_bao_recovered.status | default(0) | int == 200
+               else {}) }}
   no_log: true
 
 - name: Extract canonical token from OpenBao source data
