@@ -9,5 +9,5 @@ export RUN_ANSIBLE_RETIRING_IDENTITIES="${RUN_ANSIBLE_RETIRING_IDENTITIES:-ansib
 export RUN_ANSIBLE_EXPORT_CONVERGE_IDENTITY="${RUN_ANSIBLE_EXPORT_CONVERGE_IDENTITY:-1}"
 
 # renovate: datasource=github-releases depName=dryvist/homelab-contracts
-HOMELAB_CONTRACTS_REF=v5.62.0
+HOMELAB_CONTRACTS_REF=v5.63.0
 exec nix run "github:dryvist/homelab-contracts/${HOMELAB_CONTRACTS_REF}#run-ansible" -- "$@"
