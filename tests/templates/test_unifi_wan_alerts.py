@@ -8,8 +8,8 @@ Guard the gateway WAN alerts (savedsearches/19-unifi-wan.j2):
    (Splunk drops a webhook to an unlisted URL without an error).
 2. unifi_wan_down escalates through the shared keystone delivery and fires
    only on a WAN whose latest Down/Restored event is Down.
-3. index_gap_exempt_report (informational daily report) also goes to the
-   status topic, not keystone.
+3. index_gap_exempt_report (informational daily report) goes to the primary
+   topic with low priority, not the status topic or keystone paging route.
 
 Run from repo root:
   python3 tests/templates/test_unifi_wan_alerts.py
@@ -104,9 +104,10 @@ x = stanzas.get("index_gap_exempt_report")
 if x is None:
     errors.append("FAIL: [index_gap_exempt_report] not rendered")
 else:
-    url = value(x, "action.webhook.param.url") or ""
-    if not url.startswith("https://ntfy.example.test/status?"):
-        errors.append(f"FAIL: exempt report is not on the status topic: {url[:80]}")
+    urls = re.findall(r"^action\.webhook\.param\.url = (.*)$", x, re.M)
+    url = urls[-1] if urls else ""
+    if not url.startswith(NTFY + "?priority=low"):
+        errors.append(f"FAIL: exempt report is not on the low-priority topic: {url[:80]}")
 
 # The keystone URL itself must still be admitted, and nothing else.
 if not any(re.match(p, NTFY + "?priority=high") for p in allowlist):
@@ -120,7 +121,7 @@ if errors:
     sys.exit(1)
 
 print(
-    "PASS: unifi_wan_transition and index_gap_exempt_report publish to the "
-    "status topic (allowlisted), and unifi_wan_down escalates the down state to keystone"
+    "PASS: unifi_wan_transition publishes to the status topic, the exemption "
+    "report uses low priority, and unifi_wan_down escalates to keystone"
 )
 print("\nAll tests passed.")

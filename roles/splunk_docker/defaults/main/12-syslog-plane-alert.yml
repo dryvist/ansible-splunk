@@ -6,4 +6,4 @@ splunk_docker_syslog_plane_down:
   silence_minutes: 10
   minimum_silent_hosts: 30
   cron: "*/5 * * * *"
-  suppress_minutes: 30
+  suppress_minutes: 1440

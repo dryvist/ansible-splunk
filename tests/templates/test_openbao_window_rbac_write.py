@@ -2,7 +2,7 @@
 """
 Guard openbao_window_rbac_write: in-window policy and AppRole role writes
 are detected on the paging index-time window and throttled once per path per
-hour, with delivery settings matching the paging alert.
+day, with delivery settings matching the paging alert.
 
 Run from repo root:
   python3 tests/templates/test_openbao_window_rbac_write.py
@@ -44,8 +44,8 @@ if setting(write_stanza, "alert.suppress") != "1":
     errors.append("FAIL: RBAC write alert suppression is not enabled")
 if setting(write_stanza, "alert.digest_mode") != "0":
     errors.append("FAIL: RBAC write alert is not per-result, so per-path suppression would not apply")
-if setting(write_stanza, "alert.suppress.period") != "1h":
-    errors.append("FAIL: RBAC write alert suppression is not one hour")
+if setting(write_stanza, "alert.suppress.period") != "24h":
+    errors.append("FAIL: RBAC write alert suppression is not 24 hours")
 if setting(write_stanza, "alert.suppress.fields") != "request.path":
     errors.append("FAIL: RBAC write alert suppression is not keyed only by request.path")
 write_table_fields = write_search.rsplit("| table ", 1)[-1].split()
@@ -82,4 +82,4 @@ for err in errors:
     print(err)
 if errors:
     sys.exit(1)
-print("PASS: openbao_window_rbac_write detects in-window policy and AppRole role writes, throttled one hour per request path")
+print("PASS: openbao_window_rbac_write detects in-window policy and AppRole role writes, throttled 24 hours per request path")
