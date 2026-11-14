@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Role Verify and Assert skip only in check mode for a role that does not exist yet.
+"""Role Reconcile, Verify and Assert skip only in check mode for a role that does not exist yet.
 
 In check mode "Create Splunk role" is skipped, so a role the lookup reported as
-404 is still absent and its Verify GET returns 404. Verify and Assert must skip
-exactly that case and run in every other one, real runs included.
+404 is still absent and its Verify GET returns 404. Reconcile, Verify and Assert
+must skip exactly that case and run in every other one, real runs included:
+Reconcile after a create is what sets a new role to exactly the declared grants.
 """
 
 import sys
@@ -14,7 +15,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 FILE = ROOT / "roles/splunk_docker/tasks/manage_one_role.yml"
-GUARDED = ("Verify Splunk role", "Assert Splunk role")
+GUARDED = ("Reconcile Splunk role", "Verify Splunk role", "Assert Splunk role")
 
 
 def runs(when, check_mode, status):
@@ -41,7 +42,7 @@ def main():
     if bad:
         print("\n".join(bad))
         return 1
-    print("role Verify/Assert check-mode guard OK")
+    print("role Reconcile/Verify/Assert check-mode guard OK")
     return 0
 
 
