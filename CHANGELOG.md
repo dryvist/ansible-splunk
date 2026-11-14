@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.119.6](https://github.com/dryvist/ansible-splunk/compare/v0.119.5...v0.119.6) (2026-11-14)
+
+
+### Bug Fixes
+
+* **splunk_docker:** keep absent OpenBao source data a mapping ([#871](https://github.com/dryvist/ansible-splunk/issues/871)) ([24c8c79](https://github.com/dryvist/ansible-splunk/commit/24c8c79fb0a373afc1c69df2a9cbf3e0430592ac))
+
 ## [0.119.5](https://github.com/dryvist/ansible-splunk/compare/v0.119.4...v0.119.5) (2026-11-14)
 
 
