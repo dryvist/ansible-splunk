@@ -20,6 +20,11 @@ splunk_docker_manage_users: false
 # here — the minted token is the credential that clients actually use.
 splunk_docker_users: []
 
+# Identities scheduled for removal. Retired users have their remaining auth
+# tokens revoked before the user is deleted; retired roles are removed only
+# after no remaining user is assigned them.
+splunk_docker_retired_users: []
+
 # Custom roles, reconciled before the users that reference them.
 #
 # A minted token inherits its user's roles, so the role IS the grant. Declaring
@@ -40,6 +45,7 @@ splunk_docker_users: []
 #   srch_disk_quota      - search-job disk usage in MB (default: 100)
 splunk_docker_manage_roles: true
 splunk_docker_roles: []
+splunk_docker_retired_roles: []
 
 # Default audience for managed MCP tokens. A per-user token_audience can select
 # the native Splunk authorization-token API and its matching endpoint probe.

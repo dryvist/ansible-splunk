@@ -97,18 +97,6 @@ splunk_docker_roles:
       - license_read
       - license_view_warnings
       - list_health
-  - name: open-llm
-    imported_roles: []
-    srch_indexes_allowed:
-      # TODO: Restrict indexes when the sandbox index scope is defined.
-      - "*"
-    srch_indexes_default: []
-    srch_jobs_quota: 3
-    srch_disk_quota: 100
-    # MCP tool access plus the Splunk search capability only.
-    capabilities:
-      - mcp_tool_execute
-      - search
   # Read-only search over the agent session indexes for the LlamaIndex
   # agent-session indexer.
   - name: agent_session_search
@@ -146,12 +134,6 @@ splunk_docker_users:
   - name: hermes
     roles:
       - hermes_search
-  - name: sandbox-agent
-    roles:
-      - open-llm
-    token_openbao_path: "{{ splunk_docker_open_llm_token_openbao_path }}"
-    token_openbao_key: "{{ splunk_docker_open_llm_token_openbao_key }}"
-    url_openbao_key: ""
   - name: svc-llamaindex-search
     roles:
       - agent_session_search
@@ -167,6 +149,12 @@ splunk_docker_users:
     token_openbao_key: "SPLUNK_TOKEN"
     url_openbao_key: ""
 
+# Retire identities removed from the declared service-user and role lists.
+splunk_docker_retired_users:
+  - sandbox-agent
+splunk_docker_retired_roles:
+  - open-llm
+
 # svc-mcp-rotator is NOT in splunk_docker_users above — see
 # defaults/main/03-users-tokens-mcp.yml for why. This turns on its separate
 # management path (tasks/manage_mcp_rotator.yml) and publishes its password to
@@ -175,13 +163,9 @@ splunk_docker_users:
 splunk_docker_manage_mcp_rotator: true
 
 # Publish managed-user tokens and configured MCP URLs to OpenBao. The hermes
-# connection uses secret/ai/mcp/splunk; the sandbox-agent token uses its
-# separate path/key variables below. Reads a write-capable token from
+# connection uses secret/ai/mcp/splunk. Reads a write-capable token from
 # BAO_ADDR/BAO_TOKEN.
 splunk_docker_token_publish_openbao: true
-# Publication destination for the sandbox-agent Splunk search token.
-splunk_docker_open_llm_token_openbao_path: "apps/sandbox-agent"
-splunk_docker_open_llm_token_openbao_key: "splunk_search_token"
 
 # Archive frozen buckets rather than deleting them.
 #

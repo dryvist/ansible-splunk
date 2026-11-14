@@ -65,8 +65,10 @@
 - name: Select live tokens with an undeclared owner or audience
   ansible.builtin.set_fact:
     splunk_docker_undeclared_tokens: >-
+      {%- set pending_retired = (splunk_docker_retired_users | default([])
+                                 if ansible_check_mode | default(false) | bool else []) -%}
       {%- set managed = (splunk_docker_users | map(attribute='name') | list)
-                        + splunk_docker_token_owner_exceptions -%}
+                        + splunk_docker_token_owner_exceptions + pending_retired -%}
       {%- set managed_names = splunk_docker_users | map(attribute='name') | list -%}
       {%- set undeclared = [] -%}
       {%- for entry in splunk_docker_live_tokens -%}
