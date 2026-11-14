@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.119.3](https://github.com/dryvist/ansible-splunk/compare/v0.119.2...v0.119.3) (2026-11-14)
+
+
+### Bug Fixes
+
+* **splunk_docker:** skip the token mint block in check mode ([#863](https://github.com/dryvist/ansible-splunk/issues/863)) ([1494185](https://github.com/dryvist/ansible-splunk/commit/14941850146a858e5e20c8ea78ce89c1dfde8d0c))
+
 ## [0.119.2](https://github.com/dryvist/ansible-splunk/compare/v0.119.1...v0.119.2) (2026-11-14)
 
 
