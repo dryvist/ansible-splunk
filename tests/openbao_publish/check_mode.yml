@@ -1,0 +1,21 @@
+---
+# Run with --check: a due replacement token is reported, then the mint and every post-mint step are skipped.
+- name: Verify token delivery planning in check mode
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    splunk_user:
+      name: hermes
+    splunk_docker_token_force_rotate: false
+    splunk_docker_bao_token_valid: false
+    splunk_docker_eligible_tokens: []
+  tasks:
+    - name: Plan delivery for a user whose published token is dead
+      ansible.builtin.include_tasks: ../../roles/splunk_docker/tasks/plan_token_delivery.yml
+
+    - name: Assert the mint is not required once check mode has reported it
+      ansible.builtin.assert:
+        that:
+          - ansible_check_mode
+          - not splunk_docker_token_mint_required
