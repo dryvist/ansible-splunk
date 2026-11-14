@@ -80,6 +80,71 @@
       Cannot delete retired role {{ splunk_retired_role }} while a remaining user is assigned to it.
   when: splunk_docker_retired_role_lookup.status == 200
 
+- name: "List roles before deleting retired Splunk role {{ splunk_retired_role }}"
+  ansible.builtin.uri:
+    url: >-
+      https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authorization/roles?output_mode=json&count=0
+    method: GET
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200]
+  register: splunk_docker_retired_role_roles_lookup
+  check_mode: false
+  changed_when: false
+  no_log: true
+  when: splunk_docker_retired_role_lookup.status == 200
+
+- name: "Assert Splunk returned its role list before deleting retired role {{ splunk_retired_role }}"
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_retired_role_roles_lookup.json.entry is defined
+      - splunk_docker_retired_role_roles_lookup.json.entry is sequence
+      - splunk_docker_retired_role_roles_lookup.json.entry is not string
+      - splunk_docker_retired_role_roles_lookup.json.entry is not mapping
+    fail_msg: Splunk did not return a role list, so the retired role cannot be safely deleted.
+  when: splunk_docker_retired_role_lookup.status == 200
+
+- name: "Find roles that import retired Splunk role {{ splunk_retired_role }}"
+  ansible.builtin.set_fact:
+    splunk_docker_retired_role_importers: >-
+      {%- set importers = [] -%}
+      {%- for role in splunk_docker_retired_role_roles_lookup.json.entry | default([]) -%}
+      {%-   if role is not mapping -%}
+      {%-     set _ = importers.append('unknown') -%}
+      {%-   else -%}
+      {%-     set role_name = role.name | default('') -%}
+      {%-     if not role_name -%}
+      {%-       set _ = importers.append('unknown') -%}
+      {%-     elif role_name not in splunk_docker_retired_roles -%}
+      {%-       set content = role.content | default(none) -%}
+      {%-       if content is not mapping -%}
+      {%-         set _ = importers.append(role_name) -%}
+      {%-       else -%}
+      {%-         set imported_roles = content.imported_roles | default(none) -%}
+      {%-         if imported_roles is not sequence or imported_roles is string or imported_roles is mapping -%}
+      {%-           set _ = importers.append(role_name) -%}
+      {%-         elif splunk_retired_role in imported_roles -%}
+      {%-           set _ = importers.append(role_name) -%}
+      {%-         endif -%}
+      {%-       endif -%}
+      {%-     endif -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ importers }}
+  when: splunk_docker_retired_role_lookup.status == 200
+  no_log: true
+
+- name: "Assert no remaining role imports retired Splunk role {{ splunk_retired_role }}"
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_retired_role_importers | default([]) | length == 0
+    fail_msg: >-
+      Cannot delete retired role {{ splunk_retired_role }} while another role imports it or its imports
+      cannot be verified.
+  when: splunk_docker_retired_role_lookup.status == 200
+
 - name: "Would delete retired Splunk role {{ splunk_retired_role }}"
   ansible.builtin.debug:
     msg: "Retired Splunk role {{ splunk_retired_role }} exists and can be removed."
@@ -88,6 +153,7 @@
     - ansible_check_mode
     - splunk_docker_retired_role_lookup.status == 200
     - splunk_docker_retired_role_users | default([]) | length == 0
+    - splunk_docker_retired_role_importers | default([]) | length == 0
 
 - name: "Delete retired Splunk role {{ splunk_retired_role }}"
   ansible.builtin.uri:
@@ -106,4 +172,5 @@
     - not ansible_check_mode
     - splunk_docker_retired_role_lookup.status == 200
     - splunk_docker_retired_role_users | default([]) | length == 0
+    - splunk_docker_retired_role_importers | default([]) | length == 0
   no_log: true

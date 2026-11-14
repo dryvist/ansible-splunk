@@ -110,14 +110,50 @@ assert role_names.index(
 assert role_names.index("List users before deleting retired Splunk role {{ splunk_retired_role }}") < role_names.index(
     "Delete retired Splunk role {{ splunk_retired_role }}"
 )
+assert role_names.index("List roles before deleting retired Splunk role {{ splunk_retired_role }}") < role_names.index(
+    "Assert Splunk returned its role list before deleting retired role {{ splunk_retired_role }}"
+)
+assert role_names.index(
+    "Assert Splunk returned its role list before deleting retired role {{ splunk_retired_role }}"
+) < role_names.index("Find roles that import retired Splunk role {{ splunk_retired_role }}")
+assert role_names.index("Find roles that import retired Splunk role {{ splunk_retired_role }}") < role_names.index(
+    "Assert no remaining role imports retired Splunk role {{ splunk_retired_role }}"
+)
 role_lookup = role_tasks[0]
+role_list = named_task(role_tasks, "List roles before deleting retired Splunk role {{ splunk_retired_role }}")
+role_list_assert = named_task(
+    role_tasks,
+    "Assert Splunk returned its role list before deleting retired role {{ splunk_retired_role }}",
+)
+role_importers_task = named_task(
+    role_tasks,
+    "Find roles that import retired Splunk role {{ splunk_retired_role }}",
+)
+role_importers_assert = named_task(
+    role_tasks,
+    "Assert no remaining role imports retired Splunk role {{ splunk_retired_role }}",
+)
+would_delete = named_task(role_tasks, "Would delete retired Splunk role {{ splunk_retired_role }}")
 role_delete = role_tasks[-1]
 assert role_lookup["ansible.builtin.uri"]["method"] == "GET"
 assert role_lookup["check_mode"] is False
+assert role_list["ansible.builtin.uri"]["method"] == "GET"
+assert "/services/authorization/roles?output_mode=json&count=0" in role_list["ansible.builtin.uri"]["url"]
+assert role_list["check_mode"] is False
+assert role_list["changed_when"] is False
+assert role_list["no_log"] is True
+assert role_list["ansible.builtin.uri"]["status_code"] == [200]
+assert role_list_assert["ansible.builtin.assert"]["that"]
+assert role_importers_assert["ansible.builtin.assert"]["that"] == [
+    "splunk_docker_retired_role_importers | default([]) | length == 0"
+]
 assert role_delete["ansible.builtin.uri"]["method"] == "DELETE"
 assert role_delete["ansible.builtin.uri"]["status_code"] == [200, 404]
 assert "not ansible_check_mode" in role_delete["when"]
 assert role_delete["no_log"] is True
+importer_guard = "splunk_docker_retired_role_importers | default([]) | length == 0"
+assert importer_guard in would_delete["when"]
+assert importer_guard in role_delete["when"]
 assert not any("openbao" in str(task).lower() for task in teardown + user_tasks + role_tasks)
 
 role_membership_task = next(
@@ -144,6 +180,40 @@ membership_context["splunk_docker_retired_role_users_lookup"]["json"]["entry"].a
     {"name": "remaining-user", "content": {"roles": ["open-llm"]}}
 )
 assert membership_template.render(**membership_context) == ["remaining-user"]
+
+role_importers = role_importers_task["ansible.builtin.set_fact"]["splunk_docker_retired_role_importers"]
+importer_template = native_env.from_string(role_importers)
+importer_context = {
+    "splunk_docker_retired_role_roles_lookup": {
+        "json": {
+            "entry": [
+                {"name": "open-llm", "content": {"imported_roles": ["open-llm"]}},
+                {"name": "hermes_search", "content": {"imported_roles": ["user"]}},
+            ]
+        }
+    },
+    "splunk_docker_retired_roles": ["open-llm"],
+    "splunk_retired_role": "open-llm",
+}
+assert importer_template.render(**importer_context) == []
+importer_context["splunk_docker_retired_role_roles_lookup"]["json"]["entry"].append(
+    {"name": "dependent", "content": {"imported_roles": ["open-llm"]}}
+)
+assert importer_template.render(**importer_context) == ["dependent"]
+importer_context["splunk_docker_retired_role_roles_lookup"]["json"]["entry"][-1] = {
+    "name": "unverifiable",
+    "content": {"imported_roles": "open-llm"},
+}
+assert importer_template.render(**importer_context) == ["unverifiable"]
+role_list_conditions = role_list_assert["ansible.builtin.assert"]["that"]
+valid_roles_response = {
+    "splunk_docker_retired_role_roles_lookup": {"json": {"entry": []}}
+}
+malformed_roles_response = {
+    "splunk_docker_retired_role_roles_lookup": {"json": {"entry": "not-a-list"}}
+}
+assert all(expression_result(condition, valid_roles_response) for condition in role_list_conditions)
+assert not all(expression_result(condition, malformed_roles_response) for condition in role_list_conditions)
 
 audit_tasks = load_tasks(TASKS / "audit_undeclared_tokens.yml")
 audit_task = named_task(audit_tasks, "Select live tokens with an undeclared owner or audience")
