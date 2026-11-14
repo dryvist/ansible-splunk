@@ -1,0 +1,109 @@
+---
+- name: "Look up retired Splunk role {{ splunk_retired_role }}"
+  ansible.builtin.uri:
+    url: >-
+      https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authorization/roles/{{
+      splunk_retired_role | urlencode }}?output_mode=json
+    method: GET
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+  register: splunk_docker_retired_role_lookup
+  check_mode: false
+  changed_when: false
+  no_log: true
+
+- name: "List users before deleting retired Splunk role {{ splunk_retired_role }}"
+  ansible.builtin.uri:
+    url: >-
+      https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authentication/users?output_mode=json&count=0
+    method: GET
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200]
+  register: splunk_docker_retired_role_users_lookup
+  check_mode: false
+  changed_when: false
+  no_log: true
+  when: splunk_docker_retired_role_lookup.status == 200
+
+- name: "Assert Splunk returned its user list before deleting retired role {{ splunk_retired_role }}"
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_retired_role_users_lookup.json.entry is defined
+      - splunk_docker_retired_role_users_lookup.json.entry is sequence
+      - splunk_docker_retired_role_users_lookup.json.entry is not string
+      - splunk_docker_retired_role_users_lookup.json.entry is not mapping
+    fail_msg: Splunk did not return a user list, so the retired role cannot be safely deleted.
+  when: splunk_docker_retired_role_lookup.status == 200
+
+- name: "Find remaining users assigned to retired Splunk role {{ splunk_retired_role }}"
+  ansible.builtin.set_fact:
+    splunk_docker_retired_role_users: >-
+      {%- set remaining = [] -%}
+      {%- for user in splunk_docker_retired_role_users_lookup.json.entry | default([]) -%}
+      {%-   set username = user.name | default('') -%}
+      {%-   set content = user.content | default({}) -%}
+      {%-   set raw_roles = content.roles | default(none) -%}
+      {%-   if not username -%}
+      {%-     set _ = remaining.append('unknown') -%}
+      {%-   elif username not in splunk_docker_retired_users -%}
+      {%-     if raw_roles is none -%}
+      {%-       set _ = remaining.append(username) -%}
+      {%-     elif raw_roles is string -%}
+      {%-       set user_roles = [raw_roles] -%}
+      {%-       if user_roles | intersect([splunk_retired_role]) | length > 0 -%}
+      {%-         set _ = remaining.append(username) -%}
+      {%-       endif -%}
+      {%-     elif raw_roles is sequence and raw_roles is not mapping -%}
+      {%-       if raw_roles | intersect([splunk_retired_role]) | length > 0 -%}
+      {%-         set _ = remaining.append(username) -%}
+      {%-       endif -%}
+      {%-     else -%}
+      {%-       set _ = remaining.append(username) -%}
+      {%-     endif -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ remaining }}
+  when: splunk_docker_retired_role_lookup.status == 200
+  no_log: true
+
+- name: "Assert no remaining user holds retired Splunk role {{ splunk_retired_role }}"
+  ansible.builtin.assert:
+    that:
+      - splunk_docker_retired_role_users | default([]) | length == 0
+    fail_msg: >-
+      Cannot delete retired role {{ splunk_retired_role }} while a remaining user is assigned to it.
+  when: splunk_docker_retired_role_lookup.status == 200
+
+- name: "Would delete retired Splunk role {{ splunk_retired_role }}"
+  ansible.builtin.debug:
+    msg: "Retired Splunk role {{ splunk_retired_role }} exists and can be removed."
+  changed_when: true
+  when:
+    - ansible_check_mode
+    - splunk_docker_retired_role_lookup.status == 200
+    - splunk_docker_retired_role_users | default([]) | length == 0
+
+- name: "Delete retired Splunk role {{ splunk_retired_role }}"
+  ansible.builtin.uri:
+    url: >-
+      https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authorization/roles/{{
+      splunk_retired_role | urlencode }}
+    method: DELETE
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+  register: splunk_docker_retired_role_delete
+  changed_when: splunk_docker_retired_role_delete.status | int == 200
+  when:
+    - not ansible_check_mode
+    - splunk_docker_retired_role_lookup.status == 200
+    - splunk_docker_retired_role_users | default([]) | length == 0
+  no_log: true

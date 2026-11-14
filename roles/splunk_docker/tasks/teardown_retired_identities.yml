@@ -1,0 +1,14 @@
+---
+- name: Delete auth tokens and retired Splunk users
+  ansible.builtin.include_tasks: teardown_one_user.yml
+  loop: "{{ splunk_docker_retired_users }}"
+  loop_control:
+    loop_var: splunk_retired_user
+    label: "{{ splunk_retired_user }}"
+
+- name: Delete retired Splunk roles after their users are gone
+  ansible.builtin.include_tasks: teardown_one_role.yml
+  loop: "{{ splunk_docker_retired_roles }}"
+  loop_control:
+    loop_var: splunk_retired_role
+    label: "{{ splunk_retired_role }}"

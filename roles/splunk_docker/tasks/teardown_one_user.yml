@@ -1,0 +1,72 @@
+---
+- name: "List auth tokens for retired Splunk user {{ splunk_retired_user }}"
+  ansible.builtin.uri:
+    url: >-
+      https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authorization/tokens?output_mode=json&username={{
+      splunk_retired_user | urlencode }}&count=0
+    method: GET
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200]
+  register: splunk_docker_retired_user_tokens
+  check_mode: false
+  changed_when: >-
+    ansible_check_mode
+    and (splunk_docker_retired_user_tokens.json.entry | default([]) | length > 0)
+  no_log: true
+
+- name: "Revoke remaining auth tokens for retired Splunk user {{ splunk_retired_user }}"
+  ansible.builtin.uri:
+    url: >-
+      https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authorization/tokens/{{
+      splunk_retired_user | urlencode }}?output_mode=json&id={{ splunk_retired_token.name | urlencode }}
+    method: DELETE
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+  loop: "{{ splunk_docker_retired_user_tokens.json.entry | default([]) }}"
+  loop_control:
+    loop_var: splunk_retired_token
+    label: "token for {{ splunk_retired_user }}"
+  register: splunk_docker_retired_token_delete
+  changed_when: splunk_docker_retired_token_delete.status | int == 200
+  when: not ansible_check_mode
+  no_log: true
+
+- name: "Look up retired Splunk user {{ splunk_retired_user }}"
+  ansible.builtin.uri:
+    url: >-
+      https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authentication/users/{{
+      splunk_retired_user | urlencode }}?output_mode=json
+    method: GET
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+  register: splunk_docker_retired_user_lookup
+  check_mode: false
+  changed_when: ansible_check_mode and splunk_docker_retired_user_lookup.status == 200
+  no_log: true
+
+- name: "Delete retired Splunk user {{ splunk_retired_user }}"
+  ansible.builtin.uri:
+    url: >-
+      https://127.0.0.1:{{ splunk_docker_mgmt_port }}/services/authentication/users/{{
+      splunk_retired_user | urlencode }}
+    method: DELETE
+    user: "{{ splunk_admin_user | default('admin') }}"
+    password: "{{ splunk_docker_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+  register: splunk_docker_retired_user_delete
+  changed_when: splunk_docker_retired_user_delete.status | int == 200
+  when:
+    - not ansible_check_mode
+    - splunk_docker_retired_user_lookup.status == 200
+  no_log: true

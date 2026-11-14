@@ -90,6 +90,27 @@
             content: {status: enabled, claims: {nbr: 0, sub: hermes, aud: platform-search, exp: "{{ live_epoch }}"}}
         expect: ["hermes-enabled-search01"]
 
+      - name: a retired user's token is pending removal in check mode
+        entries:
+          - name: "sandbox-agent-token"
+            content: {status: enabled, claims: {nbr: 0, sub: sandbox-agent, exp: "{{ live_epoch }}"}}
+        check_mode: true
+        expect: []
+
+      - name: a retired user's token remains undeclared in a real run
+        entries:
+          - name: "sandbox-agent-token"
+            content: {status: enabled, claims: {nbr: 0, sub: sandbox-agent, exp: "{{ live_epoch }}"}}
+        check_mode: false
+        expect: ["sandbox-agent-token"]
+
+      - name: another undeclared owner remains a finding in check mode
+        entries:
+          - name: "admin-check-token"
+            content: {status: enabled, claims: {nbr: 0, sub: admin, exp: "{{ live_epoch }}"}}
+        check_mode: true
+        expect: ["admin-check-token"]
+
       # Expiry must still be checked because the platform reports expired
       # tokens as "enabled".
       - name: an expired token cannot authenticate, so it is not a finding
@@ -212,6 +233,8 @@
           {{ lookup('ansible.builtin.template', select_template.path,
                     template_vars={'splunk_docker_all_tokens':
                                    {'json': {'entry': scenario.entries}},
+                                   'splunk_docker_retired_users': ['sandbox-agent'],
+                                   'ansible_check_mode': (scenario.check_mode | default(false)),
                                    'splunk_docker_live_tokens':
                                    ((live_rendered | from_yaml)
                                     if (live_rendered is string) else live_rendered)}) }}

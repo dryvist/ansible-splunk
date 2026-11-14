@@ -149,6 +149,12 @@ splunk_docker_users:
     token_openbao_key: "SPLUNK_TOKEN"
     url_openbao_key: ""
 
+# Retire identities removed from the declared service-user and role lists.
+splunk_docker_retired_users:
+  - sandbox-agent
+splunk_docker_retired_roles:
+  - open-llm
+
 # svc-mcp-rotator is NOT in splunk_docker_users above — see
 # defaults/main/03-users-tokens-mcp.yml for why. This turns on its separate
 # management path (tasks/manage_mcp_rotator.yml) and publishes its password to

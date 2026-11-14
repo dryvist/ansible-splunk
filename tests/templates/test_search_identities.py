@@ -13,6 +13,8 @@ inventory = yaml.safe_load(source)
 
 assert not any(role.get("name") == "open-llm" for role in inventory["splunk_docker_roles"])
 assert not any(user.get("name") == "sandbox-agent" for user in inventory["splunk_docker_users"])
+assert inventory["splunk_docker_retired_users"] == ["sandbox-agent"]
+assert inventory["splunk_docker_retired_roles"] == ["open-llm"]
 assert not any(
     isinstance(user.get("token_openbao_path"), str)
     and user["token_openbao_path"].startswith("apps/sandbox-agent")
