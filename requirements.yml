@@ -23,10 +23,10 @@ collections:
   # holding galaxy.yml, so every role is addressed unambiguously by FQCN.
   #
   # Renovate follows released versions; each install uses an exact commit.
-  # renovate: datasource=github-tags depName=dryvist/homelab-contracts currentValue=v5.60.0
+  # renovate: datasource=github-tags depName=dryvist/homelab-contracts currentValue=v5.61.1
   - name: https://github.com/dryvist/homelab-contracts.git#/ansible/
     type: git
-    version: 694b93a9bf58a96467afa7864af8278e4812fadf
+    version: bd75705d1e26dd16adb13abfea6dcd3243fc100a
 
 # splunk.splunk stays a `roles:` entry: its repository root IS the role, which
 # is the one shape `role install` addresses correctly. Install both sections
