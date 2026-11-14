@@ -162,7 +162,7 @@
       ansible.builtin.include_tasks: plan_token_delivery.yml
 
     - name: "Mint and publish replacement token for {{ splunk_user.name }}"
-      when: splunk_docker_token_mint_required
+      when: splunk_docker_token_mint_required and not ansible_check_mode
       block:
         - name: "Clear replacement token identity for {{ splunk_user.name }}"
           ansible.builtin.set_fact:

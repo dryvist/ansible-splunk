@@ -6,3 +6,10 @@
          or not (splunk_docker_bao_token_valid | bool)
          or (splunk_docker_eligible_tokens | length != 1) }}
   no_log: true
+
+# The mint request does not run in check mode, so the mint block is skipped there.
+- name: "Report the replacement token a real run would mint for {{ splunk_user.name }}"
+  ansible.builtin.debug:
+    msg: "Check mode: a replacement token would be minted and published."
+  when: splunk_docker_token_mint_required and ansible_check_mode
+  changed_when: true
