@@ -108,6 +108,10 @@ jobs:
         run: |
           ansible-playbook tests/openbao_publish/verify.yml
 
+      - name: Verify token delivery planning skips the mint in check mode
+        run: |
+          ansible-playbook tests/openbao_publish/check_mode.yml --check
+
       # Reads the selection expression out of the role and evaluates it, so a
       # drifted role fails here rather than passing against a stale copy.
       - name: Verify the undeclared auth-token gate
