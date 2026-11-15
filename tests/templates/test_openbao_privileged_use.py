@@ -232,8 +232,10 @@ delivered_stanzas = {
 }
 paging_url = setting(delivered_stanzas.get("openbao_privileged_use", ""), "action.webhook.param.url") or ""
 digest_url = setting(delivered_stanzas.get("openbao_window_privileged_use_digest", ""), "action.webhook.param.url") or ""
-if not paging_url.startswith("https://ntfy.example.test/keystone"):
-    errors.append("FAIL: paging alert does not use the alert topic")
+if paging_url:
+    errors.append("FAIL: below the page threshold, the privileged-use alert still rides the alert topic")
+if setting(delivered_stanzas.get("openbao_privileged_use", ""), "alert.track") != "1":
+    errors.append("FAIL: privileged-use alert lost tracking, so alert_digest_12h cannot count its firings")
 if "/status" not in digest_url or digest_url.startswith("https://ntfy.example.test/keystone"):
     errors.append("FAIL: in-window digest rides the paging topic instead of the status topic")
 

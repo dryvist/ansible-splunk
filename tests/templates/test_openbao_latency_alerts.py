@@ -153,8 +153,8 @@ def check_stanza(name, body, spec, errors):
         if not ok:
             errors.append(f"FAIL: [{name}] {message}")
 
-    need(value(body, "action.webhook") == "1", "has no action.webhook = 1 delivery")
-    need("&tpl=yes&t=" in (value(body, "action.webhook.param.url") or ""), "hub URL lacks the ntfy title/message templates")
+    need(value(body, "action.webhook") is None, "still carries a webhook action below the page threshold")
+    need(value(body, "alert.track") == "1", "is not tracked, so alert_digest_12h cannot count its firings")
     need(value(body, "cron_schedule") == "*/5 * * * *", "cron_schedule is not */5 * * * *")
     need(value(body, "alert.suppress") == "1", "alert.suppress is not 1")
     need(value(body, "alert.suppress.period") == "24h", "alert.suppress.period is not 24h")
@@ -228,8 +228,8 @@ else:
         if not ok:
             errors.append(f"FAIL: [{PINNED_POLICY_STANZA}] {message}")
 
-    need_pinned(value(pinned_policy, "action.webhook") == "1", "has no alert_delivery webhook")
-    need_pinned("&tpl=yes&t=" in (value(pinned_policy, "action.webhook.param.url") or ""), "webhook lacks ntfy title/message templates")
+    need_pinned(value(pinned_policy, "action.webhook") is None, "still carries an alert_delivery webhook below the page threshold")
+    need_pinned(value(pinned_policy, "alert.track") == "1", "is not tracked, so alert_digest_12h cannot count its firings")
     need_pinned(value(pinned_policy, "dispatch.earliest_time") == "-24h", "does not search the last 24h")
     need_pinned(value(pinned_policy, "dispatch.latest_time") == "now", "does not end its search at now")
     need_pinned(value(pinned_policy, "cron_schedule") == "0 * * * *", "does not run hourly")

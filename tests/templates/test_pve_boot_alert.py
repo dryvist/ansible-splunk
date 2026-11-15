@@ -84,8 +84,11 @@ else:
             errors.append(f"FAIL: [pve_node_boot] search is missing {fragment!r}")
     if value(body, "description") is None:
         errors.append("FAIL: [pve_node_boot] has no one-line description")
-    if value(body, "action.webhook") != "1" or not value(body, "action.webhook.param.url"):
-        errors.append("FAIL: [pve_node_boot] has no rendered alert delivery")
+    if value(body, "action.webhook") is not None or value(body, "alert.track") != "1":
+        errors.append(
+            "FAIL: [pve_node_boot] is below the page threshold: it must carry no webhook "
+            "action, stay tracked, and be reported by alert_digest_12h"
+        )
 
 if errors:
     print("\n".join(errors))

@@ -37,7 +37,7 @@ else:
         "alert.digest_mode": "1",
         "alert.suppress": "1",
         "alert.suppress.period": "24h",
-        "action.webhook": "1",
+        "alert.track": "1",
     }
     for key, expected_value in expected.items():
         if value(key) != expected_value:
@@ -74,8 +74,10 @@ else:
             errors.append(f"FAIL: data guest {name!r} is exempt")
     if value("description") is None:
         errors.append("FAIL: alert has no description")
-    if not (value("action.webhook.param.url") or "").startswith(NTFY):
-        errors.append("FAIL: alert does not use the rendered notification destination")
+    if value("action.webhook.param.url") is not None:
+        errors.append("FAIL: alert still renders a webhook; below the page threshold it is digest-delivered instead")
+    if value("alert.track") != "1":
+        errors.append("FAIL: alert is not tracked, so alert_digest_12h cannot count its firings")
 
     # Exempt names render verbatim in SPL quotes; only backslash and quote are escaped.
     odd_names = ["a<b&c'd", 'q"r', "x\\y"]

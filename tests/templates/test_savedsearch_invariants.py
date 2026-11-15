@@ -85,7 +85,12 @@ for name, body in ((m.group(1), m.group(2)) for m in STANZA_RE.finditer(rendered
 
 # 3. Delivery is rendered into each scheduled stanza, never into [default]:
 #    the app exports to the system namespace, so a [default] action would
-#    fire on every other app's scheduled searches too.
+#    fire on every other app's scheduled searches too. Below the page
+#    threshold (splunk_docker_alert_page_min_severity) a scheduled stanza is
+#    delivered by the alert_digest_12h digest instead of its own webhook, so
+#    it is exempt from the webhook requirement -- anything at or above the
+#    threshold must still carry the page.
+PAGE_MIN_SEVERITY = DEFAULTS.get("splunk_docker_alert_page_min_severity", 5)
 delivered = template.render(
     splunk_docker_ansible_converge_host_count=DEFAULTS["splunk_docker_ansible_converge_host_count"],
     splunk_docker_silence_detectors=DEFAULTS["splunk_docker_silence_detectors"],
@@ -108,10 +113,17 @@ delivered = template.render(
 )
 if re.search(r"^\[default\]$", delivered, re.M):
     errors.append("FAIL: a [default] stanza is rendered; it would export actions to every app")
+severity_re = re.compile(r"^alert\.severity\s*=\s*(\d+)\s*$", re.M)
 for name, body in ((m.group(1), m.group(2)) for m in STANZA_RE.finditer(delivered)):
-    if ENABLED_RE.search(body) and TRACKED_ALERT_RE.search(body) and not re.search(r"^action\.webhook = 1$", body, re.M):
-        errors.append(f"FAIL: [{name}] is scheduled but carries no action.webhook delivery")
-    elif ENABLED_RE.search(body) and TRACKED_ALERT_RE.search(body) and "&tpl=yes&t=" not in body:
+    scheduled_tracked = ENABLED_RE.search(body) and TRACKED_ALERT_RE.search(body)
+    if scheduled_tracked and not re.search(r"^action\.webhook = 1$", body, re.M):
+        severity = severity_re.search(body)
+        if severity is None or int(severity.group(1)) >= PAGE_MIN_SEVERITY:
+            errors.append(
+                f"FAIL: [{name}] is scheduled at or above page severity {PAGE_MIN_SEVERITY} "
+                "but carries no action.webhook delivery"
+            )
+    elif scheduled_tracked and "&tpl=yes&t=" not in body:
         errors.append(f"FAIL: [{name}] hub URL lacks the ntfy title/message templates")
 
 for det in DEFAULTS["splunk_docker_silence_detectors"]:
@@ -129,7 +141,8 @@ if errors:
 
 print(
     "PASS: every scheduled alert suppresses its own notification rate "
-    "(alert.suppress = 1 with a period) and carries its own hub delivery, "
+    "(alert.suppress = 1 with a period) and every page-threshold alert carries its "
+    "own hub delivery (below-threshold alerts are digest-delivered), "
     "no [default] stanza is rendered, and every by_host silence-detector "
     "list entry declares 'disabled' explicitly"
 )

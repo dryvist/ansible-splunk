@@ -1,0 +1,14 @@
+---
+# Two alert tiers for the rendered saved searches (savedsearches.conf.j2).
+# The tier is the severity each stanza already declares -- never a name list.
+#
+# On (default): severity >= splunk_docker_alert_page_min_severity pages the
+# alert hub at once and at most once per condition per 24 hours (a shorter
+# declared suppress period is floored to 24h); everything below only
+# triggers and is tracked, and is summarized by the [alert_digest_12h]
+# status-topic digest. Off: every scheduled alert pages as before, the
+# digest is not rendered, and no suppress period is touched -- the rendered
+# savedsearches.conf is byte-for-byte the pre-tier document
+# (tests/templates/test_alert_two_tiers.py proves it).
+splunk_docker_alert_two_tiers_enabled: true
+splunk_docker_alert_page_min_severity: 5

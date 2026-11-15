@@ -40,7 +40,7 @@ else:
         "alert.suppress": "1",
         "alert.suppress.period": "24h",
         "alert.suppress.fields": "host,source",
-        "action.webhook": "1",
+        "alert.track": "1",
     }
     for key, expected_value in expected.items():
         if value(key) != expected_value:
@@ -54,8 +54,10 @@ else:
     ):
         if fragment not in search:
             errors.append(f"FAIL: search is missing {fragment!r}")
-    if value("action.webhook.param.url") != NTFY + DEFAULTS["splunk_docker_alert_ntfy_query"]:
-        errors.append("FAIL: alert does not use the rendered alert_delivery destination")
+    if value("action.webhook.param.url") is not None:
+        errors.append("FAIL: alert still renders a webhook; below the page threshold it is digest-delivered instead")
+    if value("alert.track") != "1":
+        errors.append("FAIL: alert is not tracked, so alert_digest_12h cannot count its firings")
 
 ticker = re.search(r"^\[hermes_cron_ticker_silent\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S)
 if not ticker:

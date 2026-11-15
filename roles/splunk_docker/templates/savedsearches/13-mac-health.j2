@@ -17,7 +17,7 @@
    live indexer, never from a design document.
 --------------------------------------------------------------------------- #}
 [mac_wired_ratio_warn]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_wired_ratio_warn', 3) -}}
 description = Warns when a Mac's wired/ceiling ratio (wired_bytes / wired_ceiling_bytes) sustains above 80% for 5 minutes. 80% is chosen to give lead time before the band where exhaustion has been observed, rather than tripping only once already there. VERIFIED BOTH DIRECTIONS 2026-08-23 after the sourcetype fix: the base search now reaches 37 real events (it reached 0 before, by construction); replayed with the condition satisfied it returns 1 row, and with a 0.12 ratio it returns 0. Live ratio on this host is ~0.12, so silence today is the correct answer, not a dark detector.
 search = index=mac_perf sourcetype="macos:perf:wired_memory" | stats avg(wired_ratio) as avg_ratio by host | where avg_ratio > 0.80
 dispatch.earliest_time = -5m
@@ -37,7 +37,7 @@ relation = greater than
 quantity = 0
 
 [mac_wired_ratio_critical]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_wired_ratio_critical', 5) -}}
 description = Critical: wired/ceiling ratio above 90% sustained for 5 minutes — inside the band where exhaustion has been observed. Same signal as mac_wired_ratio_warn at a higher band so critical pages are distinct from the early warning. VERIFIED BOTH DIRECTIONS 2026-08-23 after the sourcetype fix: replayed at 0.95 it returns 1 row, at 0.85 it returns 0 — so the band boundary is exercised, not just the happy path.
 search = index=mac_perf sourcetype="macos:perf:wired_memory" | stats avg(wired_ratio) as avg_ratio by host | where avg_ratio > 0.90
 dispatch.earliest_time = -5m
@@ -57,7 +57,7 @@ relation = greater than
 quantity = 0
 
 [mac_leaked_wired_memory]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_leaked_wired_memory', 4) -}}
 description = Detects orphaned wired GPU memory: wired_bytes minus resident_bytes minus the measured ~3.4 GiB non-MLX baseline. 20 GiB is chosen to give lead time roughly halfway to the level at which exhaustion has been observed. VERIFIED BOTH DIRECTIONS 2026-08-23 after the sourcetype fix: replayed with a 38 GiB gap it returns 1 row, with a 2 GiB gap it returns 0.
 search = index=mac_perf sourcetype="macos:perf:wired_memory" | eval leaked_gb = round((wired_bytes - resident_bytes - (3.4*1024*1024*1024)) / 1024 / 1024 / 1024, 1) | where leaked_gb > 20
 dispatch.earliest_time = -10m
@@ -77,7 +77,7 @@ relation = greater than
 quantity = 0
 
 [mac_metal_oom_burst]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_metal_oom_burst', 4) -}}
 description = Fires on MLX Metal command-buffer OOM aborts (kIOGPUCommandBufferCallbackErrorOutOfMemory / libc++abi terminating) in index=llm sourcetype=mlx:model-server — a leading indicator of wired-memory exhaustion. VERIFIED by replay against live data: 280 matching events over the trailing 365 days, so the match logic is proven against real history. The trailing `| where count > 0` is load-bearing: a bare `| stats count` emits one row even when nothing matched, and the alert triggers on result rows, so without it this fires every cycle forever.
 search = index=llm sourcetype=mlx:model-server ("kIOGPUCommandBufferCallbackErrorOutOfMemory" OR "libc++abi: terminating") | stats count | where count > 0
 dispatch.earliest_time = -15m
@@ -95,7 +95,7 @@ relation = greater than
 quantity = 0
 
 [mac_windowserver_watchdog_checkin_gap]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_windowserver_watchdog_checkin_gap', 5) -}}
 description = Fires on a "userspace watchdog timeout" line from either the live unified log or a crash-report artifact. VERIFIED BOTH DIRECTIONS against real data: 6 matches over the trailing 365 days (all from macos:crashreport, the .spin artifacts a stall produces) and 0 over the trailing 15 minutes, so it fires on the real signal and is silent when it is absent. Two sources on purpose: the unified-log line is the live path and the crash-report artifact is how a stall that killed the compositor actually surfaces afterwards, so a detector on either alone has a blind side. macos:unified_log currently carries the predicate feed but no watchdog line, because the only such event on this host predates the input being repaired.
 search = index=os (sourcetype="macos:unified_log" OR sourcetype=macos:crashreport) "userspace watchdog timeout"
 dispatch.earliest_time = -10m
@@ -115,7 +115,7 @@ relation = greater than
 quantity = 0
 
 [mac_kernel_panic_jetsam_arrival]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_kernel_panic_jetsam_arrival', 5) -}}
 description = Fires when a new kernel panic or JetsamEvent artifact lands in sourcetype=macos:crashreport. VERIFIED live: this sourcetype carries ~1,339 events/24h on this host, and the search below matched real .ips artifacts directly.
 search = index=os sourcetype=macos:crashreport (source="*panic*" OR source="*JetsamEvent*")
 dispatch.earliest_time = -10m
@@ -136,7 +136,7 @@ quantity = 0
 
 {# Label source: the unified-log subsystem's reverse-DNS label, with its gui/<uid>/, user/<uid>/ or system/ domain prefix and the trailing " [pid]" removed. The spawn message fills in only when the subsystem yields no label; its text names the service, not a label. Threshold and exemptions: defaults/main/18-mac-health-alerts.yml. #}
 [mac_launchd_respawn_loop]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_launchd_respawn_loop', 5) -}}
 description = Fires when one launchd service label is spawned {{ splunk_docker_launchd_respawn_threshold }} or more times on one host within 10 minutes, the signature of a service being relaunched in a loop.
 search = index=os sourcetype=macos:unified_log process=launchd "Successfully spawned" NOT "because xpc event" | rex field=subsystem "^(?:(?:gui|user)/\d+/|system/)?(?<subsystem_label>[^\s\[]+)\s*\[\d+\]" | rex field=eventMessage "Successfully spawned (?<message_label>[^\[]+?)\s*\[\d+\]" | eval label = coalesce(subsystem_label, message_label) | where isnotnull(label){% if splunk_docker_launchd_respawn_exemptions %} | where NOT in(label, {% for name in splunk_docker_launchd_respawn_exemptions %}"{{ name }}"{% if not loop.last %}, {% endif %}{% endfor %}){% endif %} | stats count as spawns min(_time) as first_seen max(_time) as last_seen by host label | where spawns >= {{ splunk_docker_launchd_respawn_threshold }} | convert ctime(first_seen) ctime(last_seen) | table host label spawns first_seen last_seen
 dispatch.earliest_time = -10m
@@ -157,7 +157,7 @@ quantity = 0
 
 {# Matches the stall monitor's FREEZE samples in index=mac_perf. WindowServer diagnostic reports and unified-log watchdog lines are matched by mac_windowserver_watchdog_checkin_gap. #}
 [mac_ws_monitor_freeze]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_ws_monitor_freeze', 5) -}}
 description = Fires when the Mac stall monitor records a UI freeze sample (severity=FREEZE) on one host within six minutes.
 search = index=mac_perf sourcetype=ws-monitor severity=FREEZE | fields _time host gap_s top_processes source sourcetype
 dispatch.earliest_time = -6m
@@ -178,7 +178,7 @@ relation = greater than
 quantity = 0
 
 [mac_windowserver_synchronize_timeout]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_windowserver_synchronize_timeout', 4) -}}
 description = Fires when WindowServer logs a "synchronize timed out" line on one host within ten minutes.
 search = index=os sourcetype=macos:unified_log process=WindowServer "synchronize timed out" | stats count by host | eventstats values(host) as hosts | eval hosts=mvjoin(mvsort(hosts), ",")
 dispatch.earliest_time = -10m
@@ -199,7 +199,7 @@ quantity = 0
 
 {# Expands each ws-monitor sample's top-5 CPU entries, "<pid> <pcpu> <rss_kb> <command>", and keeps the NotificationCenter executable. Presence is counted over every sample in the window; the mean is taken over the samples where it appears. #}
 [mac_notificationcenter_runaway]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_notificationcenter_runaway', 4) -}}
 description = Fires when, over the trailing 30 minutes, NotificationCenter appears in at least 50% of one host's ws-monitor samples' top-5 CPU lists and its mean CPU across those appearances is at least 40 (percent of one core).
 search = index=mac_perf sourcetype=ws-monitor host=jevans-mbp* | eventstats count AS samples BY host | eval procs = 'top_processes{}' | mvexpand procs | rex field=procs "^\s*\d+\s+(?<pcpu>[\d.]+)\s+\d+\s+(?<command>\S.*?)\s*$" | where match(command, "/NotificationCenter$") | eval pcpu = tonumber(pcpu) | stats count AS appearances avg(pcpu) AS mean_cpu max(samples) AS samples BY host | where appearances >= 0.5 * samples AND mean_cpu >= 40
 dispatch.earliest_time = -30m
@@ -220,7 +220,7 @@ quantity = 0
 
 {# Expands each ws-monitor sample's top-5 CPU entries and keeps the WindowServer executable. Presence is counted over every sample in the window; the mean is taken over the samples where it appears. #}
 [mac_windowserver_sustained_cpu]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_windowserver_sustained_cpu', 4) -}}
 description = Fires when, over the trailing 30 minutes, WindowServer appears in at least 80% of one host's ws-monitor samples' top-5 CPU lists and its mean CPU across those appearances is at least 100 (percent of one core).
 search = index=mac_perf sourcetype=ws-monitor host=jevans-mbp* | eventstats count AS samples BY host | eval procs = 'top_processes{}' | mvexpand procs | rex field=procs "^\s*\d+\s+(?<pcpu>[\d.]+)\s+\d+\s+(?<command>\S.*?)\s*$" | where match(command, "/WindowServer$") | eval pcpu = tonumber(pcpu) | stats count AS appearances avg(pcpu) AS mean_cpu max(samples) AS samples BY host | where appearances >= 0.8 * samples AND mean_cpu >= 100
 dispatch.earliest_time = -30m

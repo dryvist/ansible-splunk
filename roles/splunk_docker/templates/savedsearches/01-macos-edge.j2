@@ -1,5 +1,5 @@
 [mac_process_lifecycle_silence]
-{{ alert_delivery -}}
+{{ alert_delivery('mac_process_lifecycle_silence', 4) -}}
 # tstats returns ZERO rows (not a row with a null last_seen) when nothing in
 # the whole lookback window matches, so the appendpipe below synthesizes the
 # missing row and lets the where clause fire during full silence.

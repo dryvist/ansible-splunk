@@ -7,7 +7,7 @@
 {% if splunk_docker_pve_ha_alerts is defined %}
 {% set pve_ha = splunk_docker_pve_ha_alerts %}
 [pve_ha_fence]
-{{ alert_delivery -}}
+{{ alert_delivery('pve_ha_fence', 5) -}}
 description = Alerts when at least {{ pve_ha.fence_repeat_count }} fencing or watchdog self-fence signals occur for a Proxmox host in {{ pve_ha.fence_window_minutes }} minutes.
 {% set fence_search %}
 (index=os OR index=os_proxmox) host=pve-* ("Trying to fence node" OR "watchdog expired")
@@ -37,7 +37,7 @@ relation = greater than
 quantity = 0
 
 [pve_cluster_quorum_lost]
-{{ alert_delivery -}}
+{{ alert_delivery('pve_cluster_quorum_lost', 5) -}}
 description = Alerts when the Proxmox cluster quorate metric reports a lost quorum.
 {% set quorum_search %}
 | mstats count(_value) as quorum_loss_samples WHERE index=netmon_metrics metric_name="pve_cluster_info" quorate="0" BY host
@@ -65,7 +65,7 @@ quantity = 0
 {% endif %}
 
 [pve_node_boot]
-{{ alert_delivery -}}
+{{ alert_delivery('pve_node_boot', 4) -}}
 description = Alerts when a Proxmox node booted within the last 15 minutes.
 search = | mstats latest(node_boot_time_seconds) AS boot WHERE index=host_metrics host=pve-* span=5m BY host | where boot>0 | stats max(boot) AS last_boot, max(_time) AS seen BY host | where seen-last_boot<900 | eval booted=strftime(last_boot,"%Y-%m-%dT%H:%M:%SZ") | table host booted
 dispatch.earliest_time = -20m
@@ -85,7 +85,7 @@ relation = greater than
 quantity = 0
 
 [pve_ha_recovery_error]
-{{ alert_delivery -}}
+{{ alert_delivery('pve_ha_recovery_error', 5) -}}
 description = Alerts on Proxmox HA recovery policy or error-state messages.
 search = (index=os OR index=os_proxmox) host=pve-* ("recovery policy" OR "no recovery node" OR "error state") | rex field=_raw "(?<appname>pve-ha-crm)(?:\[\d+\])?:" | where appname="pve-ha-crm" | stats count by host
 dispatch.earliest_time = -10m

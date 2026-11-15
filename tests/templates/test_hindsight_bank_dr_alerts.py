@@ -60,7 +60,13 @@ body = TEMPLATE.read_text()
 template = ansible_env(TEMPLATE.parent).get_template(TEMPLATE.name)
 for desired, expected in ((None, "0"), (True, "0"), (False, "1"), ("false", "0")):
     inventory = {} if desired is None else {"constants": {"service_state": {"hindsight_enabled": desired}}}
-    rendered = template.render(tofu_data=inventory, alert_delivery="")
+    # alert_delivery is the shared macro in savedsearches.conf.j2; the
+    # fragment is rendered standalone here, so stub it out (it takes the
+    # stanza name and severity).
+    rendered = template.render(
+        tofu_data=inventory,
+        alert_delivery=lambda name, severity: "",
+    )
     for name in REQUIRED_PHRASES:
         stanza = re.search(rf"^\[{re.escape(name)}\]$(.*?)(?=^\[|\Z)", rendered, re.M | re.S)
         expected_disabled = expected if name.endswith("_no_pass") else "0"
