@@ -37,12 +37,14 @@ else:
         "alert.digest_mode": "1",
         "alert.suppress": "1",
         "alert.suppress.period": "24h",
-        "alert.suppress.fields": "condition",
         "action.webhook": "1",
     }
     for key, expected_value in expected.items():
         if value(key) != expected_value:
             errors.append(f"FAIL: {key} expected {expected_value!r}, got {value(key)!r}")
+    # Digest mode suppresses the whole alert; a suppression field would be ignored.
+    if value("alert.suppress.fields"):
+        errors.append("FAIL: alert.suppress.fields must not be set in digest mode")
     exempt = ",".join(f'"{name}"' for name in DEFAULTS["splunk_docker_guest_backup_exempt_names"])
     for fragment in (
         "metric_name=pve_guest_info",
@@ -52,8 +54,7 @@ else:
         '"Finished Backup of VM"',
         'name="(no guests to check)"',
         "where isnull(last_backup)",
-        # One result row per run: the constant condition field keeps the
-        # sentinel's throttle key separate from the missing-backup digest's.
+        # One result row per run; the condition field labels which case it is.
         'eval condition=if(vmid="-", "no_guests_to_check", "guest_backup_missing")',
         "stats count as guest_count values(guest) as guests by condition",
         # The summary names at most 50 guests, sorted and comma-separated,

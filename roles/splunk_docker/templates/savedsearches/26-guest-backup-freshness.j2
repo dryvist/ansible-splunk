@@ -8,10 +8,10 @@
    (alert.digest_mode = 1) covers the whole condition: the result is a
    single row whose summary states the total count of guests without a
    successful backup in the window and names up to 50 of them (vmid and
-   name, sorted, comma-separated). The constant condition field is the
-   only suppression key, so the missing-backup digest and the sentinel
-   below each notify at most once per 24 hours and cannot throttle each
-   other. When no guest is left to check (the exporter reports none, or
+   name, sorted, comma-separated). Suppression covers the whole alert
+   (digest mode takes no suppression fields), so the missing-backup
+   digest and the sentinel below share one 24-hour throttle; the condition
+   field only labels the row. When no guest is left to check (the exporter reports none, or
    every reported guest is a template or exempt) one sentinel row is
    emitted instead, so a silent exporter is not read as healthy.
    Exempt names are rendered inside SPL double quotes with only the backslash
@@ -32,7 +32,6 @@ alert.severity = 4
 alert.digest_mode = 1
 alert.suppress = 1
 alert.suppress.period = 24h
-alert.suppress.fields = condition
 alert.track = 1
 counttype = number of events
 relation = greater than
