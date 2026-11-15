@@ -34,10 +34,10 @@ else:
         "dispatch.latest_time": "now",
         "cron_schedule": "17 * * * *",
         "disabled": "0",
-        "alert.digest_mode": "0",
+        "alert.digest_mode": "1",
         "alert.suppress": "1",
         "alert.suppress.period": "24h",
-        "alert.suppress.fields": "vmid",
+        "alert.suppress.fields": "condition",
         "action.webhook": "1",
     }
     for key, expected_value in expected.items():
@@ -52,6 +52,17 @@ else:
         '"Finished Backup of VM"',
         'name="(no guests to check)"',
         "where isnull(last_backup)",
+        # One result row per run: the constant condition field keeps the
+        # sentinel's throttle key separate from the missing-backup digest's.
+        'eval condition=if(vmid="-", "no_guests_to_check", "guest_backup_missing")',
+        "stats count as guest_count values(guest) as guests by condition",
+        # The summary names at most 50 guests, sorted and comma-separated,
+        # and states the total count.
+        "mvindex(mvsort(guests), 0, 49)",
+        "mvjoin(",
+        "guest_count > 50",
+        "guest(s) without a successful backup in the window",
+        "| table condition guest_count summary",
     ):
         if fragment not in search:
             errors.append(f"FAIL: search is missing {fragment!r}")
@@ -78,4 +89,4 @@ if errors:
     print("\n".join(errors))
     sys.exit(1)
 
-print("PASS: rendered guest backup freshness alert has its guest source, exemptions, window, sentinel and throttle")
+print("PASS: rendered guest backup freshness alert has its guest source, exemptions, window, sentinel and one digest notification per 24h")
