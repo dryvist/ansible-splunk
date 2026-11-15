@@ -20,7 +20,7 @@
    answers HAProxy's own 503 after `timeout queue`; llm_direct never queues.
 --------------------------------------------------------------------------- #}
 [llm_queue_saturation]
-{{ alert_delivery -}}
+{{ alert_delivery('llm_queue_saturation', 4) -}}
 description = Fires when any Mac LLM model backend's HAProxy queue (haproxy_backend_current_queue) stays at or above 4 for a sustained 5 minutes (min() over the window, so a dip below 4 at any point resets it), OR the llm_wait frontend serves any HTTP 5xx response (haproxy_frontend_http_responses_total{proxy="llm_wait", code="5xx"}, a cumulative counter, so this leg checks it increased in the last 5 minutes) -- both read index=llm_metrics.
 search = | mstats min(haproxy_backend_current_queue) as queue WHERE index=llm_metrics earliest=-5m BY proxy | where queue >= 4 | eval reason="queue depth " . queue . " sustained on backend " . proxy | table reason proxy | append [ | mstats max(haproxy_frontend_http_responses_total) as hi min(haproxy_frontend_http_responses_total) as lo WHERE index=llm_metrics proxy="llm_wait" code="5xx" earliest=-5m | where (hi - lo) > 0 | eval reason="llm_wait frontend served a 5xx response", proxy="llm_wait" | table reason proxy ]
 dispatch.earliest_time = -5m

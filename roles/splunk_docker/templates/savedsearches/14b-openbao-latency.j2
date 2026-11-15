@@ -18,7 +18,7 @@
 {%- endmacro %}
 
 [openbao_request_latency_tail]
-{{ alert_delivery -}}
+{{ alert_delivery('openbao_request_latency_tail', 4) -}}
 description = Alerts when a node's OpenBao handle_request or login latency (1-minute max) is above max(multiplier x its own 24h median, floor) in at least min_minutes of the last 5 minutes. Each kind is judged against its own 24h median, so a node that is slow all day is not compared with the fleet.
 # Baseline is each node's own 24h median, computed before the 5-minute window
 # is cut, so the window only decides which minutes count as breaches. The
@@ -44,7 +44,7 @@ relation = greater than
 quantity = 0
 
 [openbao_raft_commit_latency]
-{{ alert_delivery -}}
+{{ alert_delivery('openbao_raft_commit_latency', 4) -}}
 description = Alerts on the OpenBao raft leader when vault_raft_commitTime (1-minute max) stays above the sustained threshold for 3 consecutive minutes, or exceeds the spike threshold in any minute. The metric is emitted by the leader alone.
 # Rows are ordered per host so streamstats counts that host's own minutes, and
 # the 3-row window must span exactly 2 minutes (no gap). The leader is the only
@@ -67,7 +67,7 @@ relation = greater than
 quantity = 0
 
 [openbao_follower_heartbeat_lag]
-{{ alert_delivery -}}
+{{ alert_delivery('openbao_follower_heartbeat_lag', 4) -}}
 description = Alerts when the leader's view of a follower's last heartbeat (vault_raft_storage_follower_last_heartbeat_ms) is above the threshold for 2 consecutive minutes. Suppresses per peer_id.
 # The leader reports every follower; a follower's own host never appears here,
 # so the peer_id is the node the alert names. Rows are ordered per peer and the
@@ -90,7 +90,7 @@ relation = greater than
 quantity = 0
 
 [openbao_leader_io_wait]
-{{ alert_delivery -}}
+{{ alert_delivery('openbao_leader_io_wait', 4) -}}
 description = Alerts when the current raft leader's guest spends more than the leader IO-wait threshold per 5-minute bucket waiting on IO, for 2 consecutive buckets. The leader is the host of the latest voter-health sweep line, which is leader-gated.
 # The counter is cumulative, so each bucket is the delta from the previous one.
 # A negative delta (counter reset) becomes null, so it counts toward no run.
@@ -115,7 +115,7 @@ relation = greater than
 quantity = 0
 
 [openbao_voter_io_wait]
-{{ alert_delivery -}}
+{{ alert_delivery('openbao_voter_io_wait', 4) -}}
 description = Alerts when any OpenBao voter's guest spends more than the voter IO-wait threshold per 5-minute bucket waiting on IO, for 3 consecutive buckets. The sweep host is labelled leader; every other voter is a follower.
 # Same delta logic as openbao_leader_io_wait. The left join keeps every voter;
 # only the sweep host's row picks up a leader value, so the others read follower.
@@ -137,7 +137,7 @@ relation = greater than
 quantity = 0
 
 [openbao_pinned_policy_needs_provisioning]
-{{ alert_delivery -}}
+{{ alert_delivery('openbao_pinned_policy_needs_provisioning', 4) -}}
 description = An OpenBao reconcile run encountered a pinned RBAC policy write that needs a human-gated provisioning run.
 search = index=ansible sourcetype="ansible:converge:task" task="OpenBao pinned RBAC policies need a provisioning run" changed>0 earliest=-24h latest=now | stats latest(_time) as last_seen_epoch latest(playbook) as playbook | eval last_seen=strftime(last_seen_epoch, "%Y-%m-%d %H:%M:%S") | eval alert_text="OpenBao pinned RBAC policies need a human-gated provisioning run (reconcile cannot re-pin them). Last seen " . last_seen . ", playbook " . playbook . "."
 dispatch.earliest_time = -24h

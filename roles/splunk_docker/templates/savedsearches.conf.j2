@@ -11,9 +11,19 @@
    Delivery is NOT a [default]. The app's metadata exports it to the system
    namespace (export = system), and an exported [default] reaches every
    other app's scheduled searches too, so each of their runs fires these
-   actions. It is declared once here as `alert_delivery` and rendered into
-   each scheduled alert stanza; test_savedsearch_invariants.py fails on a
-   scheduled alert stanza without it.
+   actions. It is declared once here as the `alert_delivery` macro and
+   rendered into each scheduled alert stanza with that stanza's name and
+   severity; test_savedsearch_invariants.py fails on a scheduled alert
+   stanza without it.
+
+   TWO TIERS. The tier is the severity the stanza already declares, not a
+   name list: severity >= splunk_docker_alert_page_min_severity (default 5)
+   is critical and pages; everything below only triggers and is tracked, and
+   is reported by [alert_digest_12h] at the bottom of this file. The macro
+   collects the paging stanza names so the digest can exclude them by
+   severity, however the rule files evolve. Turning
+   splunk_docker_alert_two_tiers_enabled off restores the pre-tier render
+   byte for byte (test_alert_two_tiers.py proves it).
 
    Every scheduled alert is delivered by one webhook to the ntfy alert hub,
    which fans out to Slack and Zammad. Splunk posts nowhere else. The URL
@@ -23,12 +33,35 @@
    so a search rendered here and one applied as a REST override to a search
    in another app get the same delivery shape.
 #}
-{% set alert_delivery %}
+{% set critical_stanzas = namespace(names=[]) %}
+{% macro alert_delivery(name, severity) %}
+{% if splunk_docker_alert_two_tiers_enabled | default(true) %}
+{% if (severity | int) >= (splunk_docker_alert_page_min_severity | default(5)) %}
+{% set _ = critical_stanzas.names.append(name) %}
 {% if splunk_docker_alert_ntfy_url %}
 action.webhook = 1
 action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}{{ splunk_docker_alert_ntfy_query }}
 {% endif %}
-{% endset %}
+{% endif %}
+{% elif splunk_docker_alert_ntfy_url %}
+action.webhook = 1
+action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}{{ splunk_docker_alert_ntfy_query }}
+{% endif %}
+{% endmacro %}
+{# A paging stanza's own repeat budget is at least 24 hours: a critical
+   alert pages at once and at most once per condition per day. Critical
+   stanzas whose declared period is shorter are floored to 24h here (only
+   when the two-tier switch is on); non-critical stanzas keep their own
+   period. #}
+{% macro alert_page_suppress_period(severity, period) %}
+{% if splunk_docker_alert_two_tiers_enabled | default(true) and (severity | int) >= (splunk_docker_alert_page_min_severity | default(5)) %}
+{% set p = period | string %}
+{% set secs = (p[:-1] | int) * {'s': 1, 'm': 60, 'h': 3600, 'd': 86400}.get(p[-1:], 86400) %}
+{% if secs < 86400 %}24h{% else %}{{ p }}{% endif %}
+{% else %}
+{{ period -}}
+{% endif %}
+{% endmacro %}
 {# Informational events (no action needed) go to the hub's status topic, which
    has its own Slack channel and never opens a Zammad ticket. Same hub URL
    with the topic swapped and default priority. #}
@@ -96,3 +129,32 @@ action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/
 {% include 'savedsearches/26-guest-backup-freshness.j2' %}
 
 {% include 'savedsearches/19-unifi-wan.j2' %}
+{% if splunk_docker_alert_two_tiers_enabled | default(true) %}
+
+{# Non-critical alerts above trigger and are tracked but page nowhere; this
+   is their delivery. One run every 12 hours reads the window's fired-alert
+   audit records, leaves out the paging (severity >= threshold) stanzas the
+   alert_delivery macro collected above, and posts one status-topic message
+   listing each rule that fired with its fire count, most frequent first,
+   capped at 40 lines. Zero rows -> no trigger -> no message. digest_mode
+   keeps every result row in that one message; track stays off so the digest
+   never lists itself. #}
+[alert_digest_12h]
+{{ status_delivery -}}
+description = Every 12 hours, one non-paging summary of every non-critical saved search that fired in the window: one line per rule with its fire count, most frequent first, capped at 40 rules. Paging (severity >= splunk_docker_alert_page_min_severity) rules are excluded -- they notify directly. Sends nothing when no tracked rule fired.
+search = index=_audit action=alert_fired ss_app=homelab_alerts{% for n in critical_stanzas.names | sort %} ss_name!="{{ n }}"{% endfor %} | stats count as fires by ss_name | sort -fires | head 40
+dispatch.earliest_time = -12h
+dispatch.latest_time = now
+cron_schedule = 17 5,17 * * *
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 1
+alert.suppress = 1
+alert.suppress.period = 12h
+alert.digest_mode = 1
+alert.track = 0
+counttype = number of events
+relation = greater than
+quantity = 0
+{%- endif %}

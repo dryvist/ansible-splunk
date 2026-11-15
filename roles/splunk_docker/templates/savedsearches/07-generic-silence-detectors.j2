@@ -21,7 +21,7 @@
 {% from "savedsearches/00-silence-macros.j2" import host_gap_baseline, adaptive_host_threshold %}
 {% for det in splunk_docker_silence_detectors | default([]) if det.by_host | default(false) %}
 [{{ det.name }}_silence_detector]
-{{ alert_delivery -}}
+{{ alert_delivery(det.name ~ '_silence_detector', 3) -}}
 description = Alerts when {% if det.expected_roster | default(false) and splunk_docker_os_emitter_roster is defined %}an expected OS host has stopped sending to the OS event indexes{% else %}the {{ det.index }} index has received no events{% endif %} for more than {{ det.threshold_minutes }} minutes{% if det.sourcetype is defined %} (sourcetype={{ det.sourcetype }}){% endif %}{% if det.by_host | default(false) %}, detected per-host against each host's own cadence so a healthy emitter cannot mask a dead one{% endif %}. Catches the emitter, its Cribl pipeline, and Splunk HEC ingestion failing with a single signal.
 {# The expected-roster branch preserves its lookup rows with a left join;
    observed-host branches use the appendpipe sentinel because grouped tstats
@@ -98,7 +98,7 @@ alert.track = 0
 {% if splunk_docker_syslog_plane_down is defined %}
 {% set syslog_plane = splunk_docker_syslog_plane_down %}
 [syslog_plane_down]
-{{ alert_delivery -}}
+{{ alert_delivery('syslog_plane_down', 5) -}}
 description = Alerts when the active syslog host count drops by at least {{ syslog_plane.minimum_silent_hosts }} from its highest {{ syslog_plane.silence_minutes }}-minute bucket in the previous {{ syslog_plane.reporting_window_minutes }} minutes.
 {% set plane_search %}
 index={{ syslog_plane.index }} sourcetype={{ syslog_plane.sourcetype }}
@@ -119,7 +119,7 @@ is_visible = 1
 disabled = 0
 alert.severity = 5
 alert.suppress = 1
-alert.suppress.period = {{ syslog_plane.suppress_minutes }}m
+alert.suppress.period = {{ alert_page_suppress_period(5, syslog_plane.suppress_minutes ~ 'm') }}
 alert.track = 1
 counttype = number of events
 relation = greater than
@@ -178,7 +178,7 @@ quantity = 0
 {% set _ = exempt_detectors.append(det) %}
 {% endfor %}
 [index_gap_detector]
-{{ alert_delivery -}}
+{{ alert_delivery('index_gap_detector', 3) -}}
 description = Alerts when any index has gone silent longer than its configured threshold (default 1440 minutes), using the index's own last-write time rather than event time so a clock-skewed or unparsed sourcetype cannot hide behind a false "recently updated" reading. Replaces the flat per-index silence detectors with one report over every index this role creates. An index flagged exempt (see 11b-silence-exemptions.yml) never fires here regardless of age -- see [index_gap_exempt_report] below for the non-paging visibility into that exempt set.
 search = | tstats max(_indextime) as last_indexed where index=* _index_earliest=-{{ gap_lookback_minutes }}m _index_latest=now by index | append [ | makeresults | eval index="{{ gap_expected_indexes | join(',') }}" | eval index=split(index, ",") | mvexpand index | eval last_indexed=0 ] | stats max(last_indexed) as last_indexed by index | eval age_min = round((now() - last_indexed) / 60) | eval threshold_minutes = case({% for det in flat_detectors %}index="{{ det.index }}", {{ det.threshold_minutes }}, {% endfor %}true(), 1440){% if exempt_detectors %} | eval exempt = if(in(index{% for det in exempt_detectors %}, "{{ det.index }}"{% endfor %}), 1, 0) | where exempt=0 AND age_min > threshold_minutes{% else %} | where age_min > threshold_minutes{% endif %} | eventstats values(index) as indexes | eval indexes=mvjoin(mvsort(indexes), ",")
 

@@ -28,7 +28,7 @@
    ansible-proxmox-ai (PR #60). Together they monitor the SLO.
 --------------------------------------------------------------------------- #}
 [hermes_delivery_slo_violation]
-{{ alert_delivery -}}
+{{ alert_delivery('hermes_delivery_slo_violation', 4) -}}
 description = Fires when BOTH hourly Hermes work-product jobs (splunk-digest, homelab-ai-fabric-status) have failed within 90 minutes — no useful Slack message could have been delivered that hour, violating the >=1-useful-message-per-hour SLO. Successful deliveries are silent in syslog, so this uses the double-failure signal (dc(job) >= 2); the paused/flapping mode is covered by the ansible-proxmox-ai brain-watchdog sustained-flap alert. INC-17088.
 search = index=os_ai host=hermes-agent "cron.scheduler" failed ("splunk-digest" OR "homelab-ai-fabric-status") | rex "Job '(?<hermes_job>splunk-digest|homelab-ai-fabric-status)' failed" | stats dc(hermes_job) as jobs_failed values(hermes_job) as jobs | where jobs_failed >= 2
 dispatch.earliest_time = -90m
@@ -46,7 +46,7 @@ relation = greater than
 quantity = 0
 
 [hermes_cron_ticker_silent]
-{{ alert_delivery -}}
+{{ alert_delivery('hermes_cron_ticker_silent', 5) -}}
 description = Alerts when the Hermes gateway's in-process cron ticker has logged nothing for 75 minutes. The gateway ticks every profile's jobs, and hourly jobs always run, so silence means the gateway is down or its ticker has stopped.
 search = index=hermes host=hermes-agent "cron.scheduler" | stats count AS scheduler_events | where scheduler_events = 0
 dispatch.earliest_time = -75m
@@ -64,7 +64,7 @@ relation = greater than
 quantity = 0
 
 [hermes_slack_delivery_route_missing]
-{{ alert_delivery -}}
+{{ alert_delivery('hermes_slack_delivery_route_missing', 4) -}}
 description = Alerts when a Hermes cron reports that the Slack delivery platform is not configured for its target.
 search = index=hermes "platform 'slack' not configured" | stats count AS failure_count by host source | where failure_count > 0 | table host source failure_count
 dispatch.earliest_time = -15m

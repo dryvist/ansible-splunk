@@ -1,5 +1,5 @@
 [llm_manager_panic_detector]
-{{ alert_delivery -}}
+{{ alert_delivery('llm_manager_panic_detector', 4) -}}
 description = Alerts on model-server manager panics in the llm index (worker lifecycle faults that can leave workers unmanaged).
 search = index=llm sourcetype=llamaswap "panic:"
 dispatch.earliest_time = -15m

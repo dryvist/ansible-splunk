@@ -37,7 +37,7 @@ else:
         "alert.suppress": "1",
         "alert.suppress.period": "24h",
         "alert.suppress.fields": "host",
-        "action.webhook": "1",
+        "alert.track": "1",
     }.items():
         if value(key) != expected:
             errors.append(f"FAIL: {key} expected {expected!r}, got {value(key)!r}")
@@ -78,8 +78,10 @@ else:
         errors.append("FAIL: search contains an unrendered placeholder")
     if value("description") is None:
         errors.append("FAIL: alert has no description")
-    if not value("action.webhook.param.url").startswith(NTFY):
-        errors.append("FAIL: alert does not use the rendered notification destination")
+    if value("action.webhook.param.url") is not None:
+        errors.append("FAIL: alert still renders a webhook; below the page threshold it is digest-delivered instead")
+    if value("alert.track") != "1":
+        errors.append("FAIL: alert is not tracked, so alert_digest_12h cannot count its firings")
 
 if errors:
     print("\n".join(errors))
