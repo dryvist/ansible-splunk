@@ -1,6 +1,7 @@
 """
 Guard openbao_window_non_claude_use: window requests are correlated with
-Claude Code transcripts, and the alert is delivered like every other alert.
+Claude Code transcripts, the rule runs only while the transcript feed
+itself is live, and the alert is delivered like every other alert.
 
 Run from repo root:
   python3 tests/templates/test_openbao_window_non_claude_use.py
@@ -52,11 +53,18 @@ if "_index_earliest=-6m" not in base or "_index_latest=now" not in base:
     errors.append("FAIL: base search is not bounded by _index_earliest=-6m/_index_latest=now")
 if "'auth.metadata.role_name'=\"ai-admin-session\"" not in full:
     errors.append("FAIL: search does not select the ai-admin-session window")
-for window in ("-20m", "-4h"):
+for window in ("-20m", "-4h", "-24h"):
     if f"index=claude sourcetype=claude:code _index_earliest={window}" not in full:
         errors.append(f"FAIL: no Claude Code transcript lookback of {window}")
-if "where (sensitive=1 AND claude_recent=0) OR claude_session=0" not in full:
-    errors.append("FAIL: alert condition does not require a Claude Code reference")
+if "where claude_feed_24h > 0 AND ((sensitive=1 AND claude_recent=0) OR claude_session=0)" not in full:
+    errors.append("FAIL: alert condition does not require a Claude Code reference and a live transcript feed")
+# The feed-alive count must cover the whole index: if it scoped to the
+# window-reference terms, a silent feed would still read as accounted use.
+feed_subsearch = re.search(r"claude_feed_24h=\[([^\]]*)\]", full)
+if not feed_subsearch:
+    errors.append("FAIL: search has no claude_feed_24h feed-alive subsearch")
+elif any(term in feed_subsearch.group(1) for term in ("openbao-window-env", "proxy.sock", "BAO_AGENT_ADDR")):
+    errors.append("FAIL: claude_feed_24h must count the whole transcript feed, not window references only")
 if 'like(\'request.path\', "github-enterprise-owner/%")' not in full:
     errors.append("FAIL: owner-token reads are not treated as sensitive")
 
@@ -76,10 +84,10 @@ if setting("alert.suppress.fields") != "alert_key":
 if 'eval alert_key=if(sensitive=1, "sensitive", "unaccounted")' not in full:
     errors.append("FAIL: search does not distinguish sensitive from unaccounted requests")
 table_fields = full.rsplit("| table ", 1)[-1].split()
-if "paths" not in table_fields or "alert_key" not in table_fields:
-    errors.append("FAIL: paths or alert_key is not kept in the alert's result table")
+if "paths" not in table_fields or "alert_key" not in table_fields or "claude_feed_24h" not in table_fields:
+    errors.append("FAIL: paths, alert_key or claude_feed_24h is not kept in the alert's result table")
 
 if errors:
     print("\n".join(errors))
     sys.exit(1)
-print("PASS: openbao_window_non_claude_use correlates window use with Claude Code transcripts and throttles 24h by alert_key")
+print("PASS: openbao_window_non_claude_use correlates window use with Claude Code transcripts, requires a live transcript feed, and throttles 24h by alert_key")

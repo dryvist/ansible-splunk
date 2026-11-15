@@ -4,23 +4,24 @@
    The guest list comes from the PVE exporter (pve_guest_info, templates
    dropped). A backup counts when a node logs "Finished Backup of VM <id>",
    which vzdump writes only after a successful archive, for scheduled and
-   manual runs alike. One row per guest without one in the window. Each row
-   is its own notification (alert.digest_mode = 0) and is suppressed per vmid
-   for 24 hours, so a known gap costs one notification a day and a guest that
-   crosses the window later still notifies on the next run. When no guest is
-   left to check (the exporter reports none, or every reported guest is a
-   template or exempt) one sentinel row is emitted instead, so a silent
-   exporter is not read as healthy. Its constant vmid "-" is its own throttle
-   key: the sentinel notifies once, is suppressed for 24 hours, and notifies
-   again every 24 hours for as long as the condition lasts.
+   manual runs alike. One digest notification per 24 hours
+   (alert.digest_mode = 1) covers the whole condition: the result is a
+   single row whose summary states the total count of guests without a
+   successful backup in the window and names up to 50 of them (vmid and
+   name, sorted, comma-separated). Suppression covers the whole alert
+   (digest mode takes no suppression fields), so the missing-backup
+   digest and the sentinel below share one 24-hour throttle; the condition
+   field only labels the row. When no guest is left to check (the exporter reports none, or
+   every reported guest is a template or exempt) one sentinel row is
+   emitted instead, so a silent exporter is not read as healthy.
    Exempt names are rendered inside SPL double quotes with only the backslash
    and the quote escaped, so every other character matches as written.
 --------------------------------------------------------------------------- #}
 {% set exempt %}{% for name in splunk_docker_guest_backup_exempt_names %}"{{ name | replace('\\', '\\\\') | replace('"', '\\"') }}"{% if not loop.last %},{% endif %}{% endfor %}{% endset %}
 [guest_backup_missing]
 {{ alert_delivery -}}
-description = Notifies once per Proxmox guest (templates and the exempt names excluded) with no successful vzdump backup in the last {{ splunk_docker_guest_backup_max_age_hours }} hours, at most once per guest every 24 hours, and once every 24 hours while no guest is left to check (the PVE exporter reports none, or every reported guest is a template or exempt).
-search = | mstats latest(_value) as info WHERE index=netmon_metrics metric_name=pve_guest_info earliest=-2h by id name node template | where template="0" | rex field=id "^(?<type>lxc|qemu)/(?<vmid>\d+)$" | search NOT name IN ({{ exempt }}) | join type=left vmid [ search index=os_proxmox earliest=-{{ splunk_docker_guest_backup_max_age_hours }}h "Finished Backup of VM" | rex "Finished Backup of VM (?<vmid>\d+)" | stats max(_time) as last_backup by vmid ] | appendpipe [ stats count as _rows | where _rows == 0 | eval vmid="-", name="(no guests to check)", node="-" | fields - _rows ] | where isnull(last_backup) | table node vmid name
+description = At most one notification per 24 hours: one digest row listing every Proxmox guest (templates and the exempt names excluded) with no successful vzdump backup in the last {{ splunk_docker_guest_backup_max_age_hours }} hours, its summary stating the total count and naming up to 50 guests, and one sentinel notification per 24 hours while no guest is left to check (the PVE exporter reports none, or every reported guest is a template or exempt).
+search = | mstats latest(_value) as info WHERE index=netmon_metrics metric_name=pve_guest_info earliest=-2h by id name node template | where template="0" | rex field=id "^(?<type>lxc|qemu)/(?<vmid>\d+)$" | search NOT name IN ({{ exempt }}) | join type=left vmid [ search index=os_proxmox earliest=-{{ splunk_docker_guest_backup_max_age_hours }}h "Finished Backup of VM" | rex "Finished Backup of VM (?<vmid>\d+)" | stats max(_time) as last_backup by vmid ] | appendpipe [ stats count as _rows | where _rows == 0 | eval vmid="-", name="(no guests to check)", node="-" | fields - _rows ] | where isnull(last_backup) | eval condition=if(vmid="-", "no_guests_to_check", "guest_backup_missing") | eval guest=if(condition="no_guests_to_check", name, "vmid=" . vmid . " name=" . name) | stats count as guest_count values(guest) as guests by condition | eval shown=mvjoin(mvindex(mvsort(guests), 0, 49), ", ") | eval summary=if(condition="no_guests_to_check", "No guest left to check: the PVE exporter reports none, or every reported guest is a template or exempt", guest_count . " guest(s) without a successful backup in the window: " . shown . if(guest_count > 50, " (first 50 of " . guest_count . " shown)", "")) | table condition guest_count summary
 dispatch.earliest_time = -{{ splunk_docker_guest_backup_max_age_hours }}h
 dispatch.latest_time = now
 cron_schedule = 17 * * * *
@@ -28,10 +29,9 @@ enableSched = 1
 is_visible = 1
 disabled = 0
 alert.severity = 4
-alert.digest_mode = 0
+alert.digest_mode = 1
 alert.suppress = 1
 alert.suppress.period = 24h
-alert.suppress.fields = vmid
 alert.track = 1
 counttype = number of events
 relation = greater than
