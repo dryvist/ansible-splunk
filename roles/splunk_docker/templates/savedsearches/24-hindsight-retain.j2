@@ -1,6 +1,6 @@
 {# Alert on repeated Hindsight retain failures logged by the Hermes agent (hindsight plugin v1.2.3 WARNING lines). #}
 [hindsight_retain_consecutive_failure]
-{{ alert_delivery -}}
+{{ alert_delivery('hindsight_retain_consecutive_failure', 4) -}}
 description = Alerts when the Hermes agent logs repeated Hindsight retain failures for one host and source within the lookback window.
 search = index=hermes sourcetype=hermes:agent ("Hindsight retain failed" OR "hindsight_retain failed" OR "Hindsight flush-on-switch failed" OR "Hindsight flush-on-shutdown failed") | stats count AS failure_count by host source | where failure_count >= {{ splunk_docker_hindsight_retain_consecutive_failures }} | table host source failure_count
 dispatch.earliest_time = -{{ splunk_docker_hindsight_retain_lookback_minutes }}m

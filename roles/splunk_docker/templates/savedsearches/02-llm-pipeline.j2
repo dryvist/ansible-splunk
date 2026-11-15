@@ -1,6 +1,6 @@
 [llm_pipeline_silence_detector]
 {% from "savedsearches/00-silence-macros.j2" import host_gap_baseline, adaptive_host_threshold %}
-{{ alert_delivery -}}
+{{ alert_delivery('llm_pipeline_silence_detector', 3) -}}
 description = Alerts when an llm index host exceeds its cadence-derived silence threshold (at least {{ splunk_docker_llm_pipeline_silence_threshold_minutes }} minutes).
 # `by host` over a fully-empty index returns ZERO rows, not a null-last_seen
 # row for a synthetic host — so a plain eval/where guard never runs during a

@@ -1,6 +1,6 @@
 {# State-version API request failures in the proxy access logs. #}
 [terrakube_state_version_5xx]
-{{ alert_delivery -}}
+{{ alert_delivery('terrakube_state_version_5xx', 4) -}}
 description = Alerts on HTTP 5xx responses from the state-version API endpoints.
 search = index=proxy sourcetype=traefik:syslog ("current-state-version" OR "state-version") | rex field=_raw "\"[A-Z]+ [^\"]+ HTTP/[0-9.]+\" (?<http_status>[0-9]{3}) (?<response_bytes>[0-9]+)" | where tonumber(http_status) >= {{ splunk_docker_terrakube_state_5xx_status_threshold }} | stats count as status_5xx by host | where status_5xx >= {{ splunk_docker_terrakube_state_5xx_min_events }}
 dispatch.earliest_time = -{{ splunk_docker_terrakube_state_5xx_lookback_minutes }}m

@@ -119,10 +119,19 @@ for name, contract in contracts.items():
             errors.append(f"FAIL: [{name}] search is missing {fragment!r}")
     if value(body, "description") is None:
         errors.append(f"FAIL: [{name}] has no one-line description")
-    if value(body, "action.webhook") != "1" or not value(
-        body, "action.webhook.param.url"
-    ):
-        errors.append(f"FAIL: [{name}] has no rendered alert delivery")
+    # Tier follows the stanza's own severity: threshold-and-above keeps the
+    # page; below it the webhook is gone and the digest reports it instead.
+    page_min = DEFAULTS["splunk_docker_alert_page_min_severity"]
+    if int(contract["severity"]) >= page_min:
+        if value(body, "action.webhook") != "1" or not value(
+            body, "action.webhook.param.url"
+        ):
+            errors.append(f"FAIL: [{name}] has no rendered alert delivery")
+    elif value(body, "action.webhook") is not None or value(body, "alert.track") != "1":
+        errors.append(
+            f"FAIL: [{name}] is below the page threshold: it must carry no webhook "
+            "action, stay tracked, and be reported by alert_digest_12h"
+        )
 
 if errors:
     print("\n".join(errors))

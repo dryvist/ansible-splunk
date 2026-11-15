@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guard the 24-hour repeat budget for high-priority saved-search alerts."""
+"""Guard the 24-hour repeat budget for every paging saved-search alert."""
 
 import re
 import sys
@@ -13,13 +13,11 @@ TEMPLATES = ROOT / "roles/splunk_docker/templates"
 DEFAULTS = load_defaults(ROOT)
 NTFY = "https://ntfy.example.test/keystone"
 
-# A changed state key pages immediately, and WAN-down keeps its documented
-# four-hour reminder while the link remains down.
-REPEAT_EXCEPTIONS = {
-    "hardware_smart_failure": "A changed failing-set key pages as a new fault state.",
-    "openbao_raft_quorum": "A changed quorum-state key pages each state transition.",
-    "unifi_wan_down": "A four-hour repeat is documented while a WAN remains down.",
-}
+# The two-tier change (splunk_docker_alert_two_tiers_enabled) floors every
+# paging stanza's suppress period at 24 hours -- including the three that
+# used to keep shorter documented repeats below (hardware_smart_failure,
+# openbao_raft_quorum, unifi_wan_down) -- so no repeat exceptions remain.
+REPEAT_EXCEPTIONS = {}
 # Raw-row results: per-result delivery is unverified for these, so they keep
 # their digest mode (see test_openbao_privileged_use.py).
 DIGEST_EXCEPTIONS = {"openbao_privileged_use"}
@@ -91,6 +89,6 @@ if errors:
     sys.exit(1)
 
 print(
-    f"PASS: {len(high_priority_rules)} enabled high-priority alerts suppress repeats for 24 hours; "
-    f"{len(REPEAT_EXCEPTIONS)} documented exceptions retain their repeat policy"
+    f"PASS: all {len(high_priority_rules)} enabled paging alerts suppress repeats for 24 hours "
+    f"with no exceptions"
 )

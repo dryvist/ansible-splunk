@@ -99,10 +99,14 @@ for neighbour in NEIGHBOURS:
     if render_stanza(neighbour) is None:
         errors.append(f"FAIL: [{neighbour}] no longer renders beside [{NAME}]")
 
-# 4. Delivery rides the shared macro: a hub URL renders the webhook action.
+# 4. Delivery rides the shared macro: below the page threshold the stanza
+# carries no webhook of its own -- alert_digest_12h reports it -- but stays
+# tracked so its firings land in the audit index.
 hub_body = render_stanza(splunk_docker_alert_ntfy_url="https://ntfy.example.test/keystone") or ""
-if "action.webhook = 1" not in hub_body:
-    errors.append("FAIL: with a hub URL set, the stanza does not render the shared webhook action")
+if "action.webhook" in hub_body:
+    errors.append("FAIL: below the page threshold, the stanza still renders a webhook action")
+if "alert.track = 1" not in hub_body:
+    errors.append("FAIL: stanza is not tracked, so alert_digest_12h cannot count its firings")
 
 if errors:
     for err in errors:
