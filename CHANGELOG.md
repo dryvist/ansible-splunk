@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.121.0](https://github.com/dryvist/ansible-splunk/compare/v0.120.0...v0.121.0) (2026-11-15)
+
+
+### Features
+
+* **splunk_docker:** page only critical alerts and digest the rest every 12 hours ([#883](https://github.com/dryvist/ansible-splunk/issues/883)) ([d2fa8aa](https://github.com/dryvist/ansible-splunk/commit/d2fa8aad0c4c8fbd45fc0721cc1b61433fcd72df))
+
 ## [0.120.0](https://github.com/dryvist/ansible-splunk/compare/v0.119.7...v0.120.0) (2026-11-15)
 
 
