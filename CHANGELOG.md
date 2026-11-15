@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.120.0](https://github.com/dryvist/ansible-splunk/compare/v0.119.7...v0.120.0) (2026-11-15)
+
+
+### Features
+
+* **splunk:** post GPU utilization to the status topic every 30 minutes ([#880](https://github.com/dryvist/ansible-splunk/issues/880)) ([c3ae1bb](https://github.com/dryvist/ansible-splunk/commit/c3ae1bb98a65fa6175e0422709d283ca85ac803f))
+
 ## [0.119.7](https://github.com/dryvist/ansible-splunk/compare/v0.119.6...v0.119.7) (2026-11-15)
 
 
