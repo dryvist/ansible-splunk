@@ -109,10 +109,15 @@ quantity = 0
 # (index=claude) that reference the window. A background loop's command is
 # transcribed once at launch, so routine paths need a reference within 4h;
 # the owner-token mount and identity or policy writes need one within 20m.
+# The correlation only means something while the transcript feed is live, so
+# the search also counts every index=claude sourcetype=claude:code event
+# indexed in the last 24h (claude_feed_24h) and returns rows only when that
+# count is above 0. A silent feed pages nobody here: it is reported by the
+# claude entry in splunk_docker_silence_detectors via [index_gap_detector].
 [openbao_window_non_claude_use]
 {{ alert_delivery -}}
-description = Alerts when the OpenBao admin window (AppRole ai-admin-session) serves requests that no Claude Code session accounts for: any request with no Claude Code transcript referencing the window in the last 4h, or a github-enterprise-owner read or identity, auth or policy write with no reference in the last 20m.
-search = index=openbao_audit sourcetype=openbao:audit _index_earliest=-6m _index_latest=now "ai-admin-session" | rex "openbao-audit: (?<j>\{.*)" | spath input=j | where 'auth.metadata.role_name'="ai-admin-session" AND type="request" | eval sensitive=if(like('request.path', "github-enterprise-owner/%") OR (in('request.operation', "create", "update", "delete") AND (like('request.path', "sys/policies/%") OR like('request.path', "sys/auth%") OR like('request.path', "auth/%"))), 1, 0) | stats count as requests values(request.path) as paths by sensitive | eval claude_recent=[ search index=claude sourcetype=claude:code _index_earliest=-20m ("openbao-window-env" OR "proxy.sock" OR "BAO_AGENT_ADDR") | stats count | return $count ], claude_session=[ search index=claude sourcetype=claude:code _index_earliest=-4h ("openbao-window-env" OR "proxy.sock" OR "BAO_AGENT_ADDR") | stats count | return $count ] | where (sensitive=1 AND claude_recent=0) OR claude_session=0 | eval alert_key=if(sensitive=1, "sensitive", "unaccounted") | table requests sensitive claude_recent claude_session paths alert_key
+description = Alerts when the OpenBao admin window (AppRole ai-admin-session) serves requests that no Claude Code session accounts for: any request with no Claude Code transcript referencing the window in the last 4h, or a github-enterprise-owner read or identity, auth or policy write with no reference in the last 20m. Returns rows only while the Claude Code transcript feed is live (any index=claude sourcetype=claude:code event indexed in the last 24h); a silent feed is reported by [index_gap_detector], not here.
+search = index=openbao_audit sourcetype=openbao:audit _index_earliest=-6m _index_latest=now "ai-admin-session" | rex "openbao-audit: (?<j>\{.*)" | spath input=j | where 'auth.metadata.role_name'="ai-admin-session" AND type="request" | eval sensitive=if(like('request.path', "github-enterprise-owner/%") OR (in('request.operation', "create", "update", "delete") AND (like('request.path', "sys/policies/%") OR like('request.path', "sys/auth%") OR like('request.path', "auth/%"))), 1, 0) | stats count as requests values(request.path) as paths by sensitive | eval claude_recent=[ search index=claude sourcetype=claude:code _index_earliest=-20m ("openbao-window-env" OR "proxy.sock" OR "BAO_AGENT_ADDR") | stats count | return $count ], claude_session=[ search index=claude sourcetype=claude:code _index_earliest=-4h ("openbao-window-env" OR "proxy.sock" OR "BAO_AGENT_ADDR") | stats count | return $count ], claude_feed_24h=[ search index=claude sourcetype=claude:code _index_earliest=-24h | stats count | return $count ] | where claude_feed_24h > 0 AND ((sensitive=1 AND claude_recent=0) OR claude_session=0) | eval alert_key=if(sensitive=1, "sensitive", "unaccounted") | table requests sensitive claude_recent claude_session paths alert_key
 dispatch.earliest_time = -48h
 dispatch.latest_time = now
 cron_schedule = */5 * * * *
@@ -122,7 +127,11 @@ disabled = 0
 alert.severity = 5
 alert.suppress = 1
 # Suppression keys on alert_key: sensitive and unaccounted requests are
-# independently suppressed for 24 hours.
+# independently suppressed for 24 hours. The rule needs a live Claude Code
+# transcript feed: rows are returned only while claude_feed_24h (every
+# index=claude event indexed in the last 24h) is above 0, and a silent
+# feed is reported by the claude entry in splunk_docker_silence_detectors
+# via [index_gap_detector].
 alert.suppress.period = 24h
 alert.digest_mode = 0
 alert.suppress.fields = alert_key

@@ -34,10 +34,10 @@ else:
         "dispatch.latest_time": "now",
         "cron_schedule": "17 * * * *",
         "disabled": "0",
-        "alert.digest_mode": "0",
+        "alert.digest_mode": "1",
         "alert.suppress": "1",
         "alert.suppress.period": "24h",
-        "alert.suppress.fields": "vmid",
+        "alert.suppress.fields": "condition",
         "action.webhook": "1",
     }
     for key, expected_value in expected.items():
@@ -55,6 +55,23 @@ else:
     ):
         if fragment not in search:
             errors.append(f"FAIL: search is missing {fragment!r}")
+    # One digest row for the whole condition: a constant condition field
+    # separates the sentinel from the missing-backup list in the throttle,
+    # the guest list is one sorted comma-separated field capped at 50
+    # entries, and the total count stays on the row.
+    digest_fragments = (
+        'eval condition=if(name="(no guests to check)", "no_guests_to_check", "missing_backup")',
+        'eval guest=if(condition="missing_backup", name . " (" . vmid . ")", name)',
+        "stats count as missing_guests, values(guest) as guests by condition",
+        'mvjoin(mvsort(mvindex(guests, 0, 49)), ",")',
+        'guests . " (+ " . (missing_guests - 50) . " more)"',
+        "table condition missing_guests guests",
+    )
+    for fragment in digest_fragments:
+        if fragment not in search:
+            errors.append(f"FAIL: search is missing {fragment!r}")
+    if "table node vmid name" in search:
+        errors.append("FAIL: search still emits one row per guest instead of one digest row")
     if "{{" in search or "}}" in search:
         errors.append("FAIL: search contains an unrendered placeholder")
     for name in ("postgres-apps", "openbao-21", "s3", "langfuse", "iac"):
@@ -78,4 +95,4 @@ if errors:
     print("\n".join(errors))
     sys.exit(1)
 
-print("PASS: rendered guest backup freshness alert has its guest source, exemptions, window, sentinel and throttle")
+print("PASS: rendered guest backup freshness alert has its guest source, exemptions, window, sentinel and one digest notification per 24 hours keyed on condition")
