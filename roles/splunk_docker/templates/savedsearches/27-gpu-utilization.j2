@@ -1,0 +1,17 @@
+{# The same figure also exists as a recording rule in the metrics store, which is the KPI definition; this report reads the same raw utilization from the log platform. #}
+[gpu_utilization_report]
+{{ status_delivery -}}
+description = Every 30 minutes, a non-paging GPU utilization report on the hub's status topic: per host, the average over the last 30 minutes and over the last 4 hours as whole percents (the Mac active ratio is scaled to percent), one line per host sorted by host name, marked green, yellow or red on the 4-hour figure. A host with 4-hour data and no 30-minute data prints "no data" for the short window. Hosts come from the metric data, never from a list in this file. Two mstats windows joined with append.
+search = | mstats avg(node_gpu_utilization_gpu_percent_all) as nvidia_30 avg(macmon_gpu_active_ratio) as mac_30 WHERE index=* earliest=-30m by host | append [ | mstats avg(node_gpu_utilization_gpu_percent_all) as nvidia_4h avg(macmon_gpu_active_ratio) as mac_4h WHERE index=* earliest=-4h by host ] | eval host = replace(host, ":[0-9]+$", "") | stats max(nvidia_30) as nvidia_30 max(mac_30) as mac_30 max(nvidia_4h) as nvidia_4h max(mac_4h) as mac_4h by host | eval pct_30 = coalesce(round(nvidia_30, 0), round(mac_30 * 100, 0)), pct_4h = coalesce(round(nvidia_4h, 0), round(mac_4h * 100, 0)) | where isnotnull(pct_4h) | eval mark = case(pct_4h >= 50, "🟢", pct_4h >= 25, "🟡", true(), "🔴") | eval part_30 = if(isnull(pct_30), "no data", pct_30 . "%") | eval line = mark . " " . host . ": " . part_30 . " last 30 min, " . pct_4h . "% last 4 h" | sort 0 host | stats list(line) as lines | where isnotnull(lines) | eval message = "GPU utilization" . urldecode("%0A") . mvjoin(lines, urldecode("%0A")) | table message
+dispatch.earliest_time = -4h
+dispatch.latest_time = now
+cron_schedule = */30 * * * *
+allow_skew = 5m
+enableSched = 1
+is_visible = 1
+disabled = 0
+alert.severity = 1
+alert.track = 0
+counttype = number of events
+relation = greater than
+quantity = 0
