@@ -1,0 +1,40 @@
+{# Delivery overlay for the packaged splunk-homelab-alerts app.
+
+   The app ships its own default/savedsearches.conf whose [default] stanza
+   turns action.zammad on for every detector, but no Zammad alert action is
+   configured on this instance -- Zammad and Slack are reached only through
+   the ntfy hub webhook (see the header of savedsearches.conf.j2 and
+   assert_alerting_gates.yml), so as shipped those detectors deliver
+   nowhere. A same-app local/ file layers above the packaged default and
+   item-merges with it: the dead Zammad action goes off, the hub webhook
+   goes on, and every other packaged default (scheduling, tracking,
+   severities) is left untouched.
+
+   A stanza whose own body sets action.zammad = 0 is one of the app's
+   scheduled reports, not a detector, and would inherit action.webhook = 1
+   from the [default] above -- posting to the hub on every scheduled run.
+   Each one is therefore re-disabled per stanza, derived from the INSTALLED
+   file at converge time: a hand-maintained copy here would drift from the
+   packaged app on its next release.
+
+   Rendered AFTER tasks/apps.yml: that task deletes the whole app directory
+   on every version upgrade, so an overlay written earlier is wiped in the
+   same run.
+#}
+{% set report_stanzas = [] %}
+{% for stanza_name, stanza_body in splunk_docker_homelab_alerts_app_conf | regex_findall('(?ms)^\[([^\]\n]+)\][ \t]*$(.*?)(?=^\[|\Z)') %}
+{% if stanza_body | regex_search('(?m)^[ \t]*action\.zammad[ \t]*=[ \t]*0[ \t]*$') %}
+{% set _ = report_stanzas.append(stanza_name) %}
+{% endif %}
+{% endfor %}
+[default]
+action.zammad = 0
+{% if splunk_docker_alert_ntfy_url %}
+action.webhook = 1
+action.webhook.param.url = {{ splunk_docker_alert_ntfy_url }}{{ splunk_docker_alert_ntfy_query }}
+{% endif %}
+{% for stanza_name in report_stanzas %}
+
+[{{ stanza_name }}]
+action.webhook = 0
+{% endfor %}
