@@ -2,7 +2,7 @@
 """
 Guard the gpu_utilization_report status-topic report (savedsearches/27-gpu-utilization.j2).
 
-GPU utilization is published to the hub's status topic every 30 minutes as a
+Local LLM utilization is published to the hub's status topic every 30 minutes as a
 standard metrics report on the regular ntfy pipeline: the same delivery shape
 as the other status-topic stanzas -- status_delivery only, severity 1, no
 suppression, firing when the search returns at least one row -- so nothing
@@ -12,13 +12,18 @@ pages and no help-desk ticket opens.
    house allow_skew setting sit on their own lines.
 2. Delivery rides status_delivery alone: one webhook URL, on the status
    topic, never the alert topic, and no suppression that would drop runs.
-3. The search reads both raw utilization series with mstats in one-hour
-   buckets over the last 12 hours, per host, and folds each host into a
-   4-hour whole-percent average, a 12-point sparkline and an arrow for
-   the change over the last hour, in a single multi-line message field.
+3. The search reads the generated-token rate with mstats in one-hour
+   buckets over the last 12 hours, per serving lane, divides it by the
+   lane's measured maximum from role defaults, and folds each lane into a
+   4-hour whole-percent average with both figures shown, a 12-point
+   sparkline and an arrow for the change over the last hour, plus one
+   prompt cache rate line, in a single multi-line message field. It never
+   reads the driver's GPU busy percentage.
 4. The template carries no literal host name (pve-, jevans, or a dotted
-   domain) and no channel name: hosts come from the metric data, and the
+   domain) and no channel name: lanes come from the metric data, and the
    delivery URL comes from the shared status_delivery macro, not this file.
+5. Every lane in the maximum map appears in both case() expressions, and a
+   lane without a maximum is dropped instead of dividing by nothing.
 
 Run from repo root:
   python3 tests/templates/test_gpu_utilization_report.py
@@ -112,28 +117,45 @@ if "alert.suppress" in hub:
 if "priority=high" in hub:
     errors.append(f"FAIL: [{STANZA_NAME}] carries paging (keystone) delivery; it must use status_delivery only")
 
-# 3. search shape: both metrics in one-hour buckets over the last 12 hours,
-# per host, one message field
+# 3. search shape: token rate over the measured maximum in one-hour buckets over
+# the last 12 hours, per lane, plus the cache rate, one message field
 search = line_of(plain, "search") or ""
 required_search = (
     "| mstats",
-    "node_gpu_utilization_gpu_percent_all",
-    "macmon_gpu_active_ratio",
+    "rate_sum(vllm:generation_tokens_total)",
+    "rate_sum(vllm:prompt_tokens_cached_total)",
+    "rate_sum(vllm:prompt_tokens_total)",
     "WHERE index=*",
     "earliest=-12h@h",
+    "earliest=-4h@h",
     "span=1h",
-    "by host",
-    "* 100",
+    "by accelerator",
+    "100 * gen / max",
+    "| where isnotnull(max)",
+    "100 * c / p",
     "round(",
-    '"GPU utilization"',
+    '" of " . max . " tok/s) "',
+    '"Local LLM utilization, 4 h"',
     'mvjoin(lines, urldecode("%0A"))',
-    "| sort 0 host | stats list(line) as lines",
+    "| sort 0 accelerator | stats list(line) as lines",
     "| table message",
 )
 for fragment in required_search:
     if fragment not in search:
         errors.append(f"FAIL: the search is missing {fragment!r}")
 # eval has printf, not sprintf; a call to it fails the whole search
+for banned in ("node_gpu_utilization_gpu_percent_all", "macmon_gpu_active_ratio"):
+    if banned in search:
+        errors.append(f"FAIL: the search reads {banned}; driver busy time is not token utilization")
+max_map = DEFAULTS["splunk_docker_llm_token_max_tps"]
+expected_case = "case(" + ", ".join(f'accelerator=="{k}", {v}' for k, v in sorted(max_map.items())) + ")"
+if search.count(expected_case) != 2:
+    errors.append(f"FAIL: the search must carry {expected_case!r} exactly twice; found {search.count(expected_case)}")
+two_lane = stanza_body(render_master(splunk_docker_llm_token_max_tps={"lane-b": 41, "lane-a": 7})) or ""
+if 'case(accelerator=="lane-a", 7, accelerator=="lane-b", 41)' not in two_lane:
+    errors.append("FAIL: a two-lane maximum map does not render one sorted case() per lane")
+if "eval max = null()" not in (stanza_body(render_master(splunk_docker_llm_token_max_tps={})) or ""):
+    errors.append("FAIL: an empty maximum map must render null(), not an empty case()")
 if "sprintf(" in search:
     errors.append("FAIL: the search calls sprintf(), which is not an eval function")
 for mark in ("🟢", "🟡", "🔴"):
@@ -177,5 +199,5 @@ if errors:
 
 print("PASS: gpu_utilization_report renders once, on a 30-minute schedule with skew in effect,")
 print("     delivered to the status topic alone with no suppression, and its search")
-print("     reads both GPU utilization series per host with no literal hosts or channels.")
+print("     reads token utilization and the prompt cache rate per lane with no literal hosts or channels.")
 print("All tests passed.")
