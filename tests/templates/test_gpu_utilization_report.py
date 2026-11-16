@@ -12,9 +12,10 @@ pages and no help-desk ticket opens.
    house allow_skew setting sit on their own lines.
 2. Delivery rides status_delivery alone: one webhook URL, on the status
    topic, never the alert topic, and no suppression that would drop runs.
-3. The search reads both raw utilization series with mstats, one window
-   each (last 30 minutes, last 4 hours), per host, folded into a single
-   multi-line message field.
+3. The search reads both raw utilization series with mstats in one-hour
+   buckets over the last 12 hours, per host, and folds each host into a
+   4-hour whole-percent average, a 12-point sparkline and an arrow for
+   the change over the last hour, in a single multi-line message field.
 4. The template carries no literal host name (pve-, jevans, or a dotted
    domain) and no channel name: hosts come from the metric data, and the
    delivery URL comes from the shared status_delivery macro, not this file.
@@ -83,7 +84,7 @@ if occurrences != 1:
 REQUIRED_LINES = (
     "cron_schedule = */30 * * * *",
     "allow_skew = 5m",
-    "dispatch.earliest_time = -4h",
+    "dispatch.earliest_time = -12h",
     "dispatch.latest_time = now",
     "enableSched = 1",
     "is_visible = 1",
@@ -111,19 +112,19 @@ if "alert.suppress" in hub:
 if "priority=high" in hub:
     errors.append(f"FAIL: [{STANZA_NAME}] carries paging (keystone) delivery; it must use status_delivery only")
 
-# 3. search shape: two mstats windows, both metrics, per host, one message field
+# 3. search shape: both metrics in one-hour buckets over the last 12 hours,
+# per host, one message field
 search = line_of(plain, "search") or ""
 required_search = (
     "| mstats",
     "node_gpu_utilization_gpu_percent_all",
     "macmon_gpu_active_ratio",
     "WHERE index=*",
-    "earliest=-30m",
-    "earliest=-4h",
+    "earliest=-12h@h",
+    "span=1h",
     "by host",
     "* 100",
     "round(",
-    '"no data"',
     '"GPU utilization"',
     'mvjoin(lines, urldecode("%0A"))',
     "| sort 0 host | stats list(line) as lines",
@@ -138,6 +139,16 @@ if "sprintf(" in search:
 for mark in ("🟢", "🟡", "🔴"):
     if mark not in search:
         errors.append(f"FAIL: the search is missing the {mark} mark")
+# the 12-point sparkline and the change arrow: every bar and arrow must be
+# spelled out in the search, so the rendered lines can never go blank
+for bar in ("▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"):
+    if bar not in search:
+        errors.append(f"FAIL: the search is missing the sparkline bar {bar}")
+for arrow in ("↑", "↓", "→"):
+    if arrow not in search:
+        errors.append(f"FAIL: the search is missing the change arrow {arrow}")
+if "last 30 min" in search:
+    errors.append("FAIL: the search still carries the old 'last 30 min' wording")
 
 # 4. no literal hosts, no channel names, no address
 text = TEMPLATE.read_text()
