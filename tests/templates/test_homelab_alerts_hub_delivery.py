@@ -12,10 +12,11 @@ stanzas whose body sets action.zammad = 0), turns the inherited webhook back
 off -- a report with no alert condition would otherwise post to the hub on
 every scheduled run. The report list is parsed from the INSTALLED file at
 converge time, so this test runs the same parse over a fixture that copies
-the app's file shape. It also pins the task order in main.yml, because
-apps.yml deletes the whole app directory on every version upgrade: an
-overlay rendered before "Install apps and add-ons" would be wiped in the
-same run that wrote it.
+the app's file shape. It also pins the wiring: the include lives in
+tasks/main.yml directly after the "Install apps and add-ons" include (which
+deletes the whole app directory on every version upgrade, wiping an overlay
+rendered earlier), and the slurp and render tasks live in the included
+tasks/homelab_alerts_delivery.yml with the deployment contract below.
 
 Run from repo root:
   python3 tests/templates/test_homelab_alerts_hub_delivery.py
@@ -32,9 +33,9 @@ from _render_env import ansible_env
 
 ROOT = Path(__file__).parent.parent.parent
 TEMPLATES = ROOT / "roles/splunk_docker/templates"
-# The overlay tasks are factored into their own include file to keep main.yml
-# under its token limit; main.yml includes it right after the app install.
-OVERLAY_TASKS = ROOT / "roles/splunk_docker/tasks/homelab_alerts_hub_delivery.yml"
+MAIN_TASKS = ROOT / "roles/splunk_docker/tasks/main.yml"
+DELIVERY_TASKS = ROOT / "roles/splunk_docker/tasks/homelab_alerts_delivery.yml"
+DELIVERY_INCLUDE = "Deliver splunk-homelab-alerts detectors through the hub webhook"
 TEMPLATE_FILE = "homelab_alerts_app_delivery.conf.j2"
 OVERLAY_DEST_SUFFIX = "apps/splunk-homelab-alerts/local/savedsearches.conf"
 NTFY = "https://ntfy.example.test/keystone"
@@ -137,38 +138,32 @@ if "action.webhook.param.url" in empty:
 if value(stanza_body(empty, "default"), "action.zammad") != "0":
     errors.append("FAIL: empty-URL render lost the Zammad opt-out")
 
-# The overlay must be rendered after the app install include, or the
-# version-aware upgrade deletes it in the same run that wrote it.
-main_tasks = yaml.safe_load((ROOT / "roles/splunk_docker/tasks/main.yml").read_text())
-main_names = [t["name"] for t in main_tasks]
-if "Install apps and add-ons" not in main_names:
-    errors.append("FAIL: tasks/main.yml lost the 'Install apps and add-ons' task")
-overlay_include = next(
-    (
-        t
-        for t in main_tasks
-        if isinstance(t.get("ansible.builtin.include_tasks"), str)
-        and t["ansible.builtin.include_tasks"].endswith("homelab_alerts_hub_delivery.yml")
-    ),
-    None,
-)
-if overlay_include is None:
-    errors.append("FAIL: tasks/main.yml lost the homelab_alerts_hub_delivery.yml include")
-elif main_names.index(overlay_include["name"]) < main_names.index("Install apps and add-ons"):
-    errors.append("FAIL: the overlay renders before 'Install apps and add-ons', whose upgrade wipes it")
-
-tasks = yaml.safe_load(OVERLAY_TASKS.read_text())
+# The overlay must be included after the app install include, or the
+# version-aware upgrade deletes it in the same run that wrote it. The include
+# lives in main.yml; the slurp and render tasks live in the included file.
+tasks = yaml.safe_load(MAIN_TASKS.read_text())
 names = [t["name"] for t in tasks]
-for task in ("Read the installed splunk-homelab-alerts savedsearches.conf", "Deliver splunk-homelab-alerts detectors through the hub webhook"):
+for task in ("Install apps and add-ons", DELIVERY_INCLUDE):
     if task not in names:
-        errors.append(f"FAIL: tasks/homelab_alerts_hub_delivery.yml lost the {task!r} task")
+        errors.append(f"FAIL: tasks/main.yml lost the {task!r} task")
+if "Install apps and add-ons" in names and DELIVERY_INCLUDE in names:
+    if names.index(DELIVERY_INCLUDE) < names.index("Install apps and add-ons"):
+        errors.append("FAIL: the overlay include precedes 'Install apps and add-ons', whose upgrade wipes the overlay")
+include_task = next((t for t in tasks if t["name"] == DELIVERY_INCLUDE), {})
+if include_task.get("ansible.builtin.include_tasks") != "homelab_alerts_delivery.yml":
+    errors.append("FAIL: tasks/main.yml does not include homelab_alerts_delivery.yml")
+if "alerting" not in include_task.get("tags", []):
+    errors.append("FAIL: the overlay include is not tagged alerting, so --tags alerting never runs it")
+if not DELIVERY_TASKS.exists():
+    errors.append(f"FAIL: {DELIVERY_TASKS.relative_to(ROOT)} does not exist")
 
-by_name = {t["name"]: t for t in tasks}
+delivery_tasks = yaml.safe_load(DELIVERY_TASKS.read_text()) if DELIVERY_TASKS.exists() else []
+by_name = {t["name"]: t for t in delivery_tasks}
 slurp = by_name.get("Read the installed splunk-homelab-alerts savedsearches.conf")
 if not slurp or "default/savedsearches.conf" not in slurp.get("ansible.builtin.slurp", {}).get("src", ""):
     errors.append("FAIL: the overlay does not read the installed app's savedsearches.conf")
 
-overlay = by_name.get("Deliver splunk-homelab-alerts detectors through the hub webhook")
+overlay = by_name.get("Render the splunk-homelab-alerts delivery overlay")
 template_task = (overlay or {}).get("ansible.builtin.template", {})
 if template_task.get("src") != TEMPLATE_FILE:
     errors.append(f"FAIL: the overlay task does not render {TEMPLATE_FILE}")

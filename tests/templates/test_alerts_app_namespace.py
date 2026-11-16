@@ -23,7 +23,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent.parent
-TASKS = ROOT / "roles/splunk_docker/tasks/main.yml"
+# The alerting deployment moved out of tasks/main.yml into its own unit; the
+# savedsearches paths it guards live there now.
+TASKS = ROOT / "roles/splunk_docker/tasks/deploy_alerting.yml"
 
 APP_DEST = "apps/homelab_alerts/local/savedsearches.conf"
 
