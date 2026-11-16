@@ -1,0 +1,53 @@
+---
+# Delivery overlay for the packaged splunk-homelab-alerts app, included from
+# main.yml after "Install apps and add-ons" -- apps.yml deletes the whole app
+# directory on every version upgrade, so an overlay rendered before it is
+# wiped in the same run.
+#
+# The app ships its own default/savedsearches.conf whose [default] stanza
+# turns action.zammad on for every detector, but no Zammad alert action is
+# configured on this instance -- Zammad and Slack are reached only through
+# the ntfy hub webhook (see the header of savedsearches.conf.j2 and
+# assert_alerting_gates.yml), so as shipped those detectors deliver
+# nowhere. A same-app local/ file layers above the packaged default and
+# item-merges with it: the dead Zammad action goes off, the hub webhook
+# goes on, and every other packaged default (scheduling, tracking,
+# severities) is left untouched.
+#
+# A stanza whose own body sets action.zammad = 0 is one of the app's
+# scheduled reports, not a detector, and would inherit action.webhook = 1
+# from the [default] above -- posting to the hub on every scheduled run.
+# Each one is therefore re-disabled per stanza, derived from the INSTALLED
+# file at converge time: a hand-maintained copy here would drift from the
+# packaged app on its next release.
+
+- name: Read the installed splunk-homelab-alerts savedsearches.conf
+  ansible.builtin.slurp:
+    src: "{{ splunk_docker_etc_dir }}/apps/splunk-homelab-alerts/default/savedsearches.conf"
+  register: splunk_docker_homelab_alerts_app_savedsearches
+  failed_when: false  # app not installed -> the overlay tasks below skip
+  tags: [alerting]
+
+- name: Ensure the splunk-homelab-alerts app-local directory exists
+  ansible.builtin.file:
+    path: "{{ splunk_docker_etc_dir }}/apps/splunk-homelab-alerts/local"
+    state: directory
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0755'
+  when: splunk_docker_homelab_alerts_app_savedsearches.content is defined
+  tags: [alerting]
+
+- name: Render the splunk-homelab-alerts delivery overlay
+  ansible.builtin.template:
+    src: homelab_alerts_app_delivery.conf.j2
+    dest: "{{ splunk_docker_etc_dir }}/apps/splunk-homelab-alerts/local/savedsearches.conf"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  vars:
+    splunk_docker_homelab_alerts_app_conf: >-
+      {{ splunk_docker_homelab_alerts_app_savedsearches.content | b64decode }}
+  when: splunk_docker_homelab_alerts_app_savedsearches.content is defined
+  notify: Restart Splunk container
+  tags: [alerting]
