@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.122.1](https://github.com/dryvist/ansible-splunk/compare/v0.122.0...v0.122.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **splunk_docker:** report token utilization and prompt cache rate per LLM lane ([#888](https://github.com/dryvist/ansible-splunk/issues/888)) ([08dad26](https://github.com/dryvist/ansible-splunk/commit/08dad26580082525c2e7757dd29894fcd9832372))
+
 ## [0.122.0](https://github.com/dryvist/ansible-splunk/compare/v0.121.0...v0.122.0) (2026-11-16)
 
 
