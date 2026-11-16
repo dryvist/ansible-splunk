@@ -1,0 +1,37 @@
+---
+# The packaged splunk-homelab-alerts app enables a Zammad alert action in its
+# own [default] stanza, but no Zammad alert action is configured on this
+# instance -- every route runs through the ntfy hub webhook (savedsearches.conf.j2
+# header), so as shipped those detectors deliver nowhere. This overlay MUST run
+# after "Install apps and add-ons": apps.yml deletes the whole app directory on
+# every version upgrade, so an overlay written earlier is wiped in the same run.
+- name: Read the installed splunk-homelab-alerts savedsearches.conf
+  ansible.builtin.slurp:
+    src: "{{ splunk_docker_etc_dir }}/apps/splunk-homelab-alerts/default/savedsearches.conf"
+  register: splunk_docker_homelab_alerts_app_savedsearches
+  failed_when: false  # app not installed -> the overlay tasks below skip
+  tags: [alerting]
+
+- name: Ensure the splunk-homelab-alerts app-local directory exists
+  ansible.builtin.file:
+    path: "{{ splunk_docker_etc_dir }}/apps/splunk-homelab-alerts/local"
+    state: directory
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0755'
+  when: splunk_docker_homelab_alerts_app_savedsearches.content is defined
+  tags: [alerting]
+
+- name: Deliver splunk-homelab-alerts detectors through the hub webhook
+  ansible.builtin.template:
+    src: homelab_alerts_app_delivery.conf.j2
+    dest: "{{ splunk_docker_etc_dir }}/apps/splunk-homelab-alerts/local/savedsearches.conf"
+    owner: "{{ splunk_docker_user }}"
+    group: "{{ splunk_docker_group }}"
+    mode: '0644'
+  vars:
+    splunk_docker_homelab_alerts_app_conf: >-
+      {{ splunk_docker_homelab_alerts_app_savedsearches.content | b64decode }}
+  when: splunk_docker_homelab_alerts_app_savedsearches.content is defined
+  notify: Restart Splunk container
+  tags: [alerting]

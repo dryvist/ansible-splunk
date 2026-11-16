@@ -32,7 +32,9 @@ from _render_env import ansible_env
 
 ROOT = Path(__file__).parent.parent.parent
 TEMPLATES = ROOT / "roles/splunk_docker/templates"
-MAIN_TASKS = ROOT / "roles/splunk_docker/tasks/main.yml"
+# The overlay tasks are factored into their own include file to keep main.yml
+# under its token limit; main.yml includes it right after the app install.
+OVERLAY_TASKS = ROOT / "roles/splunk_docker/tasks/homelab_alerts_hub_delivery.yml"
 TEMPLATE_FILE = "homelab_alerts_app_delivery.conf.j2"
 OVERLAY_DEST_SUFFIX = "apps/splunk-homelab-alerts/local/savedsearches.conf"
 NTFY = "https://ntfy.example.test/keystone"
@@ -137,14 +139,29 @@ if value(stanza_body(empty, "default"), "action.zammad") != "0":
 
 # The overlay must be rendered after the app install include, or the
 # version-aware upgrade deletes it in the same run that wrote it.
-tasks = yaml.safe_load(MAIN_TASKS.read_text())
+main_tasks = yaml.safe_load((ROOT / "roles/splunk_docker/tasks/main.yml").read_text())
+main_names = [t["name"] for t in main_tasks]
+if "Install apps and add-ons" not in main_names:
+    errors.append("FAIL: tasks/main.yml lost the 'Install apps and add-ons' task")
+overlay_include = next(
+    (
+        t
+        for t in main_tasks
+        if isinstance(t.get("ansible.builtin.include_tasks"), str)
+        and t["ansible.builtin.include_tasks"].endswith("homelab_alerts_hub_delivery.yml")
+    ),
+    None,
+)
+if overlay_include is None:
+    errors.append("FAIL: tasks/main.yml lost the homelab_alerts_hub_delivery.yml include")
+elif main_names.index(overlay_include["name"]) < main_names.index("Install apps and add-ons"):
+    errors.append("FAIL: the overlay renders before 'Install apps and add-ons', whose upgrade wipes it")
+
+tasks = yaml.safe_load(OVERLAY_TASKS.read_text())
 names = [t["name"] for t in tasks]
-for task in ("Install apps and add-ons", "Deliver splunk-homelab-alerts detectors through the hub webhook"):
+for task in ("Read the installed splunk-homelab-alerts savedsearches.conf", "Deliver splunk-homelab-alerts detectors through the hub webhook"):
     if task not in names:
-        errors.append(f"FAIL: tasks/main.yml lost the {task!r} task")
-if "Install apps and add-ons" in names and "Deliver splunk-homelab-alerts detectors through the hub webhook" in names:
-    if names.index("Deliver splunk-homelab-alerts detectors through the hub webhook") < names.index("Install apps and add-ons"):
-        errors.append("FAIL: the overlay renders before 'Install apps and add-ons', whose upgrade wipes it")
+        errors.append(f"FAIL: tasks/homelab_alerts_hub_delivery.yml lost the {task!r} task")
 
 by_name = {t["name"]: t for t in tasks}
 slurp = by_name.get("Read the installed splunk-homelab-alerts savedsearches.conf")
