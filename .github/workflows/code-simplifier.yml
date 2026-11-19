@@ -18,5 +18,5 @@ concurrency:
 
 jobs:
   simplify:
-    uses: JacobPEvans/.github-ai/.github/workflows/cc-code-simplifier.yml@v2
+    uses: JacobPEvans/.github-ai/.github/workflows/cc-code-simplifier.yml@v3
     secrets: inherit

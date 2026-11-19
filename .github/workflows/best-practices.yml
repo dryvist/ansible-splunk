@@ -17,5 +17,5 @@ concurrency:
   cancel-in-progress: true
 jobs:
   best-practices:
-    uses: JacobPEvans/.github-ai/.github/workflows/best-practices.yml@v2
+    uses: JacobPEvans/.github-ai/.github/workflows/best-practices.yml@v3
     secrets: inherit
