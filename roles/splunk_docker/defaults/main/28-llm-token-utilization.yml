@@ -1,9 +1,0 @@
----
-# Maximum generated tokens per second for each local LLM lane, keyed by the
-# `accelerator` dimension of the serving metrics. The local LLM utilization report
-# divides the generated-token rate by this figure. Keep it equal to the maximum the
-# metrics store's token-utilization recording rule uses; a lane with no entry is left
-# out of the report. The figure is a round placeholder until a recorded benchmark run
-# replaces it.
-splunk_docker_llm_token_max_tps:
-  gpu-primary: 1000

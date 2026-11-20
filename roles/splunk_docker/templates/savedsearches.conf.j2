@@ -129,8 +129,6 @@ action.webhook.param.url = {{ splunk_docker_alert_ntfy_url.rsplit('/', 1)[0] }}/
 {% include 'savedsearches/26-guest-backup-freshness.j2' %}
 
 {% include 'savedsearches/19-unifi-wan.j2' %}
-
-{% include 'savedsearches/27-gpu-utilization.j2' %}
 {% if splunk_docker_alert_two_tiers_enabled | default(true) %}
 
 {# Non-critical alerts above trigger and are tracked but page nowhere; this
