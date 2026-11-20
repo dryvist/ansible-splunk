@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.123.0](https://github.com/jpe-ansible/ansible-splunk/compare/v0.122.3...v0.123.0) (2026-11-20)
+
+
+### Features
+
+* **splunk:** retire the GPU utilization saved search ([#903](https://github.com/jpe-ansible/ansible-splunk/issues/903)) ([ef2db90](https://github.com/jpe-ansible/ansible-splunk/commit/ef2db903d56688f84fafb9c760b20ff60fe84607))
+
 ## [0.122.3](https://github.com/dryvist/ansible-splunk/compare/v0.122.2...v0.122.3) (2026-11-16)
 
 
