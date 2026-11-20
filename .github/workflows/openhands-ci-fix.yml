@@ -1,0 +1,65 @@
+---
+name: OpenHands CI Fix
+
+# One caller for the .github-ai fix loop. A failed CI Gate run, or a dispatch with
+# failure_run_id, starts the CI fix (max 2 attempts per PR). A dispatch with conflict_pr
+# (from PR Reconcile) starts the conflict fix, which opens a v2 on the current base.
+on:
+  workflow_run:
+    workflows: ["CI Gate"] # the required merge gate (lint + Molecule Test)
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      failure_run_id:
+        description: ID of the failed run
+        type: string
+        default: ""
+      failure_head_branch:
+        description: Head branch of the failed run
+        type: string
+        default: ""
+      conflict_pr:
+        description: Number of a conflicted pull request
+        type: string
+        default: ""
+
+# The called workflows' jobs request exactly these scopes; a caller that grants less
+# fails at graph validation.
+permissions:
+  actions: read
+  contents: write
+  id-token: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  ci-fix:
+    if: github.event_name == 'workflow_run' || inputs.conflict_pr == ''
+    uses: JacobPEvans/.github-ai/.github/workflows/cc-ci-fix.yml@b69c358c0174d79617d3d5d0887f6d8c1e61814b # v2.34.0
+    secrets: inherit
+    with:
+      runner_label: ${{ (github.event_name != 'workflow_run' || github.event.workflow_run.head_repository.full_name == github.repository) && 'review' || 'ubuntu-latest' }}
+      agent: openhands
+      local_model: medium
+      # shortcut: every CI Gate completion counts as a run, so the default of 5 is spent on
+      # passing runs; lower this once the shared limit counts fix runs only.
+      daily_run_limit: "100"
+      failure_run_id: ${{ inputs.failure_run_id }}
+      failure_head_branch: ${{ inputs.failure_head_branch }}
+      # Empty on workflow_run, where the called workflow reads the event instead.
+      failure_conclusion: ${{ inputs.failure_run_id != '' && 'failure' || '' }}
+      failure_head_repository: ${{ inputs.failure_run_id != '' && github.repository || '' }}
+      repo_context: "Ansible playbooks and roles for Splunk deployment and configuration"
+      ci_structure: "CI Gate aggregates required checks: lint/validation and Molecule Test integration tests."
+
+  conflict-fix:
+    if: github.event_name == 'workflow_dispatch' && inputs.conflict_pr != ''
+    uses: JacobPEvans/.github-ai/.github/workflows/cc-conflict-fix.yml@b69c358c0174d79617d3d5d0887f6d8c1e61814b # v2.34.0
+    secrets: inherit
+    with:
+      conflict_pr: ${{ inputs.conflict_pr }}
+      runner_label: review
+      agent: openhands
+      local_model: medium
+      repo_context: "Ansible playbooks and roles for Splunk deployment and configuration"
+      ci_structure: "CI Gate aggregates required checks: lint/validation and Molecule Test integration tests."
